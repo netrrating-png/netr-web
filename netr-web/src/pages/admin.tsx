@@ -156,8 +156,8 @@ export default function Admin() {
     try {
       const [u, c, pending, r, p] = await Promise.all([
         supabase('profiles', 'id,username,full_name,netr_score,created_at', 'created_at.desc', 50),
-        supabase('courts', 'id,name,city,verified,surface,created_at', 'created_at.desc', 50),
-        supabase('courts', 'id,name,city,submitted_by,created_at', 'created_at.desc,verified.eq.false', 20),
+        supabase('courts', 'id,name,city,verified,surface,created_at', 'created_at.desc', 10000),
+        supabase('courts', 'id,name,city,submitted_by,created_at', 'created_at.desc,verified.eq.false', 10000),
         supabase('ratings', 'id,rater_id,rated_id,overall_score,created_at', 'created_at.desc', 50),
         supabase('feed_posts', 'id,author_id,content,created_at', 'created_at.desc', 30),
       ])
