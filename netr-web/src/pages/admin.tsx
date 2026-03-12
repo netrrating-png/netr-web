@@ -17,6 +17,9 @@ async function supabase(table: string, select = '*', order?: string, limit?: num
     headers: {
       apikey: SUPABASE_ANON,
       Authorization: `Bearer ${SUPABASE_ANON}`,
+      'Range-Unit': 'items',
+      'Range': '0-999',
+      'Prefer': 'count=none',
     },
   })
   return res.json()
