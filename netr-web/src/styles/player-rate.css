@@ -1,0 +1,172 @@
+.player-rate-page {
+  --app-bg: #040406;
+  --surface: #0A0A0E;
+  --card: #0F0F16;
+  --border: #1C1C28;
+  --accent: #39FF14;
+  --gold: #F5C542;
+  --text: #EEEEF5;
+  --sub: #6A6A82;
+  --muted: #2E2E3A;
+  --green: #30D158;
+
+  background: var(--app-bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes badgePulse {
+  0%,100% { box-shadow: 0 0 24px var(--accent), 0 0 50px #39FF1444; }
+  50% { box-shadow: 0 0 40px var(--accent), 0 0 90px #39FF1488, 0 0 140px #39FF1422; }
+}
+@keyframes scoreReveal {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes ringExpand {
+  0% { transform: scale(0.8); opacity: 0; }
+  60% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(200vh); }
+}
+@keyframes floatBall {
+  0%,100% { transform: translateY(0) rotate(0deg); }
+  33% { transform: translateY(-12px) rotate(8deg); }
+  66% { transform: translateY(-6px) rotate(-4deg); }
+}
+@keyframes ping {
+  0% { transform: scale(1); opacity: 0.8; }
+  80% { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+@keyframes orbDrift {
+  0%,100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.1); }
+  66% { transform: translate(-20px, 15px) scale(0.95); }
+}
+@keyframes borderBreath {
+  0%,100% { border-color: #39FF1422; }
+  50% { border-color: #39FF1455; }
+}
+
+.player-rate-page .bg-orbs { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.player-rate-page .orb { position: absolute; border-radius: 50%; filter: blur(80px); animation: orbDrift 14s ease-in-out infinite; }
+.player-rate-page .orb-1 { width:300px; height:300px; background:#39FF1412; top:-80px; right:-60px; }
+.player-rate-page .orb-2 { width:200px; height:200px; background:#39FF140A; bottom:200px; left:-50px; animation-delay:-5s; }
+.player-rate-page .orb-3 { width:150px; height:150px; background:#F5C54208; top:40%; right:20%; animation-delay:-9s; }
+
+.player-rate-page .scanline-wrap { position:fixed; inset:0; pointer-events:none; z-index:1; overflow:hidden; }
+.player-rate-page .scanline { position:absolute; left:0; right:0; height:2px; background: linear-gradient(90deg, transparent, #39FF1408, #39FF1415, #39FF1408, transparent); animation: scanline 10s linear infinite; }
+
+.player-rate-page .page { position: relative; z-index: 2; max-width: 420px; margin: 0 auto; padding: 0 20px 64px; }
+.player-rate-page .topbar { display: flex; align-items: center; justify-content: space-between; padding: 20px 0 0; animation: fadeIn 0.5s ease both; }
+.player-rate-page .logo { display:flex; align-items:center; gap:10px; margin:0; }
+.player-rate-page .logo-icon { width:36px; height:36px; border-radius:10px; background: linear-gradient(135deg, var(--accent), #00CC2A); display:flex; align-items:center; justify-content:center; box-shadow: 0 0 16px #39FF1466; }
+.player-rate-page .logo-icon span { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:18px; color:#040406; }
+.player-rate-page .logo-name { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:22px; letter-spacing:0.04em; }
+.player-rate-page .live-badge { display:flex; align-items:center; gap:6px; background:#39FF1412; border:1px solid #39FF1433; border-radius:99px; padding:5px 12px; font-size:11px; font-weight:600; color:var(--accent); letter-spacing:0.06em; text-transform:uppercase; }
+.player-rate-page .live-dot { width:6px; height:6px; border-radius:50%; background:var(--accent); position:relative; }
+.player-rate-page .live-dot::after { content:''; position:absolute; inset:-3px; border-radius:50%; background:var(--accent); opacity:0.4; animation: ping 1.5s ease-out infinite; }
+
+.player-rate-page .hero { text-align:center; padding:36px 0 20px; animation: fadeUp 0.6s cubic-bezier(0.16,1,0.3,1) 0.1s both; }
+.player-rate-page .hero-eyebrow { font-size:12px; font-weight:600; color:var(--sub); letter-spacing:0.12em; text-transform:uppercase; }
+.player-rate-page .hero-eyebrow span { color:var(--accent); }
+
+.player-rate-page .player-card { background: var(--card); border: 1px solid #39FF1422; border-radius: 24px; padding: 28px 24px 22px; position: relative; overflow: hidden; animation: fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.18s both, borderBreath 4s ease-in-out infinite; }
+.player-rate-page .player-card::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background: linear-gradient(90deg, transparent, #39FF1444, transparent); }
+.player-rate-page .player-top { display:flex; align-items:center; gap:18px; margin-bottom:22px; }
+.player-rate-page .avatar-wrap { position:relative; flex-shrink:0; }
+.player-rate-page .avatar { width:64px; height:64px; border-radius:50%; background: linear-gradient(135deg, #39FF1422, #39FF1408); border: 2px solid var(--accent); display:flex; align-items:center; justify-content:center; font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:22px; color:var(--accent); animation: badgePulse 3s ease-in-out infinite; }
+.player-rate-page .avatar-ring { position:absolute; inset:-5px; border-radius:50%; border:1px solid #39FF1433; animation: ringExpand 0.8s cubic-bezier(0.16,1,0.3,1) 0.5s both; }
+.player-rate-page .player-info { flex:1; text-align: left; }
+.player-rate-page .player-name { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:26px; line-height:1; color:var(--text); margin-bottom:4px; }
+.player-rate-page .player-handle { font-size:13px; color:var(--sub); margin-bottom:8px; }
+.player-rate-page .player-tags { display:flex; gap:6px; flex-wrap:wrap; }
+.player-rate-page .tag { font-size:10px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; padding:3px 9px; border-radius:99px; }
+.player-rate-page .tag-pos { background:#39FF1415; color:var(--accent); border:1px solid #39FF1433; }
+.player-rate-page .tag-tier { background:#F5C54215; color:var(--gold); border:1px solid #F5C54233; }
+
+.player-rate-page .score-block { display:flex; align-items:center; justify-content:space-between; background:#39FF1408; border:1px solid #39FF141E; border-radius:16px; padding:16px 18px; margin-bottom:20px; }
+.player-rate-page .score-left { flex:1; text-align: left; }
+.player-rate-page .score-label { font-size:10px; font-weight:600; color:var(--sub); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:2px; }
+.player-rate-page .score-value { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:52px; line-height:1; color:var(--accent); text-shadow:0 0 20px #39FF1466; animation: scoreReveal 0.8s cubic-bezier(0.16,1,0.3,1) 0.55s both; }
+.player-rate-page .score-tier { font-size:12px; font-weight:600; color:var(--green); margin-top:4px; }
+.player-rate-page .score-stats { display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
+.player-rate-page .stat-pill { display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:6px 12px; }
+.player-rate-page .stat-num { font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:18px; color:var(--text); line-height:1; }
+.player-rate-page .stat-lbl { font-size:10px; color:var(--sub); }
+
+.player-rate-page .cats-label { font-size:10px; font-weight:600; color:var(--sub); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:10px; text-align: left; }
+.player-rate-page .cat-row { display:flex; align-items:center; gap:10px; margin-bottom:7px; }
+.player-rate-page .cat-name { font-size:11px; font-weight:500; color:var(--sub); width:72px; flex-shrink:0; text-align: left; }
+.player-rate-page .cat-bar { flex:1; height:4px; background:var(--border); border-radius:99px; overflow:hidden; }
+.player-rate-page .cat-bar-fill { height:100%; border-radius:99px; background: linear-gradient(90deg, #39FF1488, #39FF14); width:0; transition: width 1.2s cubic-bezier(0.16,1,0.3,1); }
+.player-rate-page .cat-score { font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:14px; color:var(--accent); width:28px; text-align:right; flex-shrink:0; }
+
+.player-rate-page .rate-cta { margin-top:28px; text-align:center; animation: fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.3s both; }
+.player-rate-page .rate-heading { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:36px; line-height:1.05; color:var(--text); margin-bottom:10px; }
+.player-rate-page .rate-heading span { color:var(--accent); text-shadow:0 0 14px #39FF1466; }
+.player-rate-page .rate-sub { font-size:14px; color:var(--sub); line-height:1.65; margin-bottom:26px; padding:0 8px; }
+
+.player-rate-page .dl-btn { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; padding:17px 24px; background: linear-gradient(135deg, var(--accent), #00CC2A); border:none; border-radius:16px; color:#040406; font-family:'DM Sans',sans-serif; font-weight:700; font-size:16px; cursor:pointer; text-decoration:none; box-shadow:0 8px 32px #39FF1444; position:relative; overflow:hidden; transition: box-shadow 0.25s ease, transform 0.2s ease; margin-bottom:10px; }
+.player-rate-page .dl-btn:hover { box-shadow: 0 0 40px #39FF1488, 0 12px 40px #39FF1444; transform: translateY(-2px); }
+.player-rate-page .dl-sub { font-size:12px; color:var(--sub); text-align:center; margin-bottom:30px; line-height:1.7; }
+.player-rate-page .dl-sub strong { color:var(--text); font-weight:600; }
+
+.player-rate-page .account-notice { display:flex; align-items:flex-start; gap:12px; background:#F5C54210; border:1px solid #F5C54230; border-radius:14px; padding:14px 16px; margin-bottom:28px; animation: fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.38s both; text-align: left; }
+.player-rate-page .notice-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+.player-rate-page .notice-text { font-size:13px; color:var(--sub); line-height:1.55; }
+.player-rate-page .notice-text strong { color:var(--gold); font-weight:600; }
+
+.player-rate-page .how-section { animation: fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.42s both; }
+.player-rate-page .section-label { font-size:10px; font-weight:600; color:var(--sub); letter-spacing:0.14em; text-transform:uppercase; text-align:center; margin-bottom:16px; }
+.player-rate-page .steps { display:flex; flex-direction:column; gap:10px; }
+.player-rate-page .step { display:flex; align-items:flex-start; gap:16px; background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; transition: border-color 0.2s ease, transform 0.2s ease; text-align: left; }
+.player-rate-page .step:hover { border-color:#39FF1333; transform:translateX(3px); }
+.player-rate-page .step-icon { width:34px; height:34px; border-radius:10px; background:#39FF1412; border:1px solid #39FF1430; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+.player-rate-page .step-title { font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:16px; color:var(--text); margin-bottom:3px; }
+.player-rate-page .step-desc { font-size:12px; color:var(--sub); line-height:1.55; }
+
+.player-rate-page .trust-strip { display:flex; align-items:center; justify-content:center; gap:20px; margin:28px 0; animation: fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.5s both; }
+.player-rate-page .trust-item { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.player-rate-page .trust-num { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:22px; color:var(--text); }
+.player-rate-page .trust-lbl { font-size:10px; color:var(--sub); text-align:center; }
+.player-rate-page .trust-div { width:1px; height:32px; background:var(--border); }
+
+.player-rate-page .courts-section { animation: fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.55s both; }
+.player-rate-page .courts-row { display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; margin-top:14px; -webkit-overflow-scrolling:touch; }
+.player-rate-page .courts-row::-webkit-scrollbar { display:none; }
+.player-rate-page .court-chip { display:flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 14px; white-space:nowrap; flex-shrink:0; transition:border-color 0.2s ease; }
+.player-rate-page .court-chip:hover { border-color:#39FF1333; }
+.player-rate-page .court-dot { width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 6px var(--accent); flex-shrink:0; }
+.player-rate-page .court-name { font-size:12px; font-weight:600; color:var(--text); margin:0; }
+.player-rate-page .court-city { font-size:11px; color:var(--sub); margin:0; }
+
+.player-rate-page .bottom-cta { margin-top:28px; animation: fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.6s both; }
+.player-rate-page .bottom-cta-label { font-size:11px; color:var(--sub); text-align:center; margin-bottom:14px; line-height:1.6; }
+.player-rate-page .bottom-cta-label span { color:var(--accent); font-weight:600; }
+
+.player-rate-page .footer { margin-top:36px; text-align:center; animation: fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.65s both; }
+.player-rate-page .footer-logo { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:28px; color:var(--accent); text-shadow:0 0 12px #39FF1466; letter-spacing:0.04em; margin-bottom:6px; }
+.player-rate-page .footer-tagline { font-size:13px; color:var(--sub); margin-bottom:16px; }
+.player-rate-page .footer-links { display:flex; align-items:center; justify-content:center; gap:16px; font-size:12px; }
+.player-rate-page .footer-links a { color:var(--muted); text-decoration:none; transition:color 0.2s; }
+.player-rate-page .footer-links a:hover { color:var(--sub); }
+
+.player-rate-page .float-ball { position:fixed; bottom:80px; right:20px; font-size:32px; pointer-events:none; z-index:10; opacity:0.55; animation: floatBall 4s ease-in-out infinite; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .player-rate-page *, .player-rate-page *::before, .player-rate-page *::after { animation-duration:0.01ms !important; }
+}
