@@ -16,7 +16,7 @@ export default function PlayerRate() {
   const avatar   = (router.query.avatar  as string) || 'MT'
 
   const cats = {
-    scoring:     parseFloat((router.query.c_scoring     as string) || '7.2'),
+    shooting:    parseFloat((router.query.c_shooting    as string) || '7.2'),
     defense:     parseFloat((router.query.c_defense     as string) || '6.1'),
     handles:     parseFloat((router.query.c_handles     as string) || '7.8'),
     playmaking:  parseFloat((router.query.c_playmaking  as string) || '8.0'),
@@ -56,29 +56,34 @@ export default function PlayerRate() {
   }, [])
 
   const tier = (s: number) => {
-    if (s >= 9.5) return 'NBA Level'
-    if (s >= 9.0) return 'Elite Pro'
+    if (s >= 9.5) return 'In The League'
+    if (s >= 9.0) return 'Certified'
     if (s >= 8.0) return 'Elite'
-    if (s >= 7.0) return 'D3 Level'
-    if (s >= 6.0) return 'Park Legend'
-    if (s >= 5.0) return 'Park Dominant'
-    if (s >= 4.0) return 'Above Average'
-    if (s >= 3.0) return 'Recreational'
-    return 'Developing'
+    if (s >= 7.0) return 'Built Different'
+    if (s >= 6.0) return 'Hooper'
+    if (s >= 5.0) return 'Got Game'
+    if (s >= 4.0) return 'Prospect'
+    if (s >= 3.0) return 'On The Come Up'
+    return 'Fresh Laces'
   }
 
   const scoreColor = (s: number) => {
-    if (s >= 7) return '#30D158'
-    if (s >= 5) return '#39FF14'
-    if (s >= 3.5) return '#F5C542'
-    return '#FF453A'
+    if (s >= 9.5) return '#C40010'
+    if (s >= 9.0) return '#FF3B30'
+    if (s >= 8.0) return '#FF7A00'
+    if (s >= 7.0) return '#FFC247'
+    if (s >= 6.0) return '#39FF14'
+    if (s >= 5.0) return '#2ECC71'
+    if (s >= 4.0) return '#2DA8FF'
+    if (s >= 3.0) return '#7B9FFF'
+    return '#9B8BFF'
   }
 
   const c = scoreColor(score)
   const playerTier = tier(score)
 
   const catLabels: Record<string, string> = {
-    scoring: 'Scoring', defense: 'Defense', handles: 'Handles',
+    shooting: 'Shooting', defense: 'Defense', handles: 'Handles',
     playmaking: 'Playmaking', finishing: 'Finishing', rebounding: 'Boards', iq: 'IQ'
   }
 
@@ -171,7 +176,7 @@ export default function PlayerRate() {
                 <div className="cat-row" key={key}>
                   <div className="cat-name">{catLabels[key]}</div>
                   <div className="cat-bar">
-                    <div className="cat-bar-fill" style={{ width: barsAnimated ? `${(val / 10) * 100}%` : '0%' }} />
+                    <div className="cat-bar-fill" style={{ width: barsAnimated ? `${(val / 9.9) * 100}%` : '0%' }} />
                   </div>
                   <div className="cat-score">{val.toFixed(1)}</div>
                 </div>

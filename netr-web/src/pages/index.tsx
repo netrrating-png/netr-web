@@ -288,6 +288,14 @@ export default function Home() {
         .footer-links a{font-size:12px;color:var(--sub);letter-spacing:.05em;transition:color .2s;text-decoration:none;}
         .footer-links a:hover{color:var(--text)}
         .footer-copy{font-size:11px;color:var(--muted)}
+        #crews{background:var(--surface)}
+        .crews-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+        .crew-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px 20px;text-align:center;transition:transform .25s,border-color .25s,box-shadow .25s;position:relative;overflow:hidden;}
+        .crew-card:hover{transform:translateY(-6px);border-color:#39FF1444;box-shadow:0 20px 56px rgba(57,255,20,.1)}
+        .crew-icon-wrap{font-size:32px;margin-bottom:14px;}
+        .crew-name{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:20px;text-transform:uppercase;margin-bottom:8px;}
+        .crew-desc{font-size:13px;color:var(--sub);line-height:1.6}
+        @media(max-width:640px){.crews-grid{grid-template-columns:repeat(2,1fr)}}
         @media(max-width:480px){.section{padding:72px 20px}}
       `}</style>
 
@@ -305,6 +313,7 @@ export default function Home() {
         <div className="nav-links">
           <a href="#how">How It Works</a>
           <a href="#scale">Rating Scale</a>
+          <a href="#crews">Crews</a>
           <a href={TESTFLIGHT_URL} target="_blank" rel="noopener noreferrer"><button className="btn-cta">Get the App</button></a>
         </div>
       </nav>
@@ -321,9 +330,9 @@ export default function Home() {
           </div>
           <div className="score-badges">
             {([
-              {id:'1',target:6.8,color:'#39FF14',name:'Marcus T.',meta:'@marc_t · PG · Harlem',tier:'Park Legend'},
+              {id:'1',target:6.8,color:'#39FF14',name:'Marcus T.',meta:'@marc_t · PG · Harlem',tier:'Hooper'},
               {id:'2',target:8.4,color:'#F5C542',name:'K. Johnson',meta:'@kj_hoops · SF · Brooklyn',tier:'Elite'},
-              {id:'3',target:7.9,color:'#FF7A00',name:'D. Williams',meta:'@dre_w · SG · Queens',tier:'Elite'},
+              {id:'3',target:7.9,color:'#FF7A00',name:'D. Williams',meta:'@dre_w · SG · Queens',tier:'Built Different'},
             ] as const).map(p=>(
               <div className="score-badge-card" key={p.id}>
                 <div className="netr-ring">
@@ -373,11 +382,12 @@ export default function Home() {
                 <div className="step-icon-wrap">🏀</div><div className="step-num">Step 02</div>
                 <div className="step-name">Find a Run</div>
                 <p className="step-desc">Open NETR and see active games at courts near you. Join by QR code or 6-digit join code. Up to 10 players per game.</p>
+                <div className="step-note">New: Use Make Teams to auto-split players into balanced 2v2–5v5 teams before tip-off.</div>
               </div>
               <div className="step-card reveal" style={{transitionDelay:'.2s'}}>
                 <div className="step-icon-wrap">⭐</div><div className="step-num">Step 03</div>
                 <div className="step-name">Rate Teammates</div>
-                <p className="step-desc">After the game, rate every player across 7 skill categories: Scoring, Defense, Handles, Passing, IQ, Athleticism, and Finishing.</p>
+                <p className="step-desc">After the game, rate every player across 7 skill categories: Shooting, Defense, Handles, Playmaking, Rebounding, Basketball IQ, and Finishing.</p>
               </div>
               <div className="step-card reveal" style={{transitionDelay:'.3s'}}>
                 <div className="step-icon-wrap">📈</div><div className="step-num">Step 04</div>
@@ -404,19 +414,19 @@ export default function Home() {
           <div className="section-head">
             <span className="label-tag reveal">The Scale</span>
             <h2 className="section-title reveal">Know Where You Stand</h2>
-            <p className="section-sub reveal">9 tiers. Every score earned through peer ratings. No self-rating. No guessing.</p>
+            <p className="section-sub reveal">9 tiers. Scale runs 2.0–9.9. Every point earned through peer ratings — never self-rated.</p>
           </div>
           <div className="tier-list">
             {[
-              {range:'9.5–9.9',name:'NBA Level',sub:'Professional caliber',color:'#C40010',w:'100%',bg:'linear-gradient(90deg,#C40010,#FF1A2E)'},
-              {range:'9.0–9.4',name:'Elite Pro',sub:'D1 / Pro-Am circuit',color:'#FF3B30',w:'93%',bg:'linear-gradient(90deg,#FF3B30,#FF6B5F)'},
-              {range:'8.0–8.9',name:'Elite',sub:'D2/D3 college level',color:'#FF7A00',w:'85%',bg:'linear-gradient(90deg,#FF7A00,#FFA040)'},
-              {range:'7.0–7.9',name:'D3 Level',sub:'Runs the court consistently',color:'#FFC247',w:'74%',bg:'linear-gradient(90deg,#FFC247,#FFD47A)'},
-              {range:'6.0–6.9',name:'Park Legend',sub:'Known face at the court',color:'#39FF14',w:'63%',bg:'linear-gradient(90deg,#39FF14,#70FF50)'},
-              {range:'5.0–5.9',name:'Park Dominant',sub:'Holds their own every run',color:'#2ECC71',w:'52%',bg:'linear-gradient(90deg,#2ECC71,#52E090)'},
-              {range:'4.0–4.9',name:'Above Average',sub:'Competitive rec player',color:'#2DA8FF',w:'42%',bg:'linear-gradient(90deg,#2DA8FF,#60C0FF)'},
-              {range:'3.0–3.9',name:'Recreational',sub:'Still learning the game',color:'#6DA8FF',w:'30%',bg:'linear-gradient(90deg,#6DA8FF,#95C2FF)'},
-              {range:'1.0–2.9',name:'Just Getting Started',sub:'Everyone starts somewhere',color:'#9B8BFF',w:'18%',bg:'linear-gradient(90deg,#9B8BFF,#B8ABFF)'},
+              {range:'9.5–9.9',name:'In The League',sub:'Verified pros only',color:'#C40010',w:'100%',bg:'linear-gradient(90deg,#C40010,#FF1A2E)'},
+              {range:'9.0–9.4',name:'Certified',sub:'Semi-pro / Pro-Am',color:'#FF3B30',w:'93%',bg:'linear-gradient(90deg,#FF3B30,#FF6B5F)'},
+              {range:'8.0–8.9',name:'Elite',sub:'Post-college level',color:'#FF7A00',w:'85%',bg:'linear-gradient(90deg,#FF7A00,#FFA040)'},
+              {range:'7.0–7.9',name:'Built Different',sub:'HS Varsity / college-bound',color:'#FFC247',w:'74%',bg:'linear-gradient(90deg,#FFC247,#FFD47A)'},
+              {range:'6.0–6.9',name:'Hooper',sub:'HS JV to Varsity range',color:'#39FF14',w:'63%',bg:'linear-gradient(90deg,#39FF14,#70FF50)'},
+              {range:'5.0–5.9',name:'Got Game',sub:'Rec league to HS JV',color:'#2ECC71',w:'52%',bg:'linear-gradient(90deg,#2ECC71,#52E090)'},
+              {range:'4.0–4.9',name:'Prospect',sub:'Casual organized play',color:'#2DA8FF',w:'42%',bg:'linear-gradient(90deg,#2DA8FF,#60C0FF)'},
+              {range:'3.0–3.9',name:'On The Come Up',sub:'Avg pickup player',color:'#7B9FFF',w:'30%',bg:'linear-gradient(90deg,#7B9FFF,#95C2FF)'},
+              {range:'2.0–2.9',name:'Fresh Laces',sub:'New to the game',color:'#9B8BFF',w:'18%',bg:'linear-gradient(90deg,#9B8BFF,#B8ABFF)'},
             ].map((t,i)=>(
               <div className="tier-row reveal" key={t.name} style={{transitionDelay:`${i*.05}s`} as React.CSSProperties}>
                 <div style={{position:'absolute',left:0,top:0,bottom:0,width:'3px',background:t.color,borderRadius:'99px 0 0 99px'}}/>
@@ -477,6 +487,32 @@ export default function Home() {
               <div className="rep-card reveal" key={r.name} style={{transitionDelay:`${r.delay}s`}}>
                 <div className="rep-icon-wrap">{r.icon}</div>
                 <div><div className="rep-name">{r.name}</div><div className="rep-desc">{r.desc}</div></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="court-divider" />
+
+      <section id="crews">
+        <div className="section">
+          <div className="section-head">
+            <span className="label-tag reveal">New Feature</span>
+            <h2 className="section-title reveal">Run With Your Crew.</h2>
+            <p className="section-sub reveal">Create or join a crew. Track your squad&apos;s collective NETR score, climb the leaderboard together, and stay locked in with group chat.</p>
+          </div>
+          <div className="crews-grid reveal">
+            {[
+              {icon:'🏆',name:'Crew Leaderboard',desc:'Every crew member\'s NETR score stacks. See how your crew ranks against everyone else on the app.'},
+              {icon:'💬',name:'Crew Chat',desc:'Built-in group chat for your crew. Coordinate runs, talk trash, plan sessions — all in one place.'},
+              {icon:'🔍',name:'Find & Join',desc:'Search for existing crews or create your own. Invite your guys by name — no long codes.'},
+              {icon:'🏅',name:'Crew Identity',desc:'Your crew has its own name, profile, and rep. Build something real with the people you run with.'},
+            ].map((c,i)=>(
+              <div className="crew-card reveal" key={c.name} style={{transitionDelay:`${i*.08}s`}}>
+                <div className="crew-icon-wrap">{c.icon}</div>
+                <div className="crew-name">{c.name}</div>
+                <div className="crew-desc">{c.desc}</div>
               </div>
             ))}
           </div>
