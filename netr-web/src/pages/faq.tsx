@@ -17,11 +17,7 @@ const faqs: { section: string; items: { q: string; a: string }[] }[] = [
       },
       {
         q: 'Is NETR free?',
-        a: 'Yes — NETR is free to download and use. We\'re currently in iOS beta for NYC.',
-      },
-      {
-        q: 'Is NETR only in NYC right now?',
-        a: 'We\'re NYC-first. Courts across all five boroughs are already loaded in the app. Expansion to other cities is coming — drop your city in the waitlist on the home page so we know where to go next.',
+        a: 'Yes — NETR is free to download and use.',
       },
     ],
   },
@@ -59,7 +55,7 @@ const faqs: { section: string; items: { q: string; a: string }[] }[] = [
     items: [
       {
         q: 'How do I join a game?',
-        a: 'Open NETR and see active games at courts near you. Join by scanning the host\'s QR code or entering the 6-digit join code. Up to 10 players per game session.',
+        a: 'Open NETR and see active games at courts near you. Join by scanning the host\'s QR code or entering the 6-digit join code. Open run sessions support up to 50 players.',
       },
       {
         q: 'How do I host a game?',
@@ -93,7 +89,7 @@ const faqs: { section: string; items: { q: string; a: string }[] }[] = [
       },
       {
         q: 'How do I create or join a crew?',
-        a: 'In the app, search for existing crews by name or create your own. Invite players directly by their username — no long invite codes.',
+        a: 'To join an existing crew, search for it by name in the app then enter the crew code that the host created. To start your own, tap "Create Crew," set it up, and share your code with your guys.',
       },
     ],
   },
@@ -106,7 +102,16 @@ export default function FAQ() {
     const nav = document.getElementById('faq-nav') as HTMLElement
     const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 50)
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+
+    const cur = document.getElementById('cursor') as HTMLElement
+    const trail = document.getElementById('cursor-trail') as HTMLElement
+    let mx = 0, my = 0, tx = 0, ty = 0, rafT: number
+    const onMove = (e: MouseEvent) => { mx = e.clientX; my = e.clientY; cur.style.left = mx+'px'; cur.style.top = my+'px' }
+    document.addEventListener('mousemove', onMove)
+    const animTrail = () => { tx += (mx-tx)*.14; ty += (my-ty)*.14; trail.style.left=tx+'px'; trail.style.top=ty+'px'; rafT=requestAnimationFrame(animTrail) }
+    rafT = requestAnimationFrame(animTrail)
+
+    return () => { window.removeEventListener('scroll', onScroll); document.removeEventListener('mousemove', onMove); cancelAnimationFrame(rafT) }
   }, [])
 
   return (
@@ -124,11 +129,16 @@ export default function FAQ() {
         :root{--bg:#040406;--surface:#08080D;--card:#0D0D14;--border:#1A1A28;--accent:#39FF14;--text:#EEEEF5;--sub:#5A5A78;--muted:#222232;}
         html{scroll-behavior:smooth}
         body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow-x:hidden;}
+        @media(hover:hover){body{cursor:none}}
+        #cursor{position:fixed;width:20px;height:20px;border-radius:50%;background:var(--accent);pointer-events:none;z-index:9999;transform:translate(-50%,-50%);box-shadow:0 0 12px var(--accent),0 0 30px #39FF1466;transition:width .15s,height .15s,background .15s;mix-blend-mode:screen;}
+        #cursor-trail{position:fixed;width:40px;height:40px;border-radius:50%;border:1px solid #39FF1455;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);}
+        body:has(a:hover) #cursor,body:has(button:hover) #cursor{width:36px;height:36px;background:#fff;}
+        @media(hover:none){#cursor,#cursor-trail{display:none}}
         #faq-nav{position:fixed;top:0;left:0;right:0;z-index:500;padding:0 48px;height:64px;display:flex;align-items:center;justify-content:space-between;transition:background .3s,border-color .3s;border-bottom:1px solid transparent;}
         #faq-nav.scrolled{background:rgba(4,4,6,.92);backdrop-filter:blur(24px);border-bottom-color:var(--border);}
         .nav-logo{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:30px;color:var(--accent);text-shadow:0 0 16px #39FF1499;letter-spacing:.02em;text-decoration:none;}
-        .nav-links{display:flex;align-items:center;gap:36px}
-        .nav-links a{font-size:12px;font-weight:600;color:var(--sub);letter-spacing:.1em;text-transform:uppercase;transition:color .2s;text-decoration:none;}
+        .nav-links{display:flex;align-items:center;gap:22px}
+        .nav-links a{font-size:11px;font-weight:600;color:var(--sub);letter-spacing:.08em;text-transform:uppercase;transition:color .2s;text-decoration:none;}
         .nav-links a:hover{color:var(--text)}
         .btn-cta{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;letter-spacing:.1em;text-transform:uppercase;padding:10px 24px;border-radius:8px;border:none;cursor:pointer;background:linear-gradient(135deg,#39FF14,#00CC22);color:#040406;transition:box-shadow .25s,transform .2s;}
         .btn-cta:hover{box-shadow:0 0 28px #39FF1488,0 6px 24px #39FF1444;transform:translateY(-2px);}
@@ -160,12 +170,18 @@ export default function FAQ() {
         .footer-copy{font-size:11px;color:var(--muted)}
       `}</style>
 
+      <div id="cursor" />
+      <div id="cursor-trail" />
+
       <nav id="faq-nav">
         <a href="/" className="nav-logo">NETR</a>
         <div className="nav-links">
           <a href="/#how">How It Works</a>
+          <a href="/#selfassess">Self-Assessment</a>
           <a href="/#scale">Rating Scale</a>
+          <a href="/#vibe">Vibe Score</a>
           <a href="/#crews">Crews</a>
+          <a href="/#rep">Court Rep</a>
           <a href="/faq">FAQ</a>
           <a href={TESTFLIGHT_URL} target="_blank" rel="noopener noreferrer"><button className="btn-cta">Get the App</button></a>
         </div>

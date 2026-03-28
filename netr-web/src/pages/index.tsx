@@ -175,8 +175,8 @@ export default function Home() {
         .nav-logo{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:30px;color:var(--accent);text-shadow:0 0 16px #39FF1499;letter-spacing:.02em;position:relative;}
         .nav-logo::after{content:'';position:absolute;bottom:-2px;left:0;right:0;height:2px;background:var(--accent);box-shadow:0 0 8px var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .3s ease;}
         .nav-logo:hover::after{transform:scaleX(1)}
-        .nav-links{display:flex;align-items:center;gap:36px}
-        .nav-links a{font-size:12px;font-weight:600;color:var(--sub);letter-spacing:.1em;text-transform:uppercase;transition:color .2s;text-decoration:none;}
+        .nav-links{display:flex;align-items:center;gap:22px}
+        .nav-links a{font-size:11px;font-weight:600;color:var(--sub);letter-spacing:.08em;text-transform:uppercase;transition:color .2s;text-decoration:none;}
         .nav-links a:hover{color:var(--text)}
         .btn-cta{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;letter-spacing:.1em;text-transform:uppercase;padding:10px 24px;border-radius:8px;border:none;cursor:pointer;background:linear-gradient(135deg,#39FF14,#00CC22);color:#040406;transition:box-shadow .25s,transform .2s;}
         .btn-cta:hover{box-shadow:0 0 28px #39FF1488,0 6px 24px #39FF1444;transform:translateY(-2px);}
@@ -341,8 +341,11 @@ export default function Home() {
         <div className="nav-logo">NETR</div>
         <div className="nav-links">
           <a href="#how">How It Works</a>
+          <a href="#selfassess">Self-Assessment</a>
           <a href="#scale">Rating Scale</a>
+          <a href="#vibe">Vibe Score</a>
           <a href="#crews">Crews</a>
+          <a href="#rep">Court Rep</a>
           <a href="/faq">FAQ</a>
           <a href={TESTFLIGHT_URL} target="_blank" rel="noopener noreferrer"><button className="btn-cta">Get the App</button></a>
         </div>
@@ -375,9 +378,9 @@ export default function Home() {
           </div>
           <div className="score-badges">
             {([
-              {id:'1',target:6.8,color:'#39FF14',name:'Marcus T.',meta:'@marc_t · PG · Harlem',tier:'Hooper'},
-              {id:'2',target:8.4,color:'#F5C542',name:'K. Johnson',meta:'@kj_hoops · SF · Brooklyn',tier:'Elite'},
-              {id:'3',target:7.9,color:'#FF7A00',name:'D. Williams',meta:'@dre_w · SG · Queens',tier:'Built Different'},
+              {id:'1',target:3.5,color:'#7B9FFF',name:'D. Reyes',meta:'@d_reyes · SG · Bronx',tier:'On The Come Up'},
+              {id:'2',target:6.5,color:'#39FF14',name:'T. Morris',meta:'@t_mo · PG · Brooklyn',tier:'Hooper'},
+              {id:'3',target:8.2,color:'#FF7A00',name:'A. Brooks',meta:'@abrook · SF · Harlem',tier:'Elite'},
             ] as const).map(p=>(
               <div className="score-badge-card" key={p.id}>
                 <div className="netr-ring">
