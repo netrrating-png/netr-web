@@ -449,7 +449,7 @@ export default function Home() {
           <a href="#crews">Crews</a>
           <a href="#rep">Court Rep</a>
           <a href="/faq">FAQ</a>
-          <a href={TESTFLIGHT_URL} target="_blank" rel="noopener noreferrer"><button className="btn-cta">Get the App</button></a>
+          <a href="#waitlist"><button className="btn-cta">Join Waitlist</button></a>
         </div>
         <button className={`hamburger${menuOpen ? ' open' : ''}`} onClick={() => setMenuOpen(o => !o)} aria-label="Menu">
           <span/><span/><span/>
@@ -464,8 +464,8 @@ export default function Home() {
         <a href="#crews" onClick={closeMenu}>Crews</a>
         <a href="#rep" onClick={closeMenu}>Court Rep</a>
         <a href="/faq" onClick={closeMenu}>FAQ</a>
-        <a href={TESTFLIGHT_URL} target="_blank" rel="noopener noreferrer" onClick={closeMenu}>
-          <button className="mob-cta">Get the App</button>
+        <a href="#waitlist" onClick={closeMenu}>
+          <button className="mob-cta">Join Waitlist</button>
         </a>
       </div>
 
@@ -479,7 +479,7 @@ export default function Home() {
           <h1 className="hero-title">Your Rep.<br /><span className="line2">Built on the Court.</span></h1>
           <p className="hero-sub">The first peer-to-peer basketball rating system. Play pickup. Get rated by teammates. Build a verified score that follows you everywhere.</p>
           <div className="hero-btns">
-            <a href={TESTFLIGHT_URL} target="_blank" rel="noopener noreferrer"><button className="btn-primary btn-magnetic">Download the App</button></a>
+            <a href="#waitlist"><button className="btn-primary btn-magnetic">Join Waitlist</button></a>
             <a href="#how"><button className="btn-ghost btn-magnetic">See How It Works</button></a>
           </div>
           <div className="score-badges">
