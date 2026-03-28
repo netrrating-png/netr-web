@@ -117,14 +117,51 @@ export default function Home() {
     const onScroll=()=>nav.classList.toggle('scrolled',window.scrollY>50)
     window.addEventListener('scroll',onScroll,{passive:true})
 
+    // SCROLL PROGRESS BAR
+    const progressBar=document.getElementById('progress-bar') as HTMLElement
+    const onScrollProgress=()=>{ const sc=document.documentElement.scrollTop,h=document.documentElement.scrollHeight-document.documentElement.clientHeight; progressBar.style.width=(sc/h*100)+'%' }
+    window.addEventListener('scroll',onScrollProgress,{passive:true})
+
+    // HERO SPOTLIGHT
+    const spotlight=document.getElementById('hero-spotlight') as HTMLElement
+    const heroEl=document.getElementById('hero') as HTMLElement
+    const onHeroMove=(e:MouseEvent)=>{ const r=heroEl.getBoundingClientRect(); spotlight.style.background=`radial-gradient(700px circle at ${e.clientX-r.left}px ${e.clientY-r.top}px,#39FF1418,transparent 60%)`; spotlight.style.opacity='1' }
+    const onHeroLeave=()=>{ spotlight.style.opacity='0' }
+    heroEl.addEventListener('mousemove',onHeroMove)
+    heroEl.addEventListener('mouseleave',onHeroLeave)
+
+    // 3D CARD TILT
+    document.querySelectorAll('.tilt').forEach(el=>{
+      const card=el as HTMLElement
+      card.addEventListener('mousemove',(ev:MouseEvent)=>{ const r=card.getBoundingClientRect(),x=(ev.clientX-r.left)/r.width-.5,y=(ev.clientY-r.top)/r.height-.5; card.style.transform=`perspective(900px) rotateY(${x*10}deg) rotateX(${-y*10}deg) translateZ(8px)` })
+      card.addEventListener('mouseleave',()=>{ card.style.transform='' })
+    })
+
+    // MAGNETIC BUTTONS
+    document.querySelectorAll('.btn-magnetic').forEach(btn=>{
+      const el=btn as HTMLElement
+      el.addEventListener('mousemove',(ev:MouseEvent)=>{ const r=el.getBoundingClientRect(),x=(ev.clientX-r.left-r.width/2)*.28,y=(ev.clientY-r.top-r.height/2)*.28; el.style.transform=`translate(${x}px,${y}px)` })
+      el.addEventListener('mouseleave',()=>{ el.style.transform='' })
+    })
+
     // SCROLL REVEAL
     const ro=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');if((e.target as HTMLElement).id==='stepLine')e.target.classList.add('lit');ro.unobserve(e.target)}})},{threshold:0.1})
     document.querySelectorAll('.reveal,.reveal-left,.reveal-right').forEach(el=>ro.observe(el))
     const sl=document.getElementById('stepLine'); if(sl)ro.observe(sl)
 
+    // STAGGER REVEAL
+    const so=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');so.unobserve(e.target)}})},{threshold:0.12})
+    document.querySelectorAll('.stagger').forEach(el=>so.observe(el))
+
     // COUNT UP
-    const co=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){const el=e.target as HTMLElement,t=parseInt(el.dataset.t||'0'),dur=1800,s=performance.now();const step=(now:number)=>{const p=Math.min((now-s)/dur,1),ea=1-Math.pow(1-p,3);el.textContent=Math.round(ea*t).toLocaleString();if(p<1)requestAnimationFrame(step)};requestAnimationFrame(step);co.unobserve(e.target)}})},{threshold:.5})
+    const co=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){const el=e.target as HTMLElement,t=parseInt(el.dataset.t||'0'),dur=2000,s=performance.now();const step=(now:number)=>{const p=Math.min((now-s)/dur,1),ea=1-Math.pow(1-p,4);el.textContent=Math.round(ea*t).toLocaleString();if(p<1)requestAnimationFrame(step)};requestAnimationFrame(step);co.unobserve(e.target)}})},{threshold:.5})
     document.querySelectorAll('.ctr[data-t]').forEach(el=>co.observe(el))
+
+    // ACTIVE NAV LINK
+    const sections=document.querySelectorAll('section[id]')
+    const navAs=document.querySelectorAll('.nav-links a[href^="#"]')
+    const ao=new IntersectionObserver(entries=>{entries.forEach(e=>{ if(e.isIntersecting) navAs.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+e.target.id)) })},{threshold:0.4})
+    sections.forEach(s=>ao.observe(s))
 
     // RINGS
     setTimeout(()=>{animRing('arc1','score1',3.4,600);animRing('arc2','score2',6.5,900);animRing('arc3','score3',8.2,1200)},1200)
@@ -132,7 +169,7 @@ export default function Home() {
     // SMOOTH SCROLL
     document.querySelectorAll('a[href^="#"]').forEach(a=>{a.addEventListener('click',e=>{const t=document.querySelector(a.getAttribute('href')||'');if(t){e.preventDefault();t.scrollIntoView({behavior:'smooth',block:'start'})}})})
 
-    return () => { clearInterval(loadInt); cancelAnimationFrame(rafM); cancelAnimationFrame(rafT); document.removeEventListener('mousemove',onMove); window.removeEventListener('scroll',onScroll); window.removeEventListener('resize',resize); window.removeEventListener('resize',resizeW) }
+    return () => { clearInterval(loadInt); cancelAnimationFrame(rafM); cancelAnimationFrame(rafT); document.removeEventListener('mousemove',onMove); window.removeEventListener('scroll',onScroll); window.removeEventListener('scroll',onScrollProgress); window.removeEventListener('resize',resize); window.removeEventListener('resize',resizeW); heroEl.removeEventListener('mousemove',onHeroMove); heroEl.removeEventListener('mouseleave',onHeroLeave) }
   }, [])
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -319,15 +356,53 @@ export default function Home() {
         .footer-copy{font-size:11px;color:var(--muted)}
         #crews{background:var(--surface)}
         .crews-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-        .crew-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px 20px;text-align:center;transition:transform .25s,border-color .25s,box-shadow .25s;position:relative;overflow:hidden;}
-        .crew-card:hover{transform:translateY(-6px);border-color:#39FF1444;box-shadow:0 20px 56px rgba(57,255,20,.1)}
+        .crew-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px 20px;text-align:center;transition:transform .08s ease,border-color .25s,box-shadow .25s;position:relative;overflow:hidden;transform-style:preserve-3d;}
+        .crew-card:hover{border-color:#39FF1444;box-shadow:0 24px 60px rgba(57,255,20,.14),0 0 0 1px #39FF1430;}
         .crew-icon-wrap{font-size:32px;margin-bottom:14px;}
         .crew-name{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:20px;text-transform:uppercase;margin-bottom:8px;}
         .crew-desc{font-size:13px;color:var(--sub);line-height:1.6}
         @media(max-width:640px){.crews-grid{grid-template-columns:repeat(2,1fr)}}
         @media(max-width:480px){.section{padding:72px 20px}}
+
+        /* ── PREMIUM VISUAL LAYER ── */
+        #progress-bar{position:fixed;top:0;left:0;height:2px;width:0%;background:linear-gradient(90deg,var(--accent),#00FF88);z-index:9999;pointer-events:none;box-shadow:0 0 10px var(--accent),0 0 20px #39FF1466;}
+        .hero-spotlight{position:absolute;inset:0;pointer-events:none;z-index:5;opacity:0;transition:opacity .6s ease;}
+        .dot-grid{position:absolute;inset:0;pointer-events:none;z-index:2;background-image:radial-gradient(#39FF141A 1px,transparent 1px);background-size:28px 28px;-webkit-mask-image:radial-gradient(ellipse 80% 80% at 50% 45%,black,transparent);mask-image:radial-gradient(ellipse 80% 80% at 50% 45%,black,transparent);}
+        .blob{position:absolute;border-radius:50%;filter:blur(110px);pointer-events:none;animation:blobFloat 12s ease-in-out infinite;}
+        @keyframes blobFloat{0%,100%{transform:translate(0,0) scale(1)}35%{transform:translate(28px,-36px) scale(1.06)}70%{transform:translate(-18px,22px) scale(.96)}}
+        .tilt{transform-style:preserve-3d;will-change:transform;}
+        .tilt:not(:hover){transition:transform .5s cubic-bezier(.16,1,.3,1),border-color .25s,box-shadow .25s;}
+        .btn-magnetic{will-change:transform;transition:transform .4s cubic-bezier(.16,1,.3,1),box-shadow .25s !important;}
+        .nav-links a.active{color:var(--text);}
+        .nav-links a{position:relative;}.nav-links a::after{content:'';position:absolute;bottom:-2px;left:0;width:0;height:1px;background:var(--accent);box-shadow:0 0 4px var(--accent);transition:width .25s ease;}.nav-links a.active::after,.nav-links a:hover::after{width:100%;}
+        .stagger>*{opacity:0;transform:translateY(20px);transition:opacity .55s ease,transform .55s ease;}
+        .stagger.in>*:nth-child(1){opacity:1;transform:none;transition-delay:.04s}
+        .stagger.in>*:nth-child(2){opacity:1;transform:none;transition-delay:.13s}
+        .stagger.in>*:nth-child(3){opacity:1;transform:none;transition-delay:.22s}
+        .stagger.in>*:nth-child(4){opacity:1;transform:none;transition-delay:.31s}
+        .stagger.in>*:nth-child(5){opacity:1;transform:none;transition-delay:.40s}
+        .stagger.in>*:nth-child(6){opacity:1;transform:none;transition-delay:.49s}
+        .score-badge-card{animation:badgeFloat var(--dur,6s) ease-in-out infinite;animation-delay:var(--delay,0s);}
+        @keyframes badgeFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+        .step-card:hover{box-shadow:0 28px 64px rgba(57,255,20,.13),0 0 0 1px #39FF1430;}
+        .step-card.featured:hover{box-shadow:0 28px 64px rgba(57,255,20,.22),0 0 0 1px #39FF1466;}
+        .vibe-card:hover{box-shadow:0 20px 56px rgba(57,255,20,.1),0 0 0 1px #39FF1428;}
+        .rep-card:hover{box-shadow:0 14px 42px rgba(57,255,20,.08),border-color:#39FF1444;}
+        .tier-row-avg{animation:tierPulse 3.5s ease-in-out infinite;}
+        @keyframes tierPulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 24px rgba(123,159,255,.18),inset 0 0 24px rgba(123,159,255,.04)}}
+        .assess-card{transition:transform .28s ease,border-color .25s,box-shadow .25s;}
+        .assess-card:hover{transform:translateY(-5px);border-color:#39FF1444;box-shadow:0 18px 52px rgba(57,255,20,.1);}
+        .label-tag{display:inline-flex;align-items:center;gap:8px;}.label-tag::before{content:'';width:18px;height:1px;background:var(--accent);box-shadow:0 0 6px var(--accent);}
+        .callout-bar{position:relative;overflow:hidden;}.callout-bar::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,#39FF1408,transparent);transform:translateX(-100%);animation:calloutShimmer 3s ease-in-out infinite;}
+        @keyframes calloutShimmer{to{transform:translateX(100%)}}
+        .btn-primary::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.18),transparent);opacity:0;transition:opacity .3s;}.btn-primary:hover::before{opacity:1;}
+        .hero-title{text-shadow:0 0 80px rgba(57,255,20,.08);}
+        .stat-num{animation:none;}.stat-item{transition:transform .25s;}.stat-item:hover{transform:translateY(-2px);}
+        .waitlist-input:focus{border-color:#39FF1488;box-shadow:0 0 0 3px #39FF1418,0 0 24px #39FF1414;}
+        @media(max-width:640px){.score-badge-card{animation:none}}
       `}</style>
 
+      <div id="progress-bar" />
       <div id="grain" />
       <div id="cursor" />
       <div id="cursor-trail" />
@@ -369,20 +444,24 @@ export default function Home() {
 
       <section id="hero">
         <canvas id="court-canvas" />
+        <div className="dot-grid" />
+        <div id="hero-spotlight" className="hero-spotlight" />
+        <div className="blob" style={{width:500,height:500,background:'#39FF1410',top:'-10%',right:'-8%',animationDuration:'14s'}} />
+        <div className="blob" style={{width:350,height:350,background:'#00CC2208',bottom:'5%',left:'-5%',animationDuration:'10s',animationDelay:'-4s'}} />
         <div className="hero-content">
           <h1 className="hero-title">Your Rep.<br /><span className="line2">Built on the Court.</span></h1>
           <p className="hero-sub">The first peer-to-peer basketball rating system. Play pickup. Get rated by teammates. Build a verified score that follows you everywhere.</p>
           <div className="hero-btns">
-            <a href={TESTFLIGHT_URL} target="_blank" rel="noopener noreferrer"><button className="btn-primary">Download the App</button></a>
-            <a href="#how"><button className="btn-ghost">See How It Works</button></a>
+            <a href={TESTFLIGHT_URL} target="_blank" rel="noopener noreferrer"><button className="btn-primary btn-magnetic">Download the App</button></a>
+            <a href="#how"><button className="btn-ghost btn-magnetic">See How It Works</button></a>
           </div>
           <div className="score-badges">
             {([
-              {id:'1',target:3.4,color:'#7B9FFF',name:'D. Reyes',meta:'@d_reyes · SG · Bronx',tier:'On The Come Up'},
-              {id:'2',target:6.5,color:'#39FF14',name:'T. Morris',meta:'@t_mo · PG · Brooklyn',tier:'Hooper'},
-              {id:'3',target:8.2,color:'#FF7A00',name:'A. Brooks',meta:'@abrook · SF · Harlem',tier:'Elite'},
+              {id:'1',target:3.4,color:'#7B9FFF',name:'D. Reyes',meta:'@d_reyes · SG · Bronx',tier:'On The Come Up',dur:'7s',delay:'0s'},
+              {id:'2',target:6.5,color:'#39FF14',name:'T. Morris',meta:'@t_mo · PG · Brooklyn',tier:'Hooper',dur:'5.5s',delay:'-2s'},
+              {id:'3',target:8.2,color:'#FF7A00',name:'A. Brooks',meta:'@abrook · SF · Harlem',tier:'Elite',dur:'8s',delay:'-4s'},
             ] as const).map(p=>(
-              <div className="score-badge-card" key={p.id}>
+              <div className="score-badge-card" key={p.id} style={{'--dur':p.dur,'--delay':p.delay} as React.CSSProperties}>
                 <div className="netr-ring">
                   <svg viewBox="0 0 56 56"><circle cx="28" cy="28" r="24" fill="none" stroke="#1A1A28" strokeWidth="3"/><circle cx="28" cy="28" r="24" fill="none" stroke={p.color} strokeWidth="3" strokeLinecap="round" strokeDasharray="150.8" strokeDashoffset="150.8" id={`arc${p.id}`} style={{filter:`drop-shadow(0 0 4px ${p.color})`}}/></svg>
                   <div className="netr-ring-num" style={{color:p.color}} id={`score${p.id}`}>0.0</div>
@@ -411,6 +490,7 @@ export default function Home() {
       <div className="court-divider" />
 
       <section id="how">
+        <div className="blob" style={{width:400,height:400,background:'#39FF140A',top:'20%',right:'-10%',animationDuration:'16s',animationDelay:'-6s'}} />
         <div className="section">
           <div className="section-head">
             <span className="label-tag reveal">How It Works</span>
@@ -419,25 +499,25 @@ export default function Home() {
           </div>
           <div className="steps-wrap">
             <div className="steps-line" /><div className="steps-line-glow" id="stepLine" />
-            <div className="steps-grid">
-              <div className="step-card featured reveal">
+            <div className="steps-grid stagger">
+              <div className="step-card featured tilt">
                 <div className="step-icon-wrap">🎯</div><div className="step-num">Step 01 · Start Here</div>
                 <div className="step-name">Set Your Baseline</div>
                 <p className="step-desc">Answer 14 honest questions about your game before your first run. Pure self-awareness gets you on the board.</p>
                 <div className="step-note">Your self-assessment fades as peer reviews build. The more you run, the more the court takes over.</div>
               </div>
-              <div className="step-card reveal" style={{transitionDelay:'.1s'}}>
+              <div className="step-card tilt">
                 <div className="step-icon-wrap">🏀</div><div className="step-num">Step 02</div>
                 <div className="step-name">Find a Run</div>
                 <p className="step-desc">Open NETR and see active games at courts near you. Join by QR code or 6-digit join code. Up to 10 players per game.</p>
                 <div className="step-note">New: Use Make Teams to auto-split players into balanced 2v2–5v5 teams before tip-off.</div>
               </div>
-              <div className="step-card reveal" style={{transitionDelay:'.2s'}}>
+              <div className="step-card tilt">
                 <div className="step-icon-wrap">⭐</div><div className="step-num">Step 03</div>
                 <div className="step-name">Rate Teammates</div>
                 <p className="step-desc">After the game, rate every player across 7 skill categories: Shooting, Defense, Handles, Playmaking, Rebounding, Basketball IQ, and Finishing.</p>
               </div>
-              <div className="step-card reveal" style={{transitionDelay:'.3s'}}>
+              <div className="step-card tilt">
                 <div className="step-icon-wrap">📈</div><div className="step-num">Step 04</div>
                 <div className="step-name">Score Evolves</div>
                 <p className="step-desc">Peer reviews replace your self-assessment game by game. The more you run, the more accurate and credible your NETR score becomes.</p>
@@ -458,6 +538,7 @@ export default function Home() {
       <div className="court-divider" />
 
       <section id="selfassess">
+        <div className="blob" style={{width:360,height:360,background:'#39FF140C',bottom:'0%',left:'-8%',animationDuration:'13s',animationDelay:'-3s'}} />
         <div className="section">
           <div className="section-head">
             <span className="label-tag reveal">Self-Assessment</span>
@@ -514,10 +595,10 @@ export default function Home() {
               {range:'6.0–6.9',name:'Hooper',color:'#39FF14',w:'63%',bg:'linear-gradient(90deg,#39FF14,#70FF50)',pct:'Top 20%'},
               {range:'5.0–5.9',name:'Got Game',color:'#2ECC71',w:'52%',bg:'linear-gradient(90deg,#2ECC71,#52E090)',pct:'Top 35%'},
               {range:'4.0–4.9',name:'Prospect',color:'#2DA8FF',w:'42%',bg:'linear-gradient(90deg,#2DA8FF,#60C0FF)',pct:'Above Average'},
-              {range:'3.0–3.9',name:'On The Come Up',color:'#7B9FFF',w:'30%',bg:'linear-gradient(90deg,#7B9FFF,#95C2FF)',pct:'Average',avg:true},
+              {range:'3.0–3.9',name:'On The Come Up',color:'#7B9FFF',w:'30%',bg:'linear-gradient(90deg,#7B9FFF,#95C2FF)',pct:'Average',avg:true,highlight:true},
               {range:'2.0–2.9',name:'Fresh Laces',color:'#9B8BFF',w:'18%',bg:'linear-gradient(90deg,#9B8BFF,#B8ABFF)',pct:'Just Starting'},
             ].map((t,i)=>(
-              <div className="tier-row reveal" key={t.name} style={{transitionDelay:`${i*.05}s`} as React.CSSProperties}>
+              <div className={`tier-row reveal${t.highlight ? ' tier-row-avg' : ''}`} key={t.name} style={{transitionDelay:`${i*.05}s`} as React.CSSProperties}>
                 <div style={{position:'absolute',left:0,top:0,bottom:0,width:'3px',background:t.color,borderRadius:'99px 0 0 99px'}}/>
                 <div className="tier-range" style={{color:t.color}}>{t.range}</div>
                 <div className="tier-info">
@@ -541,14 +622,14 @@ export default function Home() {
             <h2 className="section-title reveal">Your Vibe Score</h2>
             <p className="section-sub reveal">NETR tracks more than buckets. How you show up matters — and your teammates will tell you exactly what the vibe was.</p>
           </div>
-          <div className="vibe-grid">
+          <div className="vibe-grid stagger">
             {[
-              {score:'4.5+',label:'Great Vibe',desc:'🔥 Locked In. Competitive energy. No drama. Full send every run.',color:'#39FF14',delay:0},
-              {score:'3.5–4.4',label:'Solid Vibe',desc:'👍 Steady. Good teammate. Consistent. Easy to run with.',color:'#F5C542',delay:.1},
-              {score:'2.5–3.4',label:'Mixed Vibe',desc:"😐 It's Whatever. Some days good, some days the smoke ain't it.",color:'#FF9500',delay:.2},
-              {score:'1.0–2.4',label:'Bad Vibe',desc:"🚫 Wouldn't Run Again. Ball hog, arguing calls, or just bad energy.",color:'#FF453A',delay:.3},
+              {score:'4.5+',label:'Great Vibe',desc:'🔥 Locked In. Competitive energy. No drama. Full send every run.',color:'#39FF14'},
+              {score:'3.5–4.4',label:'Solid Vibe',desc:'👍 Steady. Good teammate. Consistent. Easy to run with.',color:'#F5C542'},
+              {score:'2.5–3.4',label:'Mixed Vibe',desc:"😐 It's Whatever. Some days good, some days the smoke ain't it.",color:'#FF9500'},
+              {score:'1.0–2.4',label:'Bad Vibe',desc:"🚫 Wouldn't Run Again. Ball hog, arguing calls, or just bad energy.",color:'#FF453A'},
             ].map(v=>(
-              <div className="vibe-card reveal" key={v.label} style={{borderColor:`${v.color}33`,transitionDelay:`${v.delay}s`} as React.CSSProperties}>
+              <div className="vibe-card tilt" key={v.label} style={{borderColor:`${v.color}33`} as React.CSSProperties}>
                 <div className="vibe-aura" style={{background:v.color,boxShadow:`0 0 14px ${v.color}`,animationDelay:`${v.delay*5}s`}}/>
                 <div className="vibe-score" style={{color:v.color}}>{v.score}</div>
                 <div className="vibe-label" style={{color:v.color}}>{v.label}</div>
@@ -562,20 +643,21 @@ export default function Home() {
       <div className="court-divider" />
 
       <section id="crews">
+        <div className="blob" style={{width:450,height:450,background:'#39FF1408',top:'-5%',right:'-10%',animationDuration:'15s',animationDelay:'-7s'}} />
         <div className="section">
           <div className="section-head">
             <span className="label-tag reveal">New Feature</span>
             <h2 className="section-title reveal">Run With Your Crew.</h2>
             <p className="section-sub reveal">Create or join a crew. Track your squad&apos;s collective NETR score, climb the leaderboard together, and stay locked in with group chat.</p>
           </div>
-          <div className="crews-grid reveal">
+          <div className="crews-grid stagger">
             {[
               {icon:'🏆',name:'Crew Leaderboard',desc:'Every crew member\'s NETR score stacks. See how your crew ranks against everyone else on the app.'},
               {icon:'💬',name:'Crew Chat',desc:'Built-in group chat for your crew. Coordinate runs, talk trash, plan sessions — all in one place.'},
               {icon:'🔍',name:'Find & Join',desc:'Search for existing crews or create your own. Invite your guys by name — no long codes.'},
               {icon:'🏅',name:'Crew Identity',desc:'Your crew has its own name, profile, and rep. Build something real with the people you run with.'},
-            ].map((c,i)=>(
-              <div className="crew-card reveal" key={c.name} style={{transitionDelay:`${i*.08}s`}}>
+            ].map((c)=>(
+              <div className="crew-card tilt" key={c.name}>
                 <div className="crew-icon-wrap">{c.icon}</div>
                 <div className="crew-name">{c.name}</div>
                 <div className="crew-desc">{c.desc}</div>
@@ -620,7 +702,7 @@ export default function Home() {
           <p className="waitlist-sub reveal">Join the beta. NYC courts already loaded. Your first game is waiting.</p>
           <form className="waitlist-form reveal" onSubmit={submitWait}>
             <input className="waitlist-input" type="email" placeholder="your@email.com" required/>
-            <button className="btn-primary" type="submit">Join Waitlist</button>
+            <button className="btn-primary btn-magnetic" type="submit">Join Waitlist</button>
           </form>
           <div className="success-msg" id="success">✓ You&apos;re on the list. See you on the court.</div>
           <p className="waitlist-note reveal">No spam. No clout. Just the drop when it&apos;s ready.</p>
