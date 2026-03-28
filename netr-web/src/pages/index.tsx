@@ -630,7 +630,7 @@ export default function Home() {
               {score:'1.0–2.4',label:'Bad Vibe',desc:"🚫 Wouldn't Run Again. Ball hog, arguing calls, or just bad energy.",color:'#FF453A'},
             ].map(v=>(
               <div className="vibe-card tilt" key={v.label} style={{borderColor:`${v.color}33`} as React.CSSProperties}>
-                <div className="vibe-aura" style={{background:v.color,boxShadow:`0 0 14px ${v.color}`,animationDelay:`${v.delay*5}s`}}/>
+                <div className="vibe-aura" style={{background:v.color,boxShadow:`0 0 14px ${v.color}`}}/>
                 <div className="vibe-score" style={{color:v.color}}>{v.score}</div>
                 <div className="vibe-label" style={{color:v.color}}>{v.label}</div>
                 <div className="vibe-desc">{v.desc}</div>
