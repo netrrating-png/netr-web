@@ -125,7 +125,7 @@ export default function Home() {
     // HERO SPOTLIGHT
     const spotlight=document.getElementById('hero-spotlight') as HTMLElement
     const heroEl=document.getElementById('hero') as HTMLElement
-    const onHeroMove=(e:MouseEvent)=>{ const r=heroEl.getBoundingClientRect(); spotlight.style.background=`radial-gradient(700px circle at ${e.clientX-r.left}px ${e.clientY-r.top}px,#39FF1418,transparent 60%)`; spotlight.style.opacity='1' }
+    const onHeroMove=(e:MouseEvent)=>{ const r=heroEl.getBoundingClientRect(); spotlight.style.background=`radial-gradient(700px circle at ${e.clientX-r.left}px ${e.clientY-r.top}px,rgba(57,255,20,0.12),transparent 65%)`; spotlight.style.opacity='1' }
     const onHeroLeave=()=>{ spotlight.style.opacity='0' }
     heroEl.addEventListener('mousemove',onHeroMove)
     heroEl.addEventListener('mouseleave',onHeroLeave)
@@ -133,14 +133,14 @@ export default function Home() {
     // 3D CARD TILT
     document.querySelectorAll('.tilt').forEach(el=>{
       const card=el as HTMLElement
-      card.addEventListener('mousemove',(ev:MouseEvent)=>{ const r=card.getBoundingClientRect(),x=(ev.clientX-r.left)/r.width-.5,y=(ev.clientY-r.top)/r.height-.5; card.style.transform=`perspective(900px) rotateY(${x*10}deg) rotateX(${-y*10}deg) translateZ(8px)` })
+      card.addEventListener('mousemove',(ev:MouseEvent)=>{ const r=card.getBoundingClientRect(),x=(ev.clientX-r.left)/r.width-.5,y=(ev.clientY-r.top)/r.height-.5; card.style.transform=`perspective(800px) rotateY(${x*16}deg) rotateX(${-y*16}deg) translateZ(12px)` })
       card.addEventListener('mouseleave',()=>{ card.style.transform='' })
     })
 
     // MAGNETIC BUTTONS
     document.querySelectorAll('.btn-magnetic').forEach(btn=>{
       const el=btn as HTMLElement
-      el.addEventListener('mousemove',(ev:MouseEvent)=>{ const r=el.getBoundingClientRect(),x=(ev.clientX-r.left-r.width/2)*.28,y=(ev.clientY-r.top-r.height/2)*.28; el.style.transform=`translate(${x}px,${y}px)` })
+      el.addEventListener('mousemove',(ev:MouseEvent)=>{ const r=el.getBoundingClientRect(),x=(ev.clientX-r.left-r.width/2)*.45,y=(ev.clientY-r.top-r.height/2)*.45; el.style.transform=`translate(${x}px,${y}px)` })
       el.addEventListener('mouseleave',()=>{ el.style.transform='' })
     })
 
@@ -271,7 +271,7 @@ export default function Home() {
         .stat-num{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:clamp(44px,6vw,68px);color:var(--accent);line-height:1;text-shadow:0 0 24px #39FF1466;}
         .stat-label{font-size:12px;color:var(--sub);margin-top:6px;letter-spacing:.05em;text-transform:uppercase}
         @media(max-width:640px){.stats-inner{grid-template-columns:repeat(2,1fr);gap:24px 0}.stat-item{border-right:none;border-bottom:1px solid var(--border);padding:24px}.stat-item:nth-child(odd){border-right:1px solid var(--border)}}
-        #how{background:var(--bg)}
+        #how{background:var(--bg);position:relative;overflow:hidden;}
         .steps-wrap{position:relative}
         .steps-line{position:absolute;top:52px;left:calc(12.5% + 28px);right:calc(12.5% + 28px);height:1px;background:linear-gradient(90deg,transparent,var(--border) 20%,var(--border) 80%,transparent);pointer-events:none;}
         .steps-line-glow{position:absolute;top:52px;left:calc(12.5% + 28px);height:1px;width:0;background:linear-gradient(90deg,var(--accent),#00CC22);box-shadow:0 0 8px var(--accent);transition:width 2s cubic-bezier(.16,1,.3,1);}
@@ -292,7 +292,7 @@ export default function Home() {
         .callout-text-sub{font-size:14px;color:var(--sub)}
         @media(max-width:900px){.steps-grid{grid-template-columns:repeat(2,1fr)}.steps-line,.steps-line-glow{display:none}}
         @media(max-width:480px){.steps-grid{grid-template-columns:1fr}}
-        #scale{background:var(--surface)}
+        #scale{background:var(--surface);position:relative;overflow:hidden;}
         .tier-list{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
         .tier-row{display:flex;align-items:center;gap:16px;padding:14px 20px;border-radius:14px;background:var(--card);border:1px solid var(--border);transition:transform .2s;cursor:default;position:relative;overflow:hidden;}
         .tier-row:hover{transform:translateX(6px)}
@@ -306,7 +306,7 @@ export default function Home() {
         .tier-pct{font-size:11px;color:var(--sub);margin-top:3px;font-weight:600;letter-spacing:.03em;}
         .avg-badge{display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:3px 9px;border-radius:99px;background:#7B9FFF22;border:1px solid #7B9FFF66;font-size:10px;font-weight:700;letter-spacing:.08em;color:#7B9FFF;text-transform:uppercase;}
         .avg-dot{width:6px;height:6px;border-radius:50%;background:#7B9FFF;display:inline-block;animation:auraPulse 2s ease-in-out infinite;}
-        #selfassess{background:var(--bg)}
+        #selfassess{background:var(--bg);position:relative;overflow:hidden;}
         .assess-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px}
         .assess-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:32px 28px;}
         .assess-phase{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;}
@@ -317,7 +317,7 @@ export default function Home() {
         .assess-note{background:linear-gradient(135deg,#39FF1410,#39FF1406);border:1px solid #39FF1430;border-radius:16px;padding:22px 28px;font-size:14px;color:var(--sub);line-height:1.7;text-align:center;}
         .assess-note strong{color:var(--text);}
         @media(max-width:640px){.assess-grid{grid-template-columns:1fr}}
-        #vibe{background:var(--bg)}
+        #vibe{background:var(--bg);position:relative;overflow:hidden;}
         .vibe-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
         .vibe-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px 20px;text-align:center;transition:transform .25s;position:relative;overflow:hidden;}
         .vibe-card:hover{transform:translateY(-6px)}
@@ -327,7 +327,7 @@ export default function Home() {
         .vibe-label{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:18px;margin-bottom:8px}
         .vibe-desc{font-size:12px;color:var(--sub);line-height:1.55}
         @media(max-width:640px){.vibe-grid{grid-template-columns:repeat(2,1fr)}}
-        #rep{background:var(--surface)}
+        #rep{background:var(--surface);position:relative;overflow:hidden;}
         .rep-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
         .rep-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;align-items:flex-start;gap:14px;transition:transform .2s,border-color .2s;}
         .rep-card:hover{transform:translateY(-4px);border-color:#39FF1433}
@@ -354,7 +354,7 @@ export default function Home() {
         .footer-links a{font-size:12px;color:var(--sub);letter-spacing:.05em;transition:color .2s;text-decoration:none;}
         .footer-links a:hover{color:var(--text)}
         .footer-copy{font-size:11px;color:var(--muted)}
-        #crews{background:var(--surface)}
+        #crews{background:var(--surface);position:relative;overflow:hidden;}
         .crews-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
         .crew-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px 20px;text-align:center;transition:transform .08s ease,border-color .25s,box-shadow .25s;position:relative;overflow:hidden;transform-style:preserve-3d;}
         .crew-card:hover{border-color:#39FF1444;box-shadow:0 24px 60px rgba(57,255,20,.14),0 0 0 1px #39FF1430;}
@@ -367,7 +367,7 @@ export default function Home() {
         /* ── PREMIUM VISUAL LAYER ── */
         #progress-bar{position:fixed;top:0;left:0;height:2px;width:0%;background:linear-gradient(90deg,var(--accent),#00FF88);z-index:9999;pointer-events:none;box-shadow:0 0 10px var(--accent),0 0 20px #39FF1466;}
         .hero-spotlight{position:absolute;inset:0;pointer-events:none;z-index:5;opacity:0;transition:opacity .6s ease;}
-        .dot-grid{position:absolute;inset:0;pointer-events:none;z-index:2;background-image:radial-gradient(#39FF141A 1px,transparent 1px);background-size:28px 28px;-webkit-mask-image:radial-gradient(ellipse 80% 80% at 50% 45%,black,transparent);mask-image:radial-gradient(ellipse 80% 80% at 50% 45%,black,transparent);}
+        .dot-grid{position:absolute;inset:0;pointer-events:none;z-index:2;background-image:radial-gradient(rgba(57,255,20,.18) 1px,transparent 1px);background-size:28px 28px;-webkit-mask-image:radial-gradient(ellipse 80% 80% at 50% 45%,black,transparent);mask-image:radial-gradient(ellipse 80% 80% at 50% 45%,black,transparent);}
         .blob{position:absolute;border-radius:50%;filter:blur(110px);pointer-events:none;animation:blobFloat 12s ease-in-out infinite;}
         @keyframes blobFloat{0%,100%{transform:translate(0,0) scale(1)}35%{transform:translate(28px,-36px) scale(1.06)}70%{transform:translate(-18px,22px) scale(.96)}}
         .tilt{transform-style:preserve-3d;will-change:transform;}
@@ -446,8 +446,8 @@ export default function Home() {
         <canvas id="court-canvas" />
         <div className="dot-grid" />
         <div id="hero-spotlight" className="hero-spotlight" />
-        <div className="blob" style={{width:500,height:500,background:'#39FF1410',top:'-10%',right:'-8%',animationDuration:'14s'}} />
-        <div className="blob" style={{width:350,height:350,background:'#00CC2208',bottom:'5%',left:'-5%',animationDuration:'10s',animationDelay:'-4s'}} />
+        <div className="blob" style={{width:600,height:600,background:'rgba(57,255,20,0.13)',top:'-15%',right:'-12%',animationDuration:'14s'}} />
+        <div className="blob" style={{width:400,height:400,background:'rgba(0,204,34,0.07)',bottom:'0%',left:'-8%',animationDuration:'10s',animationDelay:'-4s'}} />
         <div className="hero-content">
           <h1 className="hero-title">Your Rep.<br /><span className="line2">Built on the Court.</span></h1>
           <p className="hero-sub">The first peer-to-peer basketball rating system. Play pickup. Get rated by teammates. Build a verified score that follows you everywhere.</p>
@@ -490,7 +490,7 @@ export default function Home() {
       <div className="court-divider" />
 
       <section id="how">
-        <div className="blob" style={{width:400,height:400,background:'#39FF140A',top:'20%',right:'-10%',animationDuration:'16s',animationDelay:'-6s'}} />
+        <div className="blob" style={{width:500,height:500,background:'rgba(57,255,20,0.1)',top:'15%',right:'-12%',animationDuration:'16s',animationDelay:'-6s'}} />
         <div className="section">
           <div className="section-head">
             <span className="label-tag reveal">How It Works</span>
@@ -538,7 +538,7 @@ export default function Home() {
       <div className="court-divider" />
 
       <section id="selfassess">
-        <div className="blob" style={{width:360,height:360,background:'#39FF140C',bottom:'0%',left:'-8%',animationDuration:'13s',animationDelay:'-3s'}} />
+        <div className="blob" style={{width:450,height:450,background:'rgba(57,255,20,0.1)',bottom:'0%',left:'-10%',animationDuration:'13s',animationDelay:'-3s'}} />
         <div className="section">
           <div className="section-head">
             <span className="label-tag reveal">Self-Assessment</span>
@@ -643,7 +643,7 @@ export default function Home() {
       <div className="court-divider" />
 
       <section id="crews">
-        <div className="blob" style={{width:450,height:450,background:'#39FF1408',top:'-5%',right:'-10%',animationDuration:'15s',animationDelay:'-7s'}} />
+        <div className="blob" style={{width:500,height:500,background:'rgba(57,255,20,0.09)',top:'-5%',right:'-12%',animationDuration:'15s',animationDelay:'-7s'}} />
         <div className="section">
           <div className="section-head">
             <span className="label-tag reveal">New Feature</span>
