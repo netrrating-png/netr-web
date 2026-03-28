@@ -251,8 +251,20 @@ export default function Home() {
         .tier-bar{height:4px;background:var(--muted);border-radius:99px;overflow:hidden;width:110px;flex-shrink:0}
         .tier-fill{height:100%;border-radius:99px;width:0;transition:width 1.4s cubic-bezier(.16,1,.3,1);}
         .reveal.in .tier-fill{width:var(--w,50%)}
+        .tier-pct{font-size:11px;color:var(--sub);margin-top:3px;font-weight:600;letter-spacing:.03em;}
         .avg-badge{display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:3px 9px;border-radius:99px;background:#7B9FFF22;border:1px solid #7B9FFF66;font-size:10px;font-weight:700;letter-spacing:.08em;color:#7B9FFF;text-transform:uppercase;}
         .avg-dot{width:6px;height:6px;border-radius:50%;background:#7B9FFF;display:inline-block;animation:auraPulse 2s ease-in-out infinite;}
+        #selfassess{background:var(--bg)}
+        .assess-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px}
+        .assess-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:32px 28px;}
+        .assess-phase{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;}
+        .assess-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:26px;text-transform:uppercase;margin-bottom:12px;}
+        .assess-desc{font-size:13px;color:var(--sub);line-height:1.7;}
+        .assess-cats{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;}
+        .assess-cat{padding:5px 12px;border-radius:99px;background:var(--surface);border:1px solid var(--border);font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--sub);}
+        .assess-note{background:linear-gradient(135deg,#39FF1410,#39FF1406);border:1px solid #39FF1430;border-radius:16px;padding:22px 28px;font-size:14px;color:var(--sub);line-height:1.7;text-align:center;}
+        .assess-note strong{color:var(--text);}
+        @media(max-width:640px){.assess-grid{grid-template-columns:1fr}}
         #vibe{background:var(--bg)}
         .vibe-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
         .vibe-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px 20px;text-align:center;transition:transform .25s;position:relative;overflow:hidden;}
@@ -316,6 +328,7 @@ export default function Home() {
           <a href="#how">How It Works</a>
           <a href="#scale">Rating Scale</a>
           <a href="#crews">Crews</a>
+          <a href="/faq">FAQ</a>
           <a href={TESTFLIGHT_URL} target="_blank" rel="noopener noreferrer"><button className="btn-cta">Get the App</button></a>
         </div>
       </nav>
@@ -377,8 +390,8 @@ export default function Home() {
               <div className="step-card featured reveal">
                 <div className="step-icon-wrap">🎯</div><div className="step-num">Step 01 · Start Here</div>
                 <div className="step-name">Set Your Baseline</div>
-                <p className="step-desc">Answer 15 honest questions about your game before your first run. Pure self-awareness gets you on the board.</p>
-                <div className="step-note">Self-assessment counts at 28% weight and fades as peer reviews build. You can&apos;t inflate yourself.</div>
+                <p className="step-desc">Answer 14 honest questions about your game before your first run. Pure self-awareness gets you on the board.</p>
+                <div className="step-note">Your self-assessment fades as peer reviews build. The more you run, the more the court takes over.</div>
               </div>
               <div className="step-card reveal" style={{transitionDelay:'.1s'}}>
                 <div className="step-icon-wrap">🏀</div><div className="step-num">Step 02</div>
@@ -411,6 +424,47 @@ export default function Home() {
 
       <div className="court-divider" />
 
+      <section id="selfassess">
+        <div className="section">
+          <div className="section-head">
+            <span className="label-tag reveal">Self-Assessment</span>
+            <h2 className="section-title reveal">Honest From The Jump.</h2>
+            <p className="section-sub reveal">Before your first run, you tell us who you are. That gives you a starting NETR score. Then the court takes it from there.</p>
+          </div>
+          <div className="assess-grid reveal">
+            <div className="assess-card">
+              <div className="assess-phase">Phase 1 · Who You Are</div>
+              <div className="assess-title">Your Background</div>
+              <p className="assess-desc">A few quick questions about your game context — your position, the highest level you&apos;ve played at, and how often you run. No right or wrong answers. This helps us place your starting score in the right range for your game.</p>
+              <div className="assess-cats">
+                <span className="assess-cat">Position</span>
+                <span className="assess-cat">Highest Level</span>
+                <span className="assess-cat">Play Frequency</span>
+              </div>
+            </div>
+            <div className="assess-card">
+              <div className="assess-phase">Phase 2 · Your Game</div>
+              <div className="assess-title">14 Skill Questions</div>
+              <p className="assess-desc">Two questions for each of the 7 skill categories. Real scenarios, honest answers — written in plain language, not stat-sheet speak. How you answer shapes where you start on the scale.</p>
+              <div className="assess-cats">
+                <span className="assess-cat">Shooting</span>
+                <span className="assess-cat">Finishing</span>
+                <span className="assess-cat">Handles</span>
+                <span className="assess-cat">Passing</span>
+                <span className="assess-cat">Rebounding</span>
+                <span className="assess-cat">IQ</span>
+                <span className="assess-cat">Defense</span>
+              </div>
+            </div>
+          </div>
+          <div className="assess-note reveal">
+            <strong>Your self-assessment is the starting line, not the finish.</strong> Every game you play, peer ratings from your teammates carry more weight. Over time, your NETR score becomes a reflection of what players who&apos;ve actually run with you think — not what you think of yourself.
+          </div>
+        </div>
+      </section>
+
+      <div className="court-divider" />
+
       <section id="scale">
         <div className="section">
           <div className="section-head">
@@ -420,22 +474,23 @@ export default function Home() {
           </div>
           <div className="tier-list">
             {[
-              {range:'9.5–9.9',name:'In The League',color:'#C40010',w:'100%',bg:'linear-gradient(90deg,#C40010,#FF1A2E)'},
-              {range:'9.0–9.4',name:'Certified',color:'#FF3B30',w:'93%',bg:'linear-gradient(90deg,#FF3B30,#FF6B5F)'},
-              {range:'8.0–8.9',name:'Elite',color:'#FF7A00',w:'85%',bg:'linear-gradient(90deg,#FF7A00,#FFA040)'},
-              {range:'7.0–7.9',name:'Built Different',color:'#FFC247',w:'74%',bg:'linear-gradient(90deg,#FFC247,#FFD47A)'},
-              {range:'6.0–6.9',name:'Hooper',color:'#39FF14',w:'63%',bg:'linear-gradient(90deg,#39FF14,#70FF50)'},
-              {range:'5.0–5.9',name:'Got Game',color:'#2ECC71',w:'52%',bg:'linear-gradient(90deg,#2ECC71,#52E090)'},
-              {range:'4.0–4.9',name:'Prospect',color:'#2DA8FF',w:'42%',bg:'linear-gradient(90deg,#2DA8FF,#60C0FF)'},
-              {range:'3.0–3.9',name:'On The Come Up',color:'#7B9FFF',w:'30%',bg:'linear-gradient(90deg,#7B9FFF,#95C2FF)',avg:true},
-              {range:'2.0–2.9',name:'Fresh Laces',color:'#9B8BFF',w:'18%',bg:'linear-gradient(90deg,#9B8BFF,#B8ABFF)'},
+              {range:'9.5–9.9',name:'In The League',color:'#C40010',w:'100%',bg:'linear-gradient(90deg,#C40010,#FF1A2E)',pct:'Pros Only'},
+              {range:'9.0–9.4',name:'Certified',color:'#FF3B30',w:'93%',bg:'linear-gradient(90deg,#FF3B30,#FF6B5F)',pct:'Top 1%'},
+              {range:'8.0–8.9',name:'Elite',color:'#FF7A00',w:'85%',bg:'linear-gradient(90deg,#FF7A00,#FFA040)',pct:'Top 3%'},
+              {range:'7.0–7.9',name:'Built Different',color:'#FFC247',w:'74%',bg:'linear-gradient(90deg,#FFC247,#FFD47A)',pct:'Top 10%'},
+              {range:'6.0–6.9',name:'Hooper',color:'#39FF14',w:'63%',bg:'linear-gradient(90deg,#39FF14,#70FF50)',pct:'Top 20%'},
+              {range:'5.0–5.9',name:'Got Game',color:'#2ECC71',w:'52%',bg:'linear-gradient(90deg,#2ECC71,#52E090)',pct:'Top 35%'},
+              {range:'4.0–4.9',name:'Prospect',color:'#2DA8FF',w:'42%',bg:'linear-gradient(90deg,#2DA8FF,#60C0FF)',pct:'Above Average'},
+              {range:'3.0–3.9',name:'On The Come Up',color:'#7B9FFF',w:'30%',bg:'linear-gradient(90deg,#7B9FFF,#95C2FF)',pct:'Average',avg:true},
+              {range:'2.0–2.9',name:'Fresh Laces',color:'#9B8BFF',w:'18%',bg:'linear-gradient(90deg,#9B8BFF,#B8ABFF)',pct:'Just Starting'},
             ].map((t,i)=>(
               <div className="tier-row reveal" key={t.name} style={{transitionDelay:`${i*.05}s`} as React.CSSProperties}>
                 <div style={{position:'absolute',left:0,top:0,bottom:0,width:'3px',background:t.color,borderRadius:'99px 0 0 99px'}}/>
                 <div className="tier-range" style={{color:t.color}}>{t.range}</div>
                 <div className="tier-info">
                   <div className="tier-name" style={{color:t.color}}>{t.name}</div>
-                  {t.avg && <div className="avg-badge"><span className="avg-dot"/>Avg Player</div>}
+                  <div className="tier-pct">{t.pct}</div>
+                  {t.avg && <div className="avg-badge"><span className="avg-dot"/>Most Players Land Here</div>}
                 </div>
                 <div className="tier-bar"><div className="tier-fill" style={{'--w':t.w,background:t.bg} as React.CSSProperties}/></div>
               </div>
@@ -544,6 +599,7 @@ export default function Home() {
         <div className="footer-links">
           <a href="#how">How It Works</a>
           <a href="#scale">Rating Scale</a>
+          <a href="/faq">FAQ</a>
           <a href="/privacy">Privacy Policy</a>
           <a href="/terms">Terms of Service</a>
           <a href="https://instagram.com/netrapp" target="_blank" rel="noopener noreferrer">Instagram</a>
