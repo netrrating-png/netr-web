@@ -1,5 +1,5 @@
 import Head from 'next/head'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 const TESTFLIGHT_URL = process.env.NEXT_PUBLIC_TESTFLIGHT_URL || 'https://testflight.apple.com/join/REPLACE_ME'
 
@@ -135,6 +135,9 @@ export default function Home() {
     return () => { clearInterval(loadInt); cancelAnimationFrame(rafM); cancelAnimationFrame(rafT); document.removeEventListener('mousemove',onMove); window.removeEventListener('scroll',onScroll); window.removeEventListener('resize',resize); window.removeEventListener('resize',resizeW) }
   }, [])
 
+  const [menuOpen, setMenuOpen] = useState(false)
+  const closeMenu = () => setMenuOpen(false)
+
   const submitWait = (e: React.FormEvent) => {
     e.preventDefault()
     ;(e.target as HTMLElement).style.display='none'
@@ -155,10 +158,12 @@ export default function Home() {
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         :root{--bg:#040406;--surface:#08080D;--card:#0D0D14;--border:#1A1A28;--accent:#39FF14;--gold:#F5C542;--red:#FF453A;--blue:#4A9EFF;--text:#EEEEF5;--sub:#5A5A78;--muted:#222232;}
         html{scroll-behavior:smooth}
-        body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow-x:hidden;cursor:none}
+        body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow-x:hidden;}
+        @media(hover:hover){body{cursor:none}}
         #cursor{position:fixed;width:20px;height:20px;border-radius:50%;background:var(--accent);pointer-events:none;z-index:9999;transform:translate(-50%,-50%);box-shadow:0 0 12px var(--accent),0 0 30px #39FF1466;transition:width .15s,height .15s,background .15s;mix-blend-mode:screen;}
         #cursor-trail{position:fixed;width:40px;height:40px;border-radius:50%;border:1px solid #39FF1455;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);}
         body:has(a:hover) #cursor,body:has(button:hover) #cursor{width:36px;height:36px;background:#fff;}
+        @media(hover:none){#cursor,#cursor-trail{display:none}}
         #grain{position:fixed;inset:0;pointer-events:none;z-index:1000;opacity:.028;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:180px;}
         #loader{position:fixed;inset:0;z-index:9000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;transition:opacity .5s ease;}
         #loader.out{opacity:0;pointer-events:none}
@@ -175,7 +180,17 @@ export default function Home() {
         .nav-links a:hover{color:var(--text)}
         .btn-cta{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;letter-spacing:.1em;text-transform:uppercase;padding:10px 24px;border-radius:8px;border:none;cursor:pointer;background:linear-gradient(135deg,#39FF14,#00CC22);color:#040406;transition:box-shadow .25s,transform .2s;}
         .btn-cta:hover{box-shadow:0 0 28px #39FF1488,0 6px 24px #39FF1444;transform:translateY(-2px);}
-        @media(max-width:640px){#nav{padding:0 20px}.nav-links a{display:none}}
+        .hamburger{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px;z-index:600;}
+        .hamburger span{display:block;width:22px;height:2px;background:var(--text);border-radius:99px;transition:transform .3s,opacity .3s;}
+        .hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg);}
+        .hamburger.open span:nth-child(2){opacity:0;}
+        .hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
+        .mobile-menu{position:fixed;inset:0;z-index:490;background:rgba(4,4,6,.97);backdrop-filter:blur(24px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;opacity:0;pointer-events:none;transition:opacity .3s ease;}
+        .mobile-menu.open{opacity:1;pointer-events:auto;}
+        .mobile-menu a{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:34px;letter-spacing:.04em;text-transform:uppercase;color:var(--text);text-decoration:none;padding:10px 0;transition:color .2s;}
+        .mobile-menu a:hover{color:var(--accent)}
+        .mobile-menu .mob-cta{margin-top:20px;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:18px;letter-spacing:.1em;text-transform:uppercase;padding:14px 40px;border-radius:10px;border:none;cursor:pointer;background:linear-gradient(135deg,#39FF14,#00CC22);color:#040406;}
+        @media(max-width:640px){#nav{padding:0 20px}.nav-links{display:none}.hamburger{display:flex}}
         #hero{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;}
         #court-canvas{position:absolute;inset:0;width:100%;height:100%;}
         .hero-content{position:relative;z-index:10;text-align:center;padding:120px 24px 80px;max-width:960px;margin:0 auto;}
@@ -331,12 +346,27 @@ export default function Home() {
           <a href="/faq">FAQ</a>
           <a href={TESTFLIGHT_URL} target="_blank" rel="noopener noreferrer"><button className="btn-cta">Get the App</button></a>
         </div>
+        <button className={`hamburger${menuOpen ? ' open' : ''}`} onClick={() => setMenuOpen(o => !o)} aria-label="Menu">
+          <span/><span/><span/>
+        </button>
       </nav>
+
+      <div className={`mobile-menu${menuOpen ? ' open' : ''}`}>
+        <a href="#how" onClick={closeMenu}>How It Works</a>
+        <a href="#selfassess" onClick={closeMenu}>Self-Assessment</a>
+        <a href="#scale" onClick={closeMenu}>Rating Scale</a>
+        <a href="#vibe" onClick={closeMenu}>Vibe Score</a>
+        <a href="#crews" onClick={closeMenu}>Crews</a>
+        <a href="#rep" onClick={closeMenu}>Court Rep</a>
+        <a href="/faq" onClick={closeMenu}>FAQ</a>
+        <a href={TESTFLIGHT_URL} target="_blank" rel="noopener noreferrer" onClick={closeMenu}>
+          <button className="mob-cta">Get the App</button>
+        </a>
+      </div>
 
       <section id="hero">
         <canvas id="court-canvas" />
         <div className="hero-content">
-          <div className="hero-eyebrow"><span className="live-dot" />4 Active Games in NYC Right Now</div>
           <h1 className="hero-title">Your Rep.<br /><span className="line2">Built on the Court.</span></h1>
           <p className="hero-sub">The first peer-to-peer basketball rating system. Play pickup. Get rated by teammates. Build a verified score that follows you everywhere.</p>
           <div className="hero-btns">
