@@ -127,7 +127,7 @@ export default function Home() {
     document.querySelectorAll('.ctr[data-t]').forEach(el=>co.observe(el))
 
     // RINGS
-    setTimeout(()=>{animRing('arc1','score1',6.8,600);animRing('arc2','score2',8.4,900);animRing('arc3','score3',7.9,1200)},1200)
+    setTimeout(()=>{animRing('arc1','score1',3.4,600);animRing('arc2','score2',6.5,900);animRing('arc3','score3',8.2,1200)},1200)
 
     // SMOOTH SCROLL
     document.querySelectorAll('a[href^="#"]').forEach(a=>{a.addEventListener('click',e=>{const t=document.querySelector(a.getAttribute('href')||'');if(t){e.preventDefault();t.scrollIntoView({behavior:'smooth',block:'start'})}})})
@@ -378,7 +378,7 @@ export default function Home() {
           </div>
           <div className="score-badges">
             {([
-              {id:'1',target:3.5,color:'#7B9FFF',name:'D. Reyes',meta:'@d_reyes · SG · Bronx',tier:'On The Come Up'},
+              {id:'1',target:3.4,color:'#7B9FFF',name:'D. Reyes',meta:'@d_reyes · SG · Bronx',tier:'On The Come Up'},
               {id:'2',target:6.5,color:'#39FF14',name:'T. Morris',meta:'@t_mo · PG · Brooklyn',tier:'Hooper'},
               {id:'3',target:8.2,color:'#FF7A00',name:'A. Brooks',meta:'@abrook · SF · Harlem',tier:'Elite'},
             ] as const).map(p=>(
