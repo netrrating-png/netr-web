@@ -358,7 +358,7 @@ export default function Home() {
           <div className="stat-item reveal"><div className="stat-num"><span className="ctr" data-t="1000">0</span>+</div><div className="stat-label">Courts on NETR</div></div>
           <div className="stat-item reveal" style={{transitionDelay:'.1s'}}><div className="stat-num"><span className="ctr" data-t="7">0</span></div><div className="stat-label">Skill Categories</div></div>
           <div className="stat-item reveal" style={{transitionDelay:'.2s'}}><div className="stat-num"><span className="ctr" data-t="5">0</span>+</div><div className="stat-label">Reviews to Verify</div></div>
-          <div className="stat-item reveal" style={{transitionDelay:'.3s'}}><div className="stat-num">0%</div><div className="stat-label">You Can&apos;t Rate Yourself</div></div>
+          <div className="stat-item reveal" style={{transitionDelay:'.3s'}}><div className="stat-num"><span className="ctr" data-t="100">0</span>%</div><div className="stat-label">Peer-Verified Scores</div></div>
         </div>
       </div>
 
