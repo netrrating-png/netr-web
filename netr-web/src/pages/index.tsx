@@ -476,7 +476,7 @@ export default function Home() {
         <div className="blob" style={{width:600,height:600,background:'rgba(57,255,20,0.13)',top:'-15%',right:'-12%',animationDuration:'14s'}} />
         <div className="blob" style={{width:400,height:400,background:'rgba(0,204,34,0.07)',bottom:'0%',left:'-8%',animationDuration:'10s',animationDelay:'-4s'}} />
         <div className="hero-content">
-          <h1 className="hero-title">Your Rep.<br /><span className="line2">Built on the Court.</span></h1>
+          <h1 className="hero-title">Your Rating.<br /><span className="line2">Built on the Court.</span></h1>
           <p className="hero-sub">The first peer-to-peer basketball rating system. Play pickup. Get rated by teammates. Build a verified score that follows you everywhere.</p>
           <div className="hero-btns">
             <a href="#waitlist"><button className="btn-primary btn-magnetic">Join Waitlist</button></a>
