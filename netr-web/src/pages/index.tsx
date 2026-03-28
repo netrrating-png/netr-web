@@ -184,7 +184,7 @@ export default function Home() {
         @keyframes livePulse{0%,100%{box-shadow:0 0 0 0 #39FF1488}50%{box-shadow:0 0 0 6px transparent}}
         .hero-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:clamp(72px,12vw,140px);line-height:.92;letter-spacing:-.02em;text-transform:uppercase;animation:fadeUp .7s ease .2s both;margin-bottom:10px;}
         .hero-title .line2{background:linear-gradient(90deg,var(--accent),#00FF88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 30px #39FF1466);}
-        .hero-sub{font-size:clamp(15px,2vw,19px);color:var(--sub);line-height:1.7;max-width:540px;margin:0 auto 44px;animation:fadeUp .7s ease .35s both;}
+        .hero-sub{font-size:clamp(15px,2vw,19px);color:#fff;line-height:1.7;max-width:540px;margin:0 auto 44px;animation:fadeUp .7s ease .35s both;}
         .hero-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;animation:fadeUp .7s ease .5s both;margin-bottom:64px;}
         .btn-primary{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:16px;letter-spacing:.08em;text-transform:uppercase;padding:15px 36px;border-radius:10px;border:none;cursor:pointer;background:linear-gradient(135deg,#39FF14,#00CC22);color:#040406;position:relative;overflow:hidden;transition:box-shadow .25s,transform .2s;}
         .btn-primary:hover{box-shadow:0 0 36px #39FF1488,0 8px 32px #39FF1444;transform:translateY(-2px)}
@@ -251,6 +251,8 @@ export default function Home() {
         .tier-bar{height:4px;background:var(--muted);border-radius:99px;overflow:hidden;width:110px;flex-shrink:0}
         .tier-fill{height:100%;border-radius:99px;width:0;transition:width 1.4s cubic-bezier(.16,1,.3,1);}
         .reveal.in .tier-fill{width:var(--w,50%)}
+        .avg-badge{display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:3px 9px;border-radius:99px;background:#7B9FFF22;border:1px solid #7B9FFF66;font-size:10px;font-weight:700;letter-spacing:.08em;color:#7B9FFF;text-transform:uppercase;}
+        .avg-dot{width:6px;height:6px;border-radius:50%;background:#7B9FFF;display:inline-block;animation:auraPulse 2s ease-in-out infinite;}
         #vibe{background:var(--bg)}
         .vibe-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
         .vibe-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px 20px;text-align:center;transition:transform .25s;position:relative;overflow:hidden;}
@@ -353,10 +355,10 @@ export default function Home() {
 
       <div id="stats">
         <div className="stats-inner">
-          <div className="stat-item reveal"><div className="stat-num"><span className="ctr" data-t="584">0</span>+</div><div className="stat-label">Courts in NYC</div></div>
+          <div className="stat-item reveal"><div className="stat-num"><span className="ctr" data-t="1000">0</span>+</div><div className="stat-label">Courts on NETR</div></div>
           <div className="stat-item reveal" style={{transitionDelay:'.1s'}}><div className="stat-num"><span className="ctr" data-t="7">0</span></div><div className="stat-label">Skill Categories</div></div>
-          <div className="stat-item reveal" style={{transitionDelay:'.2s'}}><div className="stat-num"><span className="ctr" data-t="10">0</span>+</div><div className="stat-label">Reviews to Verify</div></div>
-          <div className="stat-item reveal" style={{transitionDelay:'.3s'}}><div className="stat-num">0%</div><div className="stat-label">Self-Rating Inflation</div></div>
+          <div className="stat-item reveal" style={{transitionDelay:'.2s'}}><div className="stat-num"><span className="ctr" data-t="5">0</span>+</div><div className="stat-label">Reviews to Verify</div></div>
+          <div className="stat-item reveal" style={{transitionDelay:'.3s'}}><div className="stat-num">0%</div><div className="stat-label">You Can&apos;t Rate Yourself</div></div>
         </div>
       </div>
 
@@ -418,20 +420,23 @@ export default function Home() {
           </div>
           <div className="tier-list">
             {[
-              {range:'9.5–9.9',name:'In The League',sub:'Verified pros only',color:'#C40010',w:'100%',bg:'linear-gradient(90deg,#C40010,#FF1A2E)'},
-              {range:'9.0–9.4',name:'Certified',sub:'Semi-pro / Pro-Am',color:'#FF3B30',w:'93%',bg:'linear-gradient(90deg,#FF3B30,#FF6B5F)'},
-              {range:'8.0–8.9',name:'Elite',sub:'Post-college level',color:'#FF7A00',w:'85%',bg:'linear-gradient(90deg,#FF7A00,#FFA040)'},
-              {range:'7.0–7.9',name:'Built Different',sub:'HS Varsity / college-bound',color:'#FFC247',w:'74%',bg:'linear-gradient(90deg,#FFC247,#FFD47A)'},
-              {range:'6.0–6.9',name:'Hooper',sub:'HS JV to Varsity range',color:'#39FF14',w:'63%',bg:'linear-gradient(90deg,#39FF14,#70FF50)'},
-              {range:'5.0–5.9',name:'Got Game',sub:'Rec league to HS JV',color:'#2ECC71',w:'52%',bg:'linear-gradient(90deg,#2ECC71,#52E090)'},
-              {range:'4.0–4.9',name:'Prospect',sub:'Casual organized play',color:'#2DA8FF',w:'42%',bg:'linear-gradient(90deg,#2DA8FF,#60C0FF)'},
-              {range:'3.0–3.9',name:'On The Come Up',sub:'Avg pickup player',color:'#7B9FFF',w:'30%',bg:'linear-gradient(90deg,#7B9FFF,#95C2FF)'},
-              {range:'2.0–2.9',name:'Fresh Laces',sub:'New to the game',color:'#9B8BFF',w:'18%',bg:'linear-gradient(90deg,#9B8BFF,#B8ABFF)'},
+              {range:'9.5–9.9',name:'In The League',color:'#C40010',w:'100%',bg:'linear-gradient(90deg,#C40010,#FF1A2E)'},
+              {range:'9.0–9.4',name:'Certified',color:'#FF3B30',w:'93%',bg:'linear-gradient(90deg,#FF3B30,#FF6B5F)'},
+              {range:'8.0–8.9',name:'Elite',color:'#FF7A00',w:'85%',bg:'linear-gradient(90deg,#FF7A00,#FFA040)'},
+              {range:'7.0–7.9',name:'Built Different',color:'#FFC247',w:'74%',bg:'linear-gradient(90deg,#FFC247,#FFD47A)'},
+              {range:'6.0–6.9',name:'Hooper',color:'#39FF14',w:'63%',bg:'linear-gradient(90deg,#39FF14,#70FF50)'},
+              {range:'5.0–5.9',name:'Got Game',color:'#2ECC71',w:'52%',bg:'linear-gradient(90deg,#2ECC71,#52E090)'},
+              {range:'4.0–4.9',name:'Prospect',color:'#2DA8FF',w:'42%',bg:'linear-gradient(90deg,#2DA8FF,#60C0FF)'},
+              {range:'3.0–3.9',name:'On The Come Up',color:'#7B9FFF',w:'30%',bg:'linear-gradient(90deg,#7B9FFF,#95C2FF)',avg:true},
+              {range:'2.0–2.9',name:'Fresh Laces',color:'#9B8BFF',w:'18%',bg:'linear-gradient(90deg,#9B8BFF,#B8ABFF)'},
             ].map((t,i)=>(
               <div className="tier-row reveal" key={t.name} style={{transitionDelay:`${i*.05}s`} as React.CSSProperties}>
                 <div style={{position:'absolute',left:0,top:0,bottom:0,width:'3px',background:t.color,borderRadius:'99px 0 0 99px'}}/>
                 <div className="tier-range" style={{color:t.color}}>{t.range}</div>
-                <div className="tier-info"><div className="tier-name" style={{color:t.color}}>{t.name}</div><div className="tier-sub">{t.sub}</div></div>
+                <div className="tier-info">
+                  <div className="tier-name" style={{color:t.color}}>{t.name}</div>
+                  {t.avg && <div className="avg-badge"><span className="avg-dot"/>Avg Player</div>}
+                </div>
                 <div className="tier-bar"><div className="tier-fill" style={{'--w':t.w,background:t.bg} as React.CSSProperties}/></div>
               </div>
             ))}
@@ -468,6 +473,32 @@ export default function Home() {
 
       <div className="court-divider" />
 
+      <section id="crews">
+        <div className="section">
+          <div className="section-head">
+            <span className="label-tag reveal">New Feature</span>
+            <h2 className="section-title reveal">Run With Your Crew.</h2>
+            <p className="section-sub reveal">Create or join a crew. Track your squad&apos;s collective NETR score, climb the leaderboard together, and stay locked in with group chat.</p>
+          </div>
+          <div className="crews-grid reveal">
+            {[
+              {icon:'🏆',name:'Crew Leaderboard',desc:'Every crew member\'s NETR score stacks. See how your crew ranks against everyone else on the app.'},
+              {icon:'💬',name:'Crew Chat',desc:'Built-in group chat for your crew. Coordinate runs, talk trash, plan sessions — all in one place.'},
+              {icon:'🔍',name:'Find & Join',desc:'Search for existing crews or create your own. Invite your guys by name — no long codes.'},
+              {icon:'🏅',name:'Crew Identity',desc:'Your crew has its own name, profile, and rep. Build something real with the people you run with.'},
+            ].map((c,i)=>(
+              <div className="crew-card reveal" key={c.name} style={{transitionDelay:`${i*.08}s`}}>
+                <div className="crew-icon-wrap">{c.icon}</div>
+                <div className="crew-name">{c.name}</div>
+                <div className="crew-desc">{c.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="court-divider" />
+
       <section id="rep">
         <div className="section">
           <div className="section-head">
@@ -487,32 +518,6 @@ export default function Home() {
               <div className="rep-card reveal" key={r.name} style={{transitionDelay:`${r.delay}s`}}>
                 <div className="rep-icon-wrap">{r.icon}</div>
                 <div><div className="rep-name">{r.name}</div><div className="rep-desc">{r.desc}</div></div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <div className="court-divider" />
-
-      <section id="crews">
-        <div className="section">
-          <div className="section-head">
-            <span className="label-tag reveal">New Feature</span>
-            <h2 className="section-title reveal">Run With Your Crew.</h2>
-            <p className="section-sub reveal">Create or join a crew. Track your squad&apos;s collective NETR score, climb the leaderboard together, and stay locked in with group chat.</p>
-          </div>
-          <div className="crews-grid reveal">
-            {[
-              {icon:'🏆',name:'Crew Leaderboard',desc:'Every crew member\'s NETR score stacks. See how your crew ranks against everyone else on the app.'},
-              {icon:'💬',name:'Crew Chat',desc:'Built-in group chat for your crew. Coordinate runs, talk trash, plan sessions — all in one place.'},
-              {icon:'🔍',name:'Find & Join',desc:'Search for existing crews or create your own. Invite your guys by name — no long codes.'},
-              {icon:'🏅',name:'Crew Identity',desc:'Your crew has its own name, profile, and rep. Build something real with the people you run with.'},
-            ].map((c,i)=>(
-              <div className="crew-card reveal" key={c.name} style={{transitionDelay:`${i*.08}s`}}>
-                <div className="crew-icon-wrap">{c.icon}</div>
-                <div className="crew-name">{c.name}</div>
-                <div className="crew-desc">{c.desc}</div>
               </div>
             ))}
           </div>
