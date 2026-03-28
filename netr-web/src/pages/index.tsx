@@ -413,7 +413,7 @@ export default function Home() {
       </div>
 
       <nav id="nav">
-        <div className="nav-logo">NETR</div>
+        <a href="#" className="nav-logo" style={{textDecoration:'none'}}>NETR</a>
         <div className="nav-links">
           <a href="#how">How It Works</a>
           <a href="#selfassess">Self-Assessment</a>
