@@ -175,10 +175,37 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false)
   const closeMenu = () => setMenuOpen(false)
 
-  const submitWait = (e: React.FormEvent) => {
+  const submitWait = async (e: React.FormEvent) => {
     e.preventDefault()
-    ;(e.target as HTMLElement).style.display='none'
-    const s=document.getElementById('success'); if(s)s.style.display='block'
+    const form = e.target as HTMLFormElement
+    const input = form.querySelector('input[type="email"]') as HTMLInputElement
+    const btn = form.querySelector('button') as HTMLButtonElement
+    const errEl = document.getElementById('waitlist-error')
+
+    btn.textContent = 'Joining...'
+    btn.disabled = true
+    if (errEl) errEl.style.display = 'none'
+
+    try {
+      const res = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: input.value }),
+      })
+      if (res.ok) {
+        form.style.display = 'none'
+        const s = document.getElementById('success')
+        if (s) s.style.display = 'block'
+      } else {
+        btn.textContent = 'Join Waitlist'
+        btn.disabled = false
+        if (errEl) { errEl.textContent = 'Something went wrong. Try again.'; errEl.style.display = 'block' }
+      }
+    } catch {
+      btn.textContent = 'Join Waitlist'
+      btn.disabled = false
+      if (errEl) { errEl.textContent = 'Connection error. Try again.'; errEl.style.display = 'block' }
+    }
   }
 
   return (
@@ -704,7 +731,8 @@ export default function Home() {
             <input className="waitlist-input" type="email" placeholder="your@email.com" required/>
             <button className="btn-primary btn-magnetic" type="submit">Join Waitlist</button>
           </form>
-          <div className="success-msg" id="success">✓ You&apos;re on the list. See you on the court.</div>
+          <p className="waitlist-error" id="waitlist-error" style={{display:'none',color:'#FF453A',fontSize:'13px',marginTop:'8px'}} />
+          <div className="success-msg" id="success">✓ You&apos;re on the list. We&apos;ll hit you when it&apos;s time to run.</div>
           <p className="waitlist-note reveal">No spam. No clout. Just the drop when it&apos;s ready.</p>
         </div>
       </section>
