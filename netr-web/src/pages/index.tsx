@@ -724,7 +724,6 @@ export default function Home() {
       <section id="waitlist">
         <canvas id="waitlist-canvas"/>
         <div className="waitlist-inner">
-          <span className="label-tag reveal" style={{justifyContent:'center',display:'block'}}>NYC Beta · iOS</span>
           <h2 className="waitlist-title reveal">Get Your<br/><span>NETR Score.</span></h2>
           <p className="waitlist-sub reveal">Join the beta. NYC courts already loaded. Your first game is waiting.</p>
           <form className="waitlist-form reveal" onSubmit={submitWait}>
