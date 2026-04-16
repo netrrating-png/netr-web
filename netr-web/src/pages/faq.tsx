@@ -75,8 +75,8 @@ const faqs: { section: string; items: { q: string; a: string }[] }[] = [
         a: 'Vibe is separate from your skill score. It measures how you show up — your energy, attitude, and whether you\'re someone players actually want to run with again. You can be a 4.0 player with a great vibe, or a 7.0 nobody wants on their team.',
       },
       {
-        q: 'What is Court Rep?',
-        a: 'Court Rep is your XP system. You earn it by showing up, rating other players, hosting games, and hitting milestones. It tracks your progression from Newcomer all the way to Legend.',
+        q: 'What are Daily Games?',
+        a: 'Daily Games are two basketball challenges that drop every day in the app. Mystery Player is a Wordle-style game where you guess an NBA player — past or present — using letter-by-letter hints. Connections gives you 16 NBA players and asks you to sort them into four groups based on hidden categories like a shared team, era, draft class, or something more obscure.',
       },
     ],
   },
