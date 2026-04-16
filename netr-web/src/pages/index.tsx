@@ -354,14 +354,27 @@ export default function Home() {
         .vibe-label{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:18px;margin-bottom:8px}
         .vibe-desc{font-size:12px;color:var(--text);line-height:1.55}
         @media(max-width:640px){.vibe-grid{grid-template-columns:repeat(2,1fr)}}
-        #rep{background:var(--surface);position:relative;overflow:hidden;}
-        .rep-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-        .rep-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;align-items:flex-start;gap:14px;transition:transform .2s,border-color .2s;}
-        .rep-card:hover{transform:translateY(-4px);border-color:#39FF1433}
-        .rep-icon-wrap{width:40px;height:40px;flex-shrink:0;border-radius:10px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--border);}
-        .rep-name{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:16px;margin-bottom:4px}
-        .rep-desc{font-size:12px;color:var(--text);line-height:1.5}
-        @media(max-width:640px){.rep-grid{grid-template-columns:1fr 1fr}}
+        #games{background:var(--surface);position:relative;overflow:hidden;}
+        .games-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+        .game-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:32px 28px;transition:transform .25s,border-color .25s,box-shadow .25s;position:relative;overflow:hidden;}
+        .game-card:hover{transform:translateY(-6px);border-color:#39FF1444}
+        .game-card-label{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:14px;}
+        .game-card-icon{font-size:36px;margin-bottom:12px;}
+        .game-card-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;text-transform:uppercase;margin-bottom:10px;}
+        .game-card-desc{font-size:13px;color:var(--text);line-height:1.7;margin-bottom:4px;}
+        .game-app-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:99px;background:var(--surface);border:1px solid var(--border);font-size:11px;font-weight:600;color:var(--sub);margin-top:16px;}
+        .mp-preview{display:flex;gap:6px;margin:20px 0 0;}
+        .mp-tile{width:38px;height:38px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;color:#fff;}
+        .mp-correct{background:#39FF1430;border:2px solid var(--accent);}
+        .mp-present{background:#F5C54230;border:2px solid #F5C542;}
+        .mp-absent{background:var(--surface);border:2px solid var(--border);color:var(--sub);}
+        .conn-preview{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:20px 0 0;}
+        .conn-cell{height:24px;border-radius:5px;}
+        .conn-color-0{background:#39FF1430;border:1px solid #39FF1450;}
+        .conn-color-1{background:#F5C54230;border:1px solid #F5C54250;}
+        .conn-color-2{background:#FF950030;border:1px solid #FF950050;}
+        .conn-color-3{background:#FF453A30;border:1px solid #FF453A50;}
+        @media(max-width:640px){.games-grid{grid-template-columns:1fr}}
         #waitlist{position:relative;overflow:hidden;background:radial-gradient(ellipse 80% 60% at 50% 50%,#39FF1412 0%,transparent 70%),var(--bg);padding:120px 48px;text-align:center;}
         #waitlist-canvas{position:absolute;inset:0;width:100%;height:100%;opacity:.4}
         .waitlist-inner{position:relative;z-index:2;max-width:580px;margin:0 auto}
@@ -414,7 +427,7 @@ export default function Home() {
         .step-card:hover{box-shadow:0 28px 64px rgba(57,255,20,.13),0 0 0 1px #39FF1430;}
         .step-card.featured:hover{box-shadow:0 28px 64px rgba(57,255,20,.22),0 0 0 1px #39FF1466;}
         .vibe-card:hover{box-shadow:0 20px 56px rgba(57,255,20,.1),0 0 0 1px #39FF1428;}
-        .rep-card:hover{box-shadow:0 14px 42px rgba(57,255,20,.08),border-color:#39FF1444;}
+        .game-card:hover{box-shadow:0 20px 56px rgba(57,255,20,.12),0 0 0 1px #39FF1444;}
         .tier-row-avg{animation:tierPulse 3.5s ease-in-out infinite;}
         @keyframes tierPulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 24px rgba(123,159,255,.18),inset 0 0 24px rgba(123,159,255,.04)}}
         .assess-card{transition:transform .28s ease,border-color .25s,box-shadow .25s;}
@@ -447,7 +460,7 @@ export default function Home() {
           <a href="#scale">Rating Scale</a>
           <a href="#vibe">Vibe Score</a>
           <a href="#crews">Crews</a>
-          <a href="#rep">Court Rep</a>
+          <a href="#games">Daily Games</a>
           <a href="/faq">FAQ</a>
           <a href="#waitlist"><button className="btn-cta">Join Waitlist</button></a>
         </div>
@@ -462,7 +475,7 @@ export default function Home() {
         <a href="#scale" onClick={closeMenu}>Rating Scale</a>
         <a href="#vibe" onClick={closeMenu}>Vibe Score</a>
         <a href="#crews" onClick={closeMenu}>Crews</a>
-        <a href="#rep" onClick={closeMenu}>Court Rep</a>
+        <a href="#games" onClick={closeMenu}>Daily Games</a>
         <a href="/faq" onClick={closeMenu}>FAQ</a>
         <a href="#waitlist" onClick={closeMenu}>
           <button className="mob-cta">Join Waitlist</button>
@@ -696,27 +709,40 @@ export default function Home() {
 
       <div className="court-divider" />
 
-      <section id="rep">
+      <section id="games">
         <div className="section">
           <div className="section-head">
-            <span className="label-tag reveal">Earn XP</span>
-            <h2 className="section-title reveal">Court Rep</h2>
-            <p className="section-sub reveal">Show up. Rate players. Host games. Level up from Newcomer to Legend.</p>
+            <span className="label-tag reveal">Drop Daily</span>
+            <h2 className="section-title reveal">Daily Games</h2>
+            <p className="section-sub reveal">Two new basketball challenges every day. How deep is your hoops IQ?</p>
           </div>
-          <div className="rep-grid">
-            {[
-              {icon:'🏀',name:'First Run',desc:'Join your first game session on NETR',delay:0},
-              {icon:'⭐',name:'Rater',desc:'Rate 10+ players after games',delay:.08},
-              {icon:'🗺️',name:'Court Hopper',desc:'Check in at 5 different courts',delay:.16},
-              {icon:'📍',name:'Regular',desc:'10+ runs at the same court',delay:.08},
-              {icon:'🎯',name:'On Sight',desc:'NETR score hits 6.0+ for the first time',delay:.16},
-              {icon:'👑',name:'Legend',desc:'Reach Level 5 — 500 XP earned',delay:.24},
-            ].map(r=>(
-              <div className="rep-card reveal" key={r.name} style={{transitionDelay:`${r.delay}s`}}>
-                <div className="rep-icon-wrap">{r.icon}</div>
-                <div><div className="rep-name">{r.name}</div><div className="rep-desc">{r.desc}</div></div>
+          <div className="games-grid">
+            <div className="game-card reveal tilt">
+              <div className="game-card-label">Mystery Player</div>
+              <div className="game-card-icon">🕵️</div>
+              <h3 className="game-card-title">Guess the NBA Player</h3>
+              <p className="game-card-desc">A mystery player — current star or NBA legend — is hidden. Type a name and letter-by-letter hints reveal how close you are, Wordle-style. Six guesses. New player every day.</p>
+              <div className="mp-preview">
+                <div className="mp-tile mp-correct">K</div>
+                <div className="mp-tile mp-absent">Y</div>
+                <div className="mp-tile mp-present">R</div>
+                <div className="mp-tile mp-correct">I</div>
+                <div className="mp-tile mp-absent">E</div>
               </div>
-            ))}
+              <div className="game-app-badge">📱 App Only</div>
+            </div>
+            <div className="game-card reveal tilt" style={{transitionDelay:'.1s'}}>
+              <div className="game-card-label">Connections</div>
+              <div className="game-card-icon">🔗</div>
+              <h3 className="game-card-title">Group 16 Players Into 4</h3>
+              <p className="game-card-desc">Sixteen NBA players. Four hidden groups of four. Find what connects each group — a shared team, era, draft class, or something way more obscure. Four difficulty levels. New puzzle every day.</p>
+              <div className="conn-preview">
+                {[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].map(i=>(
+                  <div key={i} className={`conn-cell conn-color-${Math.floor(i/4)}`} />
+                ))}
+              </div>
+              <div className="game-app-badge">📱 App Only</div>
+            </div>
           </div>
         </div>
       </section>
