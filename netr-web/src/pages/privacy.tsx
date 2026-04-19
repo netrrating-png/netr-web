@@ -85,7 +85,7 @@ const sections = [
     content: [
       {
         subtitle: 'Access & Portability',
-        text: 'You can request a copy of the personal data we hold about you, including your rating history, at any time by emailing privacy@netr.pro.',
+        text: 'You can request a copy of the personal data we hold about you, including your rating history, at any time by emailing netrrating@gmail.com.',
       },
       {
         subtitle: 'Correction',
@@ -110,7 +110,7 @@ const sections = [
     content: [
       {
         subtitle: '',
-        text: 'We use industry-standard security measures including encryption in transit (TLS) and at rest, access controls, and regular security reviews. No system is 100% secure. If you discover a security vulnerability, please contact us at security@netr.pro.',
+        text: 'We use industry-standard security measures including encryption in transit (TLS) and at rest, access controls, and regular security reviews. No system is 100% secure. If you discover a security vulnerability, please contact us at netrrating@gmail.com.',
       },
     ],
   },
@@ -119,7 +119,7 @@ const sections = [
     content: [
       {
         subtitle: '',
-        text: 'NETR is not directed at children under 13. We do not knowingly collect personal information from anyone under 13. If we learn we have inadvertently collected such data, we will delete it promptly. Parents or guardians who believe their child has created an account should contact us at privacy@netr.pro.',
+        text: 'NETR is not directed at children under 13. We do not knowingly collect personal information from anyone under 13. If we learn we have inadvertently collected such data, we will delete it promptly. Parents or guardians who believe their child has created an account should contact us at netrrating@gmail.com.',
       },
     ],
   },
@@ -137,7 +137,7 @@ const sections = [
     content: [
       {
         subtitle: '',
-        text: 'Questions, concerns, or requests related to this Privacy Policy can be sent to privacy@netr.pro. We aim to respond within 30 days.',
+        text: 'Questions, concerns, or requests related to this Privacy Policy can be sent to netrrating@gmail.com. We aim to respond within 30 days.',
       },
     ],
   },
@@ -246,7 +246,7 @@ export default function Privacy() {
                     className="privacy-item-text"
                     dangerouslySetInnerHTML={{
                       __html: item.text.replace(
-                        /(privacy@netr\.pro|security@netr\.pro)/g,
+                        /(netrrating@gmail\.com)/g,
                         '<a href="mailto:$1" class="privacy-contact-link">$1</a>'
                       ),
                     }}
