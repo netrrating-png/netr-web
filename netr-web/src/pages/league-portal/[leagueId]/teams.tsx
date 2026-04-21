@@ -1,6 +1,6 @@
 import Head from 'next/head'
 import { useRouter } from 'next/router'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase, League, LeagueTeam, LeaguePlayer } from '../../../lib/supabase'
 import { PortalNav } from './index'
 
@@ -16,10 +16,12 @@ export default function TeamsPage() {
   const [showTeamForm, setShowTeamForm] = useState(false)
   const [teamName, setTeamName] = useState('')
   const [teamColor, setTeamColor] = useState('#39FF14')
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [addingPlayer, setAddingPlayer] = useState<string | null>(null)
   const [playerName, setPlayerName] = useState('')
   const [playerJersey, setPlayerJersey] = useState('')
-  const [playerPos, setPlayerPos] = useState('')
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
 
@@ -48,17 +50,45 @@ export default function TeamsPage() {
     })
   }, [leagueId])
 
+  function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setLogoFile(file)
+    setLogoPreview(URL.createObjectURL(file))
+  }
+
+  function clearLogo() {
+    setLogoFile(null)
+    setLogoPreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function uploadLogo(file: File): Promise<string | null> {
+    const ext = file.name.split('.').pop()
+    const path = `${leagueId}/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('team-logos').upload(path, file, { upsert: true })
+    if (error) return null
+    const { data: { publicUrl } } = supabase.storage.from('team-logos').getPublicUrl(path)
+    return publicUrl
+  }
+
   async function addTeam(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
+
+    let logoUrl: string | null = null
+    if (logoFile) logoUrl = await uploadLogo(logoFile)
+
     const { data } = await supabase
       .from('league_teams')
-      .insert({ league_id: leagueId, name: teamName, color: teamColor })
+      .insert({ league_id: leagueId, name: teamName, color: teamColor, logo_url: logoUrl })
       .select()
       .single()
+
     if (data) setTeams(prev => [...prev, { ...data, players: [] }])
     setTeamName('')
     setTeamColor('#39FF14')
+    clearLogo()
     setShowTeamForm(false)
     setSaving(false)
   }
@@ -68,7 +98,7 @@ export default function TeamsPage() {
     setSaving(true)
     const { data } = await supabase
       .from('league_players')
-      .insert({ team_id: teamId, league_id: leagueId, display_name: playerName, jersey_number: playerJersey || null, position: playerPos || null })
+      .insert({ team_id: teamId, league_id: leagueId, display_name: playerName, jersey_number: playerJersey || null })
       .select()
       .single()
     if (data) {
@@ -76,7 +106,6 @@ export default function TeamsPage() {
     }
     setPlayerName('')
     setPlayerJersey('')
-    setPlayerPos('')
     setAddingPlayer(null)
     setSaving(false)
   }
@@ -119,22 +148,51 @@ export default function TeamsPage() {
           {showTeamForm && (
             <form onSubmit={addTeam} style={S.inlineForm}>
               <div style={S.formRow}>
-                <div style={{ flex: 1 }}>
+                {/* Name */}
+                <div style={{ flex: 1, minWidth: 200 }}>
                   <label style={S.label}>Team Name *</label>
                   <input value={teamName} onChange={e => setTeamName(e.target.value)} style={S.input} placeholder="e.g. Ballers" required autoFocus />
                 </div>
+
+                {/* Logo upload */}
+                <div>
+                  <label style={S.label}>Logo (optional)</label>
+                  <div style={S.logoUploadRow}>
+                    {logoPreview ? (
+                      <div style={S.logoPreviewWrap}>
+                        <img src={logoPreview} alt="Logo preview" style={S.logoPreviewImg} />
+                        <button type="button" onClick={clearLogo} style={S.logoRemoveBtn} title="Remove">×</button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => fileInputRef.current?.click()} style={S.logoPickerBtn}>
+                        <span style={{ fontSize: 20 }}>🖼️</span>
+                        <span>Upload Logo</span>
+                      </button>
+                    )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoChange}
+                      style={{ display: 'none' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Color */}
                 <div>
                   <label style={S.label}>Color</label>
                   <div style={S.colorRow}>
                     {['#39FF14','#FF453A','#FF9500','#4A9EFF','#BF5AF2','#F5C542','#EEEEF5'].map(c => (
                       <button key={c} type="button" onClick={() => setTeamColor(c)}
-                        style={{ ...S.colorSwatch, background: c, border: teamColor === c ? `2px solid #fff` : '2px solid transparent' }} />
+                        style={{ ...S.colorSwatch, background: c, border: teamColor === c ? '2px solid #fff' : '2px solid transparent' }} />
                     ))}
                   </div>
                 </div>
               </div>
+
               <div style={S.formActions}>
-                <button type="button" onClick={() => setShowTeamForm(false)} style={S.cancelBtn}>Cancel</button>
+                <button type="button" onClick={() => { setShowTeamForm(false); clearLogo() }} style={S.cancelBtn}>Cancel</button>
                 <button type="submit" style={S.saveBtn} disabled={saving || !teamName}>{saving ? 'Adding…' : 'Add Team'}</button>
               </div>
             </form>
@@ -154,7 +212,11 @@ export default function TeamsPage() {
                 {/* Team header */}
                 <div style={S.teamHeader} onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}>
                   <div style={S.teamLeft}>
-                    <div style={{ ...S.teamDot, background: team.color, boxShadow: `0 0 8px ${team.color}66` }} />
+                    {team.logo_url ? (
+                      <img src={team.logo_url} alt={team.name} style={S.teamLogo} />
+                    ) : (
+                      <div style={{ ...S.teamDot, background: team.color, boxShadow: `0 0 8px ${team.color}66` }} />
+                    )}
                     <div>
                       <div style={S.teamName}>{team.name}</div>
                       <div style={S.teamCount}>{team.players.length} player{team.players.length !== 1 ? 's' : ''}</div>
@@ -179,7 +241,7 @@ export default function TeamsPage() {
                       <table style={S.table}>
                         <thead>
                           <tr>
-                            {['#', 'Player', 'Pos', 'Status', ''].map(h => (
+                            {['#', 'Player', 'Status', ''].map(h => (
                               <th key={h} style={S.th}>{h}</th>
                             ))}
                           </tr>
@@ -189,10 +251,12 @@ export default function TeamsPage() {
                             <tr key={p.id} style={S.tr}>
                               <td style={S.td}><span style={S.jerseyNum}>{p.jersey_number ?? '—'}</span></td>
                               <td style={S.td}>
-                                <span style={S.playerName}>{p.display_name}</span>
-                                {p.profile_id && <span style={S.linkedBadge}>NETR</span>}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={S.playerNameStyle}>{p.display_name}</span>
+                                  {p.profile_id && <span style={S.linkedBadge}>NETR</span>}
+                                  {p.position && <span style={S.pos}>{p.position}</span>}
+                                </div>
                               </td>
-                              <td style={S.td}><span style={S.pos}>{p.position ?? '—'}</span></td>
                               <td style={S.td}>
                                 <span style={{ ...S.claimBadge, background: p.is_claimed ? 'rgba(57,255,20,0.12)' : 'rgba(245,197,66,0.12)', color: p.is_claimed ? '#39FF14' : '#F5C542' }}>
                                   {p.is_claimed ? 'Claimed' : 'Unclaimed'}
@@ -207,16 +271,11 @@ export default function TeamsPage() {
                       </table>
                     )}
 
-                    {/* Add player inline form */}
                     {addingPlayer === team.id ? (
                       <form onSubmit={e => addPlayer(e, team.id)} style={S.playerForm}>
                         <div style={S.playerFormRow}>
                           <input value={playerName} onChange={e => setPlayerName(e.target.value)} style={{ ...S.input, flex: 2, marginBottom: 0 }} placeholder="Player name *" required autoFocus />
                           <input value={playerJersey} onChange={e => setPlayerJersey(e.target.value)} style={{ ...S.input, flex: '0 0 70px', marginBottom: 0 }} placeholder="#" maxLength={3} />
-                          <select value={playerPos} onChange={e => setPlayerPos(e.target.value)} style={{ ...S.input, flex: '0 0 100px', marginBottom: 0 }}>
-                            <option value="">Pos</option>
-                            {['PG','SG','SF','PF','C'].map(p => <option key={p} value={p}>{p}</option>)}
-                          </select>
                           <button type="submit" style={S.saveBtn} disabled={saving || !playerName}>{saving ? '…' : 'Add'}</button>
                           <button type="button" onClick={() => setAddingPlayer(null)} style={S.cancelBtn}>Cancel</button>
                         </div>
@@ -256,6 +315,11 @@ const S: Record<string, React.CSSProperties> = {
   formRow: { display: 'flex', gap: 20, flexWrap: 'wrap' as const, alignItems: 'flex-end', marginBottom: 16 },
   label: { display: 'block', fontSize: 11, color: '#6A6A82', textTransform: 'uppercase' as const, letterSpacing: 2, marginBottom: 8 },
   input: { background: '#0A0A0D', border: '1px solid #1C1C26', borderRadius: 8, color: '#EEEEF5', fontFamily: "'DM Sans', sans-serif", fontSize: 14, padding: '10px 14px', outline: 'none', width: '100%', boxSizing: 'border-box' as const, marginBottom: 0 },
+  logoUploadRow: { display: 'flex', alignItems: 'center', gap: 10 },
+  logoPickerBtn: { display: 'flex', alignItems: 'center', gap: 8, background: '#0A0A0D', border: '1px dashed #2E2E3A', borderRadius: 8, color: '#6A6A82', fontFamily: "'DM Sans', sans-serif", fontSize: 13, padding: '8px 14px', cursor: 'pointer', whiteSpace: 'nowrap' as const },
+  logoPreviewWrap: { position: 'relative' as const, display: 'inline-flex' },
+  logoPreviewImg: { width: 48, height: 48, borderRadius: 8, objectFit: 'cover' as const, border: '1px solid #2E2E3A' },
+  logoRemoveBtn: { position: 'absolute' as const, top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: '#FF4545', border: 'none', color: '#fff', fontSize: 12, lineHeight: '18px', textAlign: 'center' as const, cursor: 'pointer', padding: 0 },
   colorRow: { display: 'flex', gap: 8, paddingTop: 4 },
   colorSwatch: { width: 28, height: 28, borderRadius: '50%', cursor: 'pointer', padding: 0, flexShrink: 0 },
   formActions: { display: 'flex', gap: 10, justifyContent: 'flex-end' },
@@ -268,6 +332,7 @@ const S: Record<string, React.CSSProperties> = {
   teamCard: { background: '#0F0F14', border: '1px solid #1C1C26', borderRadius: 12, overflow: 'hidden' },
   teamHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px', cursor: 'pointer', userSelect: 'none' as const },
   teamLeft: { display: 'flex', alignItems: 'center', gap: 14 },
+  teamLogo: { width: 40, height: 40, borderRadius: 8, objectFit: 'cover' as const, flexShrink: 0 },
   teamDot: { width: 14, height: 14, borderRadius: '50%', flexShrink: 0 },
   teamName: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 20, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
   teamCount: { fontSize: 12, color: '#6A6A82' },
@@ -280,7 +345,7 @@ const S: Record<string, React.CSSProperties> = {
   tr: { borderBottom: '1px solid #14141C' },
   td: { padding: '10px 12px 10px 0', fontSize: 14 },
   jerseyNum: { fontFamily: "'DM Mono', monospace", color: '#6A6A82', fontSize: 13 },
-  playerName: { fontWeight: 500 },
+  playerNameStyle: { fontWeight: 500 },
   linkedBadge: { marginLeft: 8, background: 'rgba(57,255,20,0.12)', color: '#39FF14', fontSize: 10, fontFamily: "'DM Mono', monospace", padding: '2px 7px', borderRadius: 99, letterSpacing: 0.5 },
   pos: { fontFamily: "'DM Mono', monospace", color: '#6A6A82', fontSize: 12 },
   claimBadge: { fontSize: 11, fontFamily: "'DM Mono', monospace", padding: '2px 8px', borderRadius: 99, letterSpacing: 0.5 },
