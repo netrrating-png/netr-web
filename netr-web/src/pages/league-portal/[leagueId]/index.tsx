@@ -113,6 +113,59 @@ export default function LeagueOverview() {
             ))}
           </div>
 
+          {/* Commissioner Guide */}
+          <div style={S.guideCard}>
+            <div style={S.guideTitle}>How It Works</div>
+            <div style={S.guideSteps}>
+              {[
+                {
+                  n: '1',
+                  title: 'Build your rosters',
+                  body: 'Add your teams and enter each player by name. You don\'t need their NETR account — just a name. Players can claim their spot later.',
+                  href: `/league-portal/${leagueId}/teams`,
+                  cta: 'Go to Teams →',
+                },
+                {
+                  n: '2',
+                  title: 'Schedule your games',
+                  body: 'Add each game with a date, time, and location. Games show up on the schedule page sorted by date.',
+                  href: `/league-portal/${leagueId}/schedule`,
+                  cta: 'Go to Schedule →',
+                },
+                {
+                  n: '3',
+                  title: 'Enter stats after each game',
+                  body: 'Open the game, enter the final score, then tap +/− to enter each player\'s stats. You enter raw counts (shots made, shots taken) — percentages calculate automatically. Takes ~3 minutes.',
+                  href: null,
+                  cta: null,
+                },
+                {
+                  n: '4',
+                  title: 'Everything updates instantly',
+                  body: 'Standings re-rank after every score entry. The Stats Leaders board sorts by per-game averages. No manual calculations needed.',
+                  href: `/league-portal/${leagueId}/standings`,
+                  cta: 'View Standings →',
+                },
+              ].map(step => (
+                <div key={step.n} style={S.guideStep}>
+                  <div style={S.guideN}>{step.n}</div>
+                  <div style={S.guideStepBody}>
+                    <div style={S.guideStepTitle}>{step.title}</div>
+                    <div style={S.guideStepText}>{step.body}</div>
+                    {step.href && <a href={step.href} style={S.guideCta}>{step.cta}</a>}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={S.guideTip}>
+              <span style={S.guideTipIcon}>💡</span>
+              <span>
+                <strong style={{ color: '#EEEEF5' }}>Tip:</strong> For FG%, 3P%, and FT% — just enter made and attempted shots. The dashboard calculates the percentage for you. Players never see how you tracked it.
+              </span>
+            </div>
+          </div>
+
           {/* Stat Settings */}
           <div style={S.settingsCard}>
             <div style={S.settingsHeader}>
@@ -361,6 +414,83 @@ const S: Record<string, React.CSSProperties> = {
     color: '#39FF14',
     fontSize: 18,
     fontFamily: "'DM Mono', monospace",
+  },
+  guideCard: {
+    background: '#0F0F14',
+    border: '1px solid #1C1C26',
+    borderRadius: 12,
+    padding: '24px',
+    marginBottom: 32,
+  },
+  guideTitle: {
+    fontFamily: "'Barlow Condensed', sans-serif",
+    fontWeight: 700,
+    fontSize: 20,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+    marginBottom: 20,
+  },
+  guideSteps: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 20,
+    marginBottom: 20,
+  },
+  guideStep: {
+    display: 'flex',
+    gap: 16,
+    alignItems: 'flex-start',
+  },
+  guideN: {
+    fontFamily: "'Barlow Condensed', sans-serif",
+    fontWeight: 900,
+    fontSize: 28,
+    color: '#39FF14',
+    lineHeight: 1,
+    width: 28,
+    flexShrink: 0,
+    paddingTop: 2,
+  },
+  guideStepBody: {
+    flex: 1,
+  },
+  guideStepTitle: {
+    fontFamily: "'Barlow Condensed', sans-serif",
+    fontWeight: 700,
+    fontSize: 17,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.3,
+    marginBottom: 4,
+  },
+  guideStepText: {
+    fontSize: 13,
+    color: '#6A6A82',
+    lineHeight: 1.6,
+  },
+  guideCta: {
+    display: 'inline-block',
+    marginTop: 6,
+    fontSize: 12,
+    color: '#39FF14',
+    textDecoration: 'none',
+    fontFamily: "'DM Mono', monospace",
+  },
+  guideTip: {
+    background: 'rgba(57,255,20,0.05)',
+    border: '1px solid rgba(57,255,20,0.12)',
+    borderRadius: 8,
+    padding: '12px 16px',
+    fontSize: 13,
+    color: '#6A6A82',
+    lineHeight: 1.5,
+    display: 'flex',
+    gap: 10,
+    alignItems: 'flex-start',
+  },
+  guideTipIcon: {
+    flexShrink: 0,
+    fontSize: 15,
+    marginTop: 1,
   },
   settingsCard: {
     background: '#0F0F14',
