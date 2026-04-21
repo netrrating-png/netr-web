@@ -3,10 +3,21 @@ import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
 import { supabase, League, LeagueTeam, LeagueGame, LeaguePlayer, LeaguePlayerStat } from '../../../../lib/supabase'
 import { PortalNav } from '../index'
+import { STAT_INPUT_COLS, DEFAULT_ENABLED_STATS, StatKey } from '../../../../lib/stat-config'
+
+type StatField = keyof LeaguePlayerStat
 
 type PlayerStatRow = {
   player: LeaguePlayer
   stat: Partial<LeaguePlayerStat>
+}
+
+const EMPTY_STAT: Partial<LeaguePlayerStat> = {
+  points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0,
+  turnovers: 0, fouls: 0,
+  three_pointers_made: 0, three_pointers_attempted: 0,
+  field_goals_made: 0, field_goals_attempted: 0,
+  free_throws_made: 0, free_throws_attempted: 0,
 }
 
 export default function BoxScorePage() {
@@ -20,6 +31,7 @@ export default function BoxScorePage() {
   const [awayRows, setAwayRows] = useState<PlayerStatRow[]>([])
   const [homeScore, setHomeScore] = useState('')
   const [awayScore, setAwayScore] = useState('')
+  const [enabledStats, setEnabledStats] = useState<StatKey[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -47,12 +59,14 @@ export default function BoxScorePage() {
       const statsById: Record<string, LeaguePlayerStat> = {}
       for (const s of (existingStatsRes.data ?? [])) statsById[s.player_id] = s
 
+      const enabled = (leagueRes.data.enabled_stats ?? DEFAULT_ENABLED_STATS) as StatKey[]
+      setEnabledStats(enabled)
       setLeague(leagueRes.data)
       setGame(gameRes.data)
       setHomeTeam(homeTeamRes.data)
       setAwayTeam(awayTeamRes.data)
-      setHomeRows((homePlayersRes.data ?? []).map(p => ({ player: p, stat: statsById[p.id] ?? { points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, turnovers: 0, fouls: 0 } })))
-      setAwayRows((awayPlayersRes.data ?? []).map(p => ({ player: p, stat: statsById[p.id] ?? { points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, turnovers: 0, fouls: 0 } })))
+      setHomeRows((homePlayersRes.data ?? []).map(p => ({ player: p, stat: statsById[p.id] ?? { ...EMPTY_STAT } })))
+      setAwayRows((awayPlayersRes.data ?? []).map(p => ({ player: p, stat: statsById[p.id] ?? { ...EMPTY_STAT } })))
 
       if (gameRes.data.home_score !== null) setHomeScore(String(gameRes.data.home_score))
       if (gameRes.data.away_score !== null) setAwayScore(String(gameRes.data.away_score))
@@ -61,7 +75,7 @@ export default function BoxScorePage() {
     })
   }, [leagueId, gameId])
 
-  function updateStat(rows: PlayerStatRow[], setRows: (r: PlayerStatRow[]) => void, playerId: string, field: keyof LeaguePlayerStat, value: string) {
+  function updateStat(rows: PlayerStatRow[], setRows: (r: PlayerStatRow[]) => void, playerId: string, field: StatField, value: string) {
     setRows(rows.map(r => r.player.id === playerId ? { ...r, stat: { ...r.stat, [field]: parseInt(value) || 0 } } : r))
   }
 
@@ -69,26 +83,30 @@ export default function BoxScorePage() {
     e.preventDefault()
     setSaving(true)
 
-    // Update game scores + status
     await supabase.from('league_games').update({
       home_score: homeScore ? parseInt(homeScore) : null,
       away_score: awayScore ? parseInt(awayScore) : null,
       status: homeScore && awayScore ? 'final' : game?.status,
     }).eq('id', gameId)
 
-    // Upsert all player stats
     const allRows = [...homeRows, ...awayRows].filter(r => r.player)
     const upserts = allRows.map(r => ({
       game_id: gameId,
       player_id: r.player.id,
       team_id: r.player.team_id,
-      points: r.stat.points ?? 0,
-      rebounds: r.stat.rebounds ?? 0,
-      assists: r.stat.assists ?? 0,
-      steals: r.stat.steals ?? 0,
-      blocks: r.stat.blocks ?? 0,
-      turnovers: r.stat.turnovers ?? 0,
-      fouls: r.stat.fouls ?? 0,
+      points:                   r.stat.points ?? 0,
+      rebounds:                 r.stat.rebounds ?? 0,
+      assists:                  r.stat.assists ?? 0,
+      steals:                   r.stat.steals ?? 0,
+      blocks:                   r.stat.blocks ?? 0,
+      turnovers:                r.stat.turnovers ?? 0,
+      fouls:                    r.stat.fouls ?? 0,
+      three_pointers_made:      r.stat.three_pointers_made ?? 0,
+      three_pointers_attempted: r.stat.three_pointers_attempted ?? 0,
+      field_goals_made:         r.stat.field_goals_made ?? 0,
+      field_goals_attempted:    r.stat.field_goals_attempted ?? 0,
+      free_throws_made:         r.stat.free_throws_made ?? 0,
+      free_throws_attempted:    r.stat.free_throws_attempted ?? 0,
     }))
 
     if (upserts.length > 0) {
@@ -102,8 +120,12 @@ export default function BoxScorePage() {
 
   if (loading || !league || !game) return <LoadingScreen />
 
-  const STAT_COLS = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PF'] as const
-  const STAT_FIELDS: (keyof LeaguePlayerStat)[] = ['points', 'rebounds', 'assists', 'steals', 'blocks', 'turnovers', 'fouls']
+  // Only show input columns relevant to the enabled stats
+  const enabledSet = new Set(enabledStats)
+  const visibleCols = STAT_INPUT_COLS.filter(col => col.showWhen.some(k => enabledSet.has(k)))
+  // Fouls always tracked (not a leaderboard stat, just for reference)
+  const allColLabels = [...visibleCols.map(c => c.label), 'PF']
+  const allColFields: StatField[] = [...visibleCols.map(c => c.key as StatField), 'fouls']
 
   function TeamTable({ team, rows, setRows }: { team: LeagueTeam; rows: PlayerStatRow[]; setRows: (r: PlayerStatRow[]) => void }) {
     return (
@@ -124,7 +146,7 @@ export default function BoxScorePage() {
               <thead>
                 <tr>
                   <th style={{ ...S.th, textAlign: 'left' as const, paddingLeft: 16 }}>Player</th>
-                  {STAT_COLS.map(c => <th key={c} style={S.th}>{c}</th>)}
+                  {allColLabels.map(c => <th key={c} style={S.th}>{c}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -136,7 +158,7 @@ export default function BoxScorePage() {
                         <span style={S.playerName}>{r.player.display_name}</span>
                       </div>
                     </td>
-                    {STAT_FIELDS.map((field, fi) => (
+                    {allColFields.map((field) => (
                       <td key={field} style={S.td}>
                         <input
                           type="number"

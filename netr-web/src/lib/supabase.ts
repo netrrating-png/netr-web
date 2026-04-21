@@ -15,6 +15,7 @@ export type League = {
   location: string | null
   description: string | null
   is_active: boolean
+  enabled_stats: string[] | null
   created_at: string
 }
 
@@ -23,6 +24,7 @@ export type LeagueTeam = {
   league_id: string
   name: string
   color: string
+  logo_url: string | null
   join_token: string
   created_at: string
 }
@@ -64,4 +66,10 @@ export type LeaguePlayerStat = {
   blocks: number
   turnovers: number
   fouls: number
+  three_pointers_made: number
+  three_pointers_attempted: number
+  field_goals_made: number
+  field_goals_attempted: number
+  free_throws_made: number
+  free_throws_attempted: number
 }

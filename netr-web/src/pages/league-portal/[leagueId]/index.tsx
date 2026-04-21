@@ -2,6 +2,7 @@ import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
 import { supabase, League, LeagueTeam, LeagueGame } from '../../../lib/supabase'
+import { STAT_DEFS, DEFAULT_ENABLED_STATS, StatKey } from '../../../lib/stat-config'
 
 export default function LeagueOverview() {
   const router = useRouter()
@@ -10,6 +11,9 @@ export default function LeagueOverview() {
   const [teams, setTeams] = useState<LeagueTeam[]>([])
   const [games, setGames] = useState<LeagueGame[]>([])
   const [loading, setLoading] = useState(true)
+  const [enabledStats, setEnabledStats] = useState<StatKey[]>([])
+  const [statsSaving, setStatsSaving] = useState(false)
+  const [statsSaved, setStatsSaved] = useState(false)
 
   useEffect(() => {
     if (!leagueId) return
@@ -24,11 +28,24 @@ export default function LeagueOverview() {
 
       if (!leagueRes.data) { router.replace('/league-portal'); return }
       setLeague(leagueRes.data)
+      setEnabledStats((leagueRes.data.enabled_stats ?? DEFAULT_ENABLED_STATS) as StatKey[])
       setTeams(teamsRes.data ?? [])
       setGames(gamesRes.data ?? [])
       setLoading(false)
     })
   }, [leagueId])
+
+  async function toggleStat(key: StatKey) {
+    const next = enabledStats.includes(key)
+      ? enabledStats.filter(k => k !== key)
+      : [...enabledStats, key]
+    setEnabledStats(next)
+    setStatsSaving(true)
+    await supabase.from('leagues').update({ enabled_stats: next }).eq('id', leagueId)
+    setStatsSaving(false)
+    setStatsSaved(true)
+    setTimeout(() => setStatsSaved(false), 2000)
+  }
 
   if (loading || !league) return <LoadingScreen />
 
@@ -83,6 +100,7 @@ export default function LeagueOverview() {
               { href: `/league-portal/${leagueId}/teams`, icon: '👥', title: 'Teams & Rosters', desc: `${teams.length} team${teams.length !== 1 ? 's' : ''}` },
               { href: `/league-portal/${leagueId}/schedule`, icon: '📅', title: 'Schedule & Scores', desc: `${games.length} game${games.length !== 1 ? 's' : ''} scheduled` },
               { href: `/league-portal/${leagueId}/standings`, icon: '🏆', title: 'Standings', desc: 'Live W/L table' },
+              { href: `/league-portal/${leagueId}/stats`, icon: '📊', title: 'Stats Leaders', desc: `${enabledStats.length} stat${enabledStats.length !== 1 ? 's' : ''} tracked` },
             ].map(item => (
               <a key={item.href} href={item.href} style={S.navCard}>
                 <div style={S.navCardIcon}>{item.icon}</div>
@@ -93,6 +111,35 @@ export default function LeagueOverview() {
                 <div style={S.navCardArrow}>→</div>
               </a>
             ))}
+          </div>
+
+          {/* Stat Settings */}
+          <div style={S.settingsCard}>
+            <div style={S.settingsHeader}>
+              <div>
+                <div style={S.settingsTitle}>Tracked Stats</div>
+                <div style={S.settingsDesc}>Choose which stats are recorded in box scores and displayed in the leaderboard.</div>
+              </div>
+              <div style={S.savingStatus}>
+                {statsSaving && <span style={S.saving}>Saving…</span>}
+                {statsSaved && <span style={S.saved}>✓ Saved</span>}
+              </div>
+            </div>
+            <div style={S.toggleGrid}>
+              {STAT_DEFS.map(def => {
+                const on = enabledStats.includes(def.key)
+                return (
+                  <button
+                    key={def.key}
+                    onClick={() => toggleStat(def.key)}
+                    style={{ ...S.toggleChip, ...(on ? S.toggleChipOn : S.toggleChipOff) }}
+                  >
+                    <span style={S.toggleLabel}>{def.label}</span>
+                    <span style={{ ...S.toggleFull, ...(on ? {} : { color: '#3A3A4E' }) }}>{def.fullLabel}</span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
           {league.description && (
@@ -109,10 +156,11 @@ export default function LeagueOverview() {
 
 export function PortalNav({ leagueName, leagueId, active }: { leagueName: string; leagueId: string; active: string }) {
   const tabs = [
-    { key: 'overview', label: 'Overview', href: `/league-portal/${leagueId}` },
-    { key: 'teams', label: 'Teams', href: `/league-portal/${leagueId}/teams` },
-    { key: 'schedule', label: 'Schedule', href: `/league-portal/${leagueId}/schedule` },
-    { key: 'standings', label: 'Standings', href: `/league-portal/${leagueId}/standings` },
+    { key: 'overview',  label: 'Overview',        href: `/league-portal/${leagueId}` },
+    { key: 'teams',     label: 'Teams',            href: `/league-portal/${leagueId}/teams` },
+    { key: 'schedule',  label: 'Schedule',         href: `/league-portal/${leagueId}/schedule` },
+    { key: 'standings', label: 'Standings',        href: `/league-portal/${leagueId}/standings` },
+    { key: 'stats',     label: 'Stats',            href: `/league-portal/${leagueId}/stats` },
   ]
 
   return (
@@ -313,6 +361,85 @@ const S: Record<string, React.CSSProperties> = {
     color: '#39FF14',
     fontSize: 18,
     fontFamily: "'DM Mono', monospace",
+  },
+  settingsCard: {
+    background: '#0F0F14',
+    border: '1px solid #1C1C26',
+    borderRadius: 12,
+    padding: '24px',
+    marginBottom: 32,
+  },
+  settingsHeader: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    gap: 16,
+  },
+  settingsTitle: {
+    fontFamily: "'Barlow Condensed', sans-serif",
+    fontWeight: 700,
+    fontSize: 20,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  settingsDesc: {
+    fontSize: 13,
+    color: '#6A6A82',
+    lineHeight: 1.5,
+  },
+  savingStatus: {
+    minWidth: 60,
+    textAlign: 'right' as const,
+  },
+  saving: {
+    fontSize: 12,
+    color: '#6A6A82',
+    fontFamily: "'DM Mono', monospace",
+  },
+  saved: {
+    fontSize: 12,
+    color: '#39FF14',
+    fontFamily: "'DM Mono', monospace",
+  },
+  toggleGrid: {
+    display: 'flex',
+    flexWrap: 'wrap' as const,
+    gap: 10,
+  },
+  toggleChip: {
+    border: 'none',
+    borderRadius: 10,
+    padding: '10px 16px',
+    cursor: 'pointer',
+    textAlign: 'left' as const,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 2,
+    transition: 'all 0.15s',
+    minWidth: 80,
+  },
+  toggleChipOn: {
+    background: 'rgba(57,255,20,0.12)',
+    outline: '1.5px solid #39FF14',
+  },
+  toggleChipOff: {
+    background: '#0A0A0E',
+    outline: '1.5px solid #1C1C26',
+  },
+  toggleLabel: {
+    fontFamily: "'Barlow Condensed', sans-serif",
+    fontWeight: 700,
+    fontSize: 16,
+    letterSpacing: 0.5,
+    color: '#EEEEF5',
+  },
+  toggleFull: {
+    fontSize: 10,
+    color: '#6A6A82',
+    fontFamily: "'DM Mono', monospace",
+    whiteSpace: 'nowrap' as const,
   },
   descCard: {
     background: '#0F0F14',
