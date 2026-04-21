@@ -16,6 +16,9 @@ export type League = {
   description: string | null
   is_active: boolean
   enabled_stats: string[] | null
+  min_games_for_stats: number | null
+  default_game_location: string | null
+  stat_display: 'per_game' | 'totals' | null
   created_at: string
 }
 

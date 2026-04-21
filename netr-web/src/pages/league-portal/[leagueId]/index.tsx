@@ -2,8 +2,6 @@ import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
 import { supabase, League, LeagueTeam, LeagueGame } from '../../../lib/supabase'
-import { STAT_DEFS, DEFAULT_ENABLED_STATS, StatKey } from '../../../lib/stat-config'
-
 export default function LeagueOverview() {
   const router = useRouter()
   const { leagueId } = router.query as { leagueId: string }
@@ -11,9 +9,6 @@ export default function LeagueOverview() {
   const [teams, setTeams] = useState<LeagueTeam[]>([])
   const [games, setGames] = useState<LeagueGame[]>([])
   const [loading, setLoading] = useState(true)
-  const [enabledStats, setEnabledStats] = useState<StatKey[]>([])
-  const [statsSaving, setStatsSaving] = useState(false)
-  const [statsSaved, setStatsSaved] = useState(false)
 
   useEffect(() => {
     if (!leagueId) return
@@ -28,24 +23,11 @@ export default function LeagueOverview() {
 
       if (!leagueRes.data) { router.replace('/league-portal'); return }
       setLeague(leagueRes.data)
-      setEnabledStats((leagueRes.data.enabled_stats ?? DEFAULT_ENABLED_STATS) as StatKey[])
       setTeams(teamsRes.data ?? [])
       setGames(gamesRes.data ?? [])
       setLoading(false)
     })
   }, [leagueId])
-
-  async function toggleStat(key: StatKey) {
-    const next = enabledStats.includes(key)
-      ? enabledStats.filter(k => k !== key)
-      : [...enabledStats, key]
-    setEnabledStats(next)
-    setStatsSaving(true)
-    await supabase.from('leagues').update({ enabled_stats: next }).eq('id', leagueId)
-    setStatsSaving(false)
-    setStatsSaved(true)
-    setTimeout(() => setStatsSaved(false), 2000)
-  }
 
   if (loading || !league) return <LoadingScreen />
 
@@ -100,7 +82,8 @@ export default function LeagueOverview() {
               { href: `/league-portal/${leagueId}/teams`, icon: '👥', title: 'Teams & Rosters', desc: `${teams.length} team${teams.length !== 1 ? 's' : ''}` },
               { href: `/league-portal/${leagueId}/schedule`, icon: '📅', title: 'Schedule & Scores', desc: `${games.length} game${games.length !== 1 ? 's' : ''} scheduled` },
               { href: `/league-portal/${leagueId}/standings`, icon: '🏆', title: 'Standings', desc: 'Live W/L table' },
-              { href: `/league-portal/${leagueId}/stats`, icon: '📊', title: 'Stats Leaders', desc: `${enabledStats.length} stat${enabledStats.length !== 1 ? 's' : ''} tracked` },
+              { href: `/league-portal/${leagueId}/stats`,     icon: '📊', title: 'Stats Leaders',    desc: 'Per-game leaderboard' },
+              { href: `/league-portal/${leagueId}/settings`,  icon: '⚙️',  title: 'Settings',          desc: 'Stats, rules & details' },
             ].map(item => (
               <a key={item.href} href={item.href} style={S.navCard}>
                 <div style={S.navCardIcon}>{item.icon}</div>
@@ -166,35 +149,6 @@ export default function LeagueOverview() {
             </div>
           </div>
 
-          {/* Stat Settings */}
-          <div style={S.settingsCard}>
-            <div style={S.settingsHeader}>
-              <div>
-                <div style={S.settingsTitle}>Tracked Stats</div>
-                <div style={S.settingsDesc}>Choose which stats are recorded in box scores and displayed in the leaderboard.</div>
-              </div>
-              <div style={S.savingStatus}>
-                {statsSaving && <span style={S.saving}>Saving…</span>}
-                {statsSaved && <span style={S.saved}>✓ Saved</span>}
-              </div>
-            </div>
-            <div style={S.toggleGrid}>
-              {STAT_DEFS.map(def => {
-                const on = enabledStats.includes(def.key)
-                return (
-                  <button
-                    key={def.key}
-                    onClick={() => toggleStat(def.key)}
-                    style={{ ...S.toggleChip, ...(on ? S.toggleChipOn : S.toggleChipOff) }}
-                  >
-                    <span style={S.toggleLabel}>{def.label}</span>
-                    <span style={{ ...S.toggleFull, ...(on ? {} : { color: '#3A3A4E' }) }}>{def.fullLabel}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
           {league.description && (
             <div style={S.descCard}>
               <div style={S.descLabel}>About This League</div>
@@ -209,11 +163,12 @@ export default function LeagueOverview() {
 
 export function PortalNav({ leagueName, leagueId, active }: { leagueName: string; leagueId: string; active: string }) {
   const tabs = [
-    { key: 'overview',  label: 'Overview',        href: `/league-portal/${leagueId}` },
-    { key: 'teams',     label: 'Teams',            href: `/league-portal/${leagueId}/teams` },
-    { key: 'schedule',  label: 'Schedule',         href: `/league-portal/${leagueId}/schedule` },
-    { key: 'standings', label: 'Standings',        href: `/league-portal/${leagueId}/standings` },
-    { key: 'stats',     label: 'Stats',            href: `/league-portal/${leagueId}/stats` },
+    { key: 'overview',  label: 'Overview',  href: `/league-portal/${leagueId}` },
+    { key: 'teams',     label: 'Teams',     href: `/league-portal/${leagueId}/teams` },
+    { key: 'schedule',  label: 'Schedule',  href: `/league-portal/${leagueId}/schedule` },
+    { key: 'standings', label: 'Standings', href: `/league-portal/${leagueId}/standings` },
+    { key: 'stats',     label: 'Stats',     href: `/league-portal/${leagueId}/stats` },
+    { key: 'settings',  label: 'Settings',  href: `/league-portal/${leagueId}/settings` },
   ]
 
   return (
