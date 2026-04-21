@@ -97,12 +97,20 @@ export default function StatsPage() {
 
   if (loading || !league) return <LoadingScreen />
 
-  const tabDefs = STAT_DEFS.filter(d => enabledStats.includes(d.key))
+  const minGames   = league.min_games_for_stats ?? 1
+  const statDisplay = league.stat_display ?? 'per_game'
+
+  const tabDefs   = STAT_DEFS.filter(d => enabledStats.includes(d.key))
   const activeDef = STAT_DEFS.find(d => d.key === activeTab)
 
+  const qualified = rows.filter(r => r.gp >= minGames)
   const sorted = activeTab
-    ? [...rows].sort((a, b) => getStatValue(b.agg, b.gp, activeTab) - getStatValue(a.agg, a.gp, activeTab))
-    : rows
+    ? [...qualified].sort((a, b) => {
+        const va = statDisplay === 'totals' ? getStatValue(a.agg, 1, activeTab) : getStatValue(a.agg, a.gp, activeTab)
+        const vb = statDisplay === 'totals' ? getStatValue(b.agg, 1, activeTab) : getStatValue(b.agg, b.gp, activeTab)
+        return vb - va
+      })
+    : qualified
 
   return (
     <>
@@ -142,7 +150,11 @@ export default function StatsPage() {
               <div style={S.tableCard}>
                 <div style={S.tableHeader}>
                   <div style={S.tableTitle}>{activeDef?.fullLabel ?? ''} Leaders</div>
-                  <div style={S.tableNote}>Sorted by per-game average{activeDef?.isPercent ? ' (%)' : ''}</div>
+                  <div style={S.tableNote}>
+                  {statDisplay === 'totals' ? 'Season totals' : 'Per-game averages'}
+                  {activeDef?.isPercent ? ' (%)' : ''}
+                  {minGames > 1 ? ` · min. ${minGames} games` : ''}
+                </div>
                 </div>
 
                 {sorted.length === 0 ? (
@@ -161,7 +173,11 @@ export default function StatsPage() {
                       </thead>
                       <tbody>
                         {sorted.map((r, i) => {
-                          const val = activeTab ? getStatValue(r.agg, r.gp, activeTab) : 0
+                          const val = activeTab
+                            ? (statDisplay === 'totals'
+                                ? getStatValue(r.agg, 1, activeTab)
+                                : getStatValue(r.agg, r.gp, activeTab))
+                            : 0
                           const isTop = i === 0
                           return (
                             <tr key={r.playerId} style={{ ...S.tr, ...(isTop ? S.trTop : {}) }}>
