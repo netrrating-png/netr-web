@@ -23,6 +23,7 @@ export type LeagueTeam = {
   league_id: string
   name: string
   color: string
+  logo_url: string | null
   join_token: string
   created_at: string
 }
