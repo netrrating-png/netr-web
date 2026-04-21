@@ -180,7 +180,17 @@ left join league_games g
   on (g.home_team_id = t.id or g.away_team_id = t.id)
   and g.status = 'final'
 group by t.league_id, t.id, t.name, t.color
-order by wins desc, (pts_for - pts_against) desc;`
+order by
+  count(*) filter (
+    where (g.home_team_id = t.id and g.home_score > g.away_score)
+       or (g.away_team_id = t.id and g.away_score > g.home_score)
+  ) desc,
+  (
+    coalesce(sum(case when g.home_team_id = t.id then g.home_score
+                      when g.away_team_id = t.id then g.away_score end), 0) -
+    coalesce(sum(case when g.home_team_id = t.id then g.away_score
+                      when g.away_team_id = t.id then g.home_score end), 0)
+  ) desc;`
 
 export default function SetupPage() {
   const [copied, setCopied] = useState(false)
