@@ -6,6 +6,8 @@ import { PortalNav } from './index'
 
 type TeamWithPlayers = LeagueTeam & { players: LeaguePlayer[] }
 
+const COLORS = ['#39FF14','#FF453A','#FF9500','#4A9EFF','#BF5AF2','#F5C542','#EEEEF5']
+
 export default function TeamsPage() {
   const router = useRouter()
   const { leagueId } = router.query as { leagueId: string }
@@ -13,15 +15,29 @@ export default function TeamsPage() {
   const [teams, setTeams] = useState<TeamWithPlayers[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
+
+  // Add team form
   const [showTeamForm, setShowTeamForm] = useState(false)
   const [teamName, setTeamName] = useState('')
   const [teamColor, setTeamColor] = useState('#39FF14')
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Edit team
+  const [editingTeam, setEditingTeam] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editColor, setEditColor] = useState('#39FF14')
+  const [editLogoFile, setEditLogoFile] = useState<File | null>(null)
+  const [editLogoPreview, setEditLogoPreview] = useState<string | null>(null)
+  const [editLogoCleared, setEditLogoCleared] = useState(false)
+  const editFileInputRef = useRef<HTMLInputElement>(null)
+
+  // Add player
   const [addingPlayer, setAddingPlayer] = useState<string | null>(null)
   const [playerName, setPlayerName] = useState('')
   const [playerJersey, setPlayerJersey] = useState('')
+
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
 
@@ -50,17 +66,23 @@ export default function TeamsPage() {
     })
   }, [leagueId])
 
-  function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  // ── Logo helpers ──────────────────────────────────────────────
+  function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>, isEdit = false) {
     const file = e.target.files?.[0]
     if (!file) return
-    setLogoFile(file)
-    setLogoPreview(URL.createObjectURL(file))
+    const preview = URL.createObjectURL(file)
+    if (isEdit) { setEditLogoFile(file); setEditLogoPreview(preview); setEditLogoCleared(false) }
+    else { setLogoFile(file); setLogoPreview(preview) }
   }
 
-  function clearLogo() {
-    setLogoFile(null)
-    setLogoPreview(null)
+  function clearAddLogo() {
+    setLogoFile(null); setLogoPreview(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  function clearEditLogo() {
+    setEditLogoFile(null); setEditLogoPreview(null); setEditLogoCleared(true)
+    if (editFileInputRef.current) editFileInputRef.current.value = ''
   }
 
   async function uploadLogo(file: File): Promise<string | null> {
@@ -72,42 +94,65 @@ export default function TeamsPage() {
     return publicUrl
   }
 
+  // ── Add team ──────────────────────────────────────────────────
   async function addTeam(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-
     let logoUrl: string | null = null
     if (logoFile) logoUrl = await uploadLogo(logoFile)
-
     const { data } = await supabase
       .from('league_teams')
       .insert({ league_id: leagueId, name: teamName, color: teamColor, logo_url: logoUrl })
-      .select()
-      .single()
-
+      .select().single()
     if (data) setTeams(prev => [...prev, { ...data, players: [] }])
-    setTeamName('')
-    setTeamColor('#39FF14')
-    clearLogo()
-    setShowTeamForm(false)
-    setSaving(false)
+    setTeamName(''); setTeamColor('#39FF14'); clearAddLogo()
+    setShowTeamForm(false); setSaving(false)
   }
 
+  // ── Edit team ─────────────────────────────────────────────────
+  function startEdit(team: TeamWithPlayers) {
+    setEditingTeam(team.id)
+    setEditName(team.name)
+    setEditColor(team.color)
+    setEditLogoFile(null)
+    setEditLogoPreview(team.logo_url ?? null)
+    setEditLogoCleared(false)
+  }
+
+  function cancelEdit() {
+    setEditingTeam(null)
+    setEditLogoFile(null); setEditLogoPreview(null); setEditLogoCleared(false)
+    if (editFileInputRef.current) editFileInputRef.current.value = ''
+  }
+
+  async function saveTeam(e: React.FormEvent, team: TeamWithPlayers) {
+    e.preventDefault()
+    setSaving(true)
+
+    let logoUrl = team.logo_url
+    if (editLogoFile) logoUrl = await uploadLogo(editLogoFile)
+    else if (editLogoCleared) logoUrl = null
+
+    const { data } = await supabase
+      .from('league_teams')
+      .update({ name: editName, color: editColor, logo_url: logoUrl })
+      .eq('id', team.id)
+      .select().single()
+
+    if (data) setTeams(prev => prev.map(t => t.id === team.id ? { ...t, ...data } : t))
+    cancelEdit(); setSaving(false)
+  }
+
+  // ── Players ───────────────────────────────────────────────────
   async function addPlayer(e: React.FormEvent, teamId: string) {
     e.preventDefault()
     setSaving(true)
     const { data } = await supabase
       .from('league_players')
       .insert({ team_id: teamId, league_id: leagueId, display_name: playerName, jersey_number: playerJersey || null })
-      .select()
-      .single()
-    if (data) {
-      setTeams(prev => prev.map(t => t.id === teamId ? { ...t, players: [...t.players, data] } : t))
-    }
-    setPlayerName('')
-    setPlayerJersey('')
-    setAddingPlayer(null)
-    setSaving(false)
+      .select().single()
+    if (data) setTeams(prev => prev.map(t => t.id === teamId ? { ...t, players: [...t.players, data] } : t))
+    setPlayerName(''); setPlayerJersey(''); setAddingPlayer(null); setSaving(false)
   }
 
   async function removePlayer(playerId: string, teamId: string) {
@@ -116,8 +161,7 @@ export default function TeamsPage() {
   }
 
   function copyJoinLink(token: string) {
-    const url = `${window.location.origin}/join/${token}`
-    navigator.clipboard.writeText(url)
+    navigator.clipboard.writeText(`${window.location.origin}/join/${token}`)
     setCopied(token)
     setTimeout(() => setCopied(null), 2000)
   }
@@ -147,52 +191,16 @@ export default function TeamsPage() {
           {/* Add team form */}
           {showTeamForm && (
             <form onSubmit={addTeam} style={S.inlineForm}>
-              <div style={S.formRow}>
-                {/* Name */}
-                <div style={{ flex: 1, minWidth: 200 }}>
-                  <label style={S.label}>Team Name *</label>
-                  <input value={teamName} onChange={e => setTeamName(e.target.value)} style={S.input} placeholder="e.g. Ballers" required autoFocus />
-                </div>
-
-                {/* Logo upload */}
-                <div>
-                  <label style={S.label}>Logo (optional)</label>
-                  <div style={S.logoUploadRow}>
-                    {logoPreview ? (
-                      <div style={S.logoPreviewWrap}>
-                        <img src={logoPreview} alt="Logo preview" style={S.logoPreviewImg} />
-                        <button type="button" onClick={clearLogo} style={S.logoRemoveBtn} title="Remove">×</button>
-                      </div>
-                    ) : (
-                      <button type="button" onClick={() => fileInputRef.current?.click()} style={S.logoPickerBtn}>
-                        <span style={{ fontSize: 20 }}>🖼️</span>
-                        <span>Upload Logo</span>
-                      </button>
-                    )}
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleLogoChange}
-                      style={{ display: 'none' }}
-                    />
-                  </div>
-                </div>
-
-                {/* Color */}
-                <div>
-                  <label style={S.label}>Color</label>
-                  <div style={S.colorRow}>
-                    {['#39FF14','#FF453A','#FF9500','#4A9EFF','#BF5AF2','#F5C542','#EEEEF5'].map(c => (
-                      <button key={c} type="button" onClick={() => setTeamColor(c)}
-                        style={{ ...S.colorSwatch, background: c, border: teamColor === c ? '2px solid #fff' : '2px solid transparent' }} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-
+              <TeamFormFields
+                name={teamName} onName={setTeamName}
+                color={teamColor} onColor={setTeamColor}
+                logoPreview={logoPreview}
+                onLogoChange={e => handleLogoChange(e, false)}
+                onLogoClear={clearAddLogo}
+                fileRef={fileInputRef}
+              />
               <div style={S.formActions}>
-                <button type="button" onClick={() => { setShowTeamForm(false); clearLogo() }} style={S.cancelBtn}>Cancel</button>
+                <button type="button" onClick={() => { setShowTeamForm(false); clearAddLogo() }} style={S.cancelBtn}>Cancel</button>
                 <button type="submit" style={S.saveBtn} disabled={saving || !teamName}>{saving ? 'Adding…' : 'Add Team'}</button>
               </div>
             </form>
@@ -209,41 +217,66 @@ export default function TeamsPage() {
           <div style={S.teamList}>
             {teams.map(team => (
               <div key={team.id} style={S.teamCard}>
-                {/* Team header */}
-                <div style={S.teamHeader} onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}>
-                  <div style={S.teamLeft}>
-                    {team.logo_url ? (
-                      <img src={team.logo_url} alt={team.name} style={S.teamLogo} />
-                    ) : (
-                      <div style={{ ...S.teamDot, background: team.color, boxShadow: `0 0 8px ${team.color}66` }} />
-                    )}
-                    <div>
-                      <div style={S.teamName}>{team.name}</div>
-                      <div style={S.teamCount}>{team.players.length} player{team.players.length !== 1 ? 's' : ''}</div>
+
+                {/* Edit form */}
+                {editingTeam === team.id ? (
+                  <form onSubmit={e => saveTeam(e, team)} style={S.editForm}>
+                    <div style={S.editFormHeader}>
+                      <span style={S.editFormTitle}>Edit Team</span>
+                    </div>
+                    <TeamFormFields
+                      name={editName} onName={setEditName}
+                      color={editColor} onColor={setEditColor}
+                      logoPreview={editLogoPreview}
+                      onLogoChange={e => handleLogoChange(e, true)}
+                      onLogoClear={clearEditLogo}
+                      fileRef={editFileInputRef}
+                    />
+                    <div style={S.formActions}>
+                      <button type="button" onClick={cancelEdit} style={S.cancelBtn}>Cancel</button>
+                      <button type="submit" style={S.saveBtn} disabled={saving || !editName}>{saving ? 'Saving…' : 'Save Changes'}</button>
+                    </div>
+                  </form>
+                ) : (
+                  /* Team header */
+                  <div style={S.teamHeader} onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}>
+                    <div style={S.teamLeft}>
+                      {team.logo_url
+                        ? <img src={team.logo_url} alt={team.name} style={S.teamLogo} />
+                        : <div style={{ ...S.teamDot, background: team.color, boxShadow: `0 0 8px ${team.color}66` }} />
+                      }
+                      <div>
+                        <div style={S.teamName}>{team.name}</div>
+                        <div style={S.teamCount}>{team.players.length} player{team.players.length !== 1 ? 's' : ''}</div>
+                      </div>
+                    </div>
+                    <div style={S.teamRight}>
+                      <button
+                        onClick={e => { e.stopPropagation(); startEdit(team) }}
+                        style={S.editBtn}
+                        title="Edit team"
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); copyJoinLink(team.join_token) }}
+                        style={S.shareBtn}
+                      >
+                        {copied === team.join_token ? '✓ Copied!' : '🔗 Share Link'}
+                      </button>
+                      <span style={S.chevron}>{expandedTeam === team.id ? '▲' : '▼'}</span>
                     </div>
                   </div>
-                  <div style={S.teamRight}>
-                    <button
-                      onClick={e => { e.stopPropagation(); copyJoinLink(team.join_token) }}
-                      style={S.shareBtn}
-                      title="Copy join link for captain to share"
-                    >
-                      {copied === team.join_token ? '✓ Copied!' : '🔗 Share Link'}
-                    </button>
-                    <span style={S.chevron}>{expandedTeam === team.id ? '▲' : '▼'}</span>
-                  </div>
-                </div>
+                )}
 
                 {/* Roster */}
-                {expandedTeam === team.id && (
+                {expandedTeam === team.id && editingTeam !== team.id && (
                   <div style={S.roster}>
                     {team.players.length > 0 && (
                       <table style={S.table}>
                         <thead>
                           <tr>
-                            {['#', 'Player', 'Status', ''].map(h => (
-                              <th key={h} style={S.th}>{h}</th>
-                            ))}
+                            {['#', 'Player', 'Status', ''].map(h => <th key={h} style={S.th}>{h}</th>)}
                           </tr>
                         </thead>
                         <tbody>
@@ -263,7 +296,7 @@ export default function TeamsPage() {
                                 </span>
                               </td>
                               <td style={S.td}>
-                                <button onClick={() => removePlayer(p.id, team.id)} style={S.removeBtn} title="Remove player">×</button>
+                                <button onClick={() => removePlayer(p.id, team.id)} style={S.removeBtn} title="Remove">×</button>
                               </td>
                             </tr>
                           ))}
@@ -296,6 +329,54 @@ export default function TeamsPage() {
   )
 }
 
+// ── Shared form fields component ─────────────────────────────────
+function TeamFormFields({ name, onName, color, onColor, logoPreview, onLogoChange, onLogoClear, fileRef }: {
+  name: string
+  onName: (v: string) => void
+  color: string
+  onColor: (v: string) => void
+  logoPreview: string | null
+  onLogoChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onLogoClear: () => void
+  fileRef: React.RefObject<HTMLInputElement>
+}) {
+  return (
+    <div style={S.formRow}>
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <label style={S.label}>Team Name *</label>
+        <input value={name} onChange={e => onName(e.target.value)} style={S.input} placeholder="e.g. Ballers" required autoFocus />
+      </div>
+
+      <div>
+        <label style={S.label}>Logo (optional)</label>
+        <div style={S.logoUploadRow}>
+          {logoPreview ? (
+            <div style={S.logoPreviewWrap}>
+              <img src={logoPreview} alt="Logo" style={S.logoPreviewImg} />
+              <button type="button" onClick={onLogoClear} style={S.logoRemoveBtn} title="Remove">×</button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => fileRef.current?.click()} style={S.logoPickerBtn}>
+              <span>🖼️</span><span>Upload Logo</span>
+            </button>
+          )}
+          <input ref={fileRef} type="file" accept="image/*" onChange={onLogoChange} style={{ display: 'none' }} />
+        </div>
+      </div>
+
+      <div>
+        <label style={S.label}>Color</label>
+        <div style={S.colorRow}>
+          {COLORS.map(c => (
+            <button key={c} type="button" onClick={() => onColor(c)}
+              style={{ ...S.colorSwatch, background: c, border: color === c ? '2px solid #fff' : '2px solid transparent' }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function LoadingScreen() {
   return (
     <div style={{ minHeight: '100vh', background: '#040406', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -312,6 +393,9 @@ const S: Record<string, React.CSSProperties> = {
   sub: { color: '#6A6A82', fontSize: 14 },
   addBtn: { background: 'linear-gradient(135deg, #39FF14, #00CC2A)', border: 'none', borderRadius: 8, color: '#040406', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 16, letterSpacing: 1, textTransform: 'uppercase' as const, padding: '10px 20px', cursor: 'pointer' },
   inlineForm: { background: '#0F0F14', border: '1px solid #39FF1444', borderRadius: 12, padding: 24, marginBottom: 20 },
+  editForm: { background: '#0F0F14', borderBottom: '1px solid #1C1C26', padding: 24 },
+  editFormHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  editFormTitle: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 16, textTransform: 'uppercase' as const, letterSpacing: 1, color: '#6A6A82' },
   formRow: { display: 'flex', gap: 20, flexWrap: 'wrap' as const, alignItems: 'flex-end', marginBottom: 16 },
   label: { display: 'block', fontSize: 11, color: '#6A6A82', textTransform: 'uppercase' as const, letterSpacing: 2, marginBottom: 8 },
   input: { background: '#0A0A0D', border: '1px solid #1C1C26', borderRadius: 8, color: '#EEEEF5', fontFamily: "'DM Sans', sans-serif", fontSize: 14, padding: '10px 14px', outline: 'none', width: '100%', boxSizing: 'border-box' as const, marginBottom: 0 },
@@ -336,7 +420,8 @@ const S: Record<string, React.CSSProperties> = {
   teamDot: { width: 14, height: 14, borderRadius: '50%', flexShrink: 0 },
   teamName: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 20, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
   teamCount: { fontSize: 12, color: '#6A6A82' },
-  teamRight: { display: 'flex', alignItems: 'center', gap: 12 },
+  teamRight: { display: 'flex', alignItems: 'center', gap: 10 },
+  editBtn: { background: '#1C1C26', border: '1px solid #2E2E3A', borderRadius: 8, color: '#EEEEF5', fontSize: 12, fontFamily: "'DM Mono', monospace", padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap' as const },
   shareBtn: { background: '#1C1C26', border: '1px solid #2E2E3A', borderRadius: 8, color: '#EEEEF5', fontSize: 12, fontFamily: "'DM Mono', monospace", padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap' as const },
   chevron: { color: '#6A6A82', fontSize: 12, fontFamily: "'DM Mono', monospace" },
   roster: { borderTop: '1px solid #1C1C26', padding: '16px 20px 20px' },
