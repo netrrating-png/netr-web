@@ -214,7 +214,7 @@ export default function PublicLeaguePage() {
               return(<button key={t.id} onClick={()=>setTeamModalId(t.id)} style={{background:'#0F0F14',border:'1px solid #1C1C26',borderRadius:12,padding:'18px 20px',cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:14,width:'100%'}}>
                 {t.logo_url?<img src={t.logo_url} alt={t.name} style={{width:48,height:48,borderRadius:8,objectFit:'cover',flexShrink:0}}/>:<div style={{width:48,height:48,borderRadius:8,background:t.color,boxShadow:`0 0 16px ${t.color}44`,flexShrink:0}}/>}
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase',marginBottom:4}}>{t.name}</div>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase',marginBottom:4,color:'#EEEEF5'}}>{t.name}</div>
                   <div style={{fontSize:12,color:'#6A6A82',fontFamily:"'DM Mono',monospace"}}>{s?`${s.wins}W – ${s.losses}L`:'0W – 0L'} · {cnt} players</div>
                 </div>
                 <span style={{color:'#2E2E3A',fontSize:18}}>›</span>
@@ -225,7 +225,7 @@ export default function PublicLeaguePage() {
 
       </main>
       <footer style={{borderTop:'1px solid #1C1C26',padding:'20px 24px',textAlign:'center',fontSize:11,color:'#3A3A4E',fontFamily:"'DM Mono',monospace"}}>
-        Powered by <a href="https://netrrating.com" style={{color:'#4A4A5E',textDecoration:'none'}}>NETR</a>
+        Powered by <a href="https://www.netr.pro" style={{color:'#39FF14',textDecoration:'none',fontWeight:500}}>NETR</a>
       </footer>
 
       {/* BOX SCORE MODAL */}
