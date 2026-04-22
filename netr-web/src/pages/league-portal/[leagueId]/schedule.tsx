@@ -167,6 +167,12 @@ export default function SchedulePage() {
     setGames(prev => prev.map(g => g.id === id ? { ...g, status: 'cancelled' } : g))
   }
 
+  async function deleteGame(id: string) {
+    await supabase.from('league_player_stats').delete().eq('game_id', id)
+    await supabase.from('league_games').delete().eq('id', id)
+    setGames(prev => prev.filter(g => g.id !== id))
+  }
+
   if (loading || !league) return <LoadingScreen />
 
   const regularGames = games.filter(g => !g.game_type || g.game_type === 'regular')
@@ -328,7 +334,7 @@ export default function SchedulePage() {
             <section style={S.section}>
               <div style={S.sectionLabel}>Results ({completed.length})</div>
               <div style={S.gameList}>
-                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} leagueId={leagueId} />)}
+                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} onDelete={() => deleteGame(g.id)} leagueId={leagueId} />)}
               </div>
             </section>
           )}
@@ -450,7 +456,8 @@ export default function SchedulePage() {
   )
 }
 
-function GameRow({ game, onCancel, leagueId }: { game: GameWithTeams; onCancel?: () => void; leagueId: string }) {
+function GameRow({ game, onCancel, onDelete, leagueId }: { game: GameWithTeams; onCancel?: () => void; onDelete?: () => void; leagueId: string }) {
+  const [confirmDelete, setConfirmDelete] = useState(false)
   if (!game.home_team || !game.away_team) return null
   const d = new Date(game.scheduled_at)
   const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
@@ -480,6 +487,16 @@ function GameRow({ game, onCancel, leagueId }: { game: GameWithTeams; onCancel?:
         )}
         {game.status === 'scheduled' && onCancel && (
           <button onClick={onCancel} style={S.cancelSmBtn}>Cancel</button>
+        )}
+        {onDelete && !confirmDelete && (
+          <button onClick={() => setConfirmDelete(true)} style={S.deleteSmBtn} title="Delete game">🗑</button>
+        )}
+        {onDelete && confirmDelete && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 12, color: '#FF453A', fontFamily: "'DM Sans', sans-serif" }}>Delete?</span>
+            <button onClick={onDelete} style={{ ...S.cancelSmBtn, color: '#FF453A', borderColor: '#FF453A' }}>Yes</button>
+            <button onClick={() => setConfirmDelete(false)} style={S.cancelSmBtn}>No</button>
+          </span>
         )}
       </div>
     </div>
@@ -542,6 +559,7 @@ const S: Record<string, React.CSSProperties> = {
   scoreBtn: { background: 'linear-gradient(135deg, #39FF14, #00CC2A)', border: 'none', borderRadius: 7, color: '#040406', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: 0.5, padding: '7px 14px', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' as const },
   editBtn: { background: '#1C1C26', border: '1px solid #2E2E3A', borderRadius: 7, color: '#EEEEF5', fontSize: 12, fontFamily: "'DM Mono', monospace", padding: '6px 12px', textDecoration: 'none', whiteSpace: 'nowrap' as const },
   cancelSmBtn: { background: 'none', border: '1px solid #2E2E3A', borderRadius: 7, color: '#6A6A82', fontSize: 12, padding: '6px 12px', cursor: 'pointer' },
+  deleteSmBtn: { background: 'none', border: '1px solid #2E2E3A', borderRadius: 7, color: '#6A6A82', fontSize: 14, padding: '4px 8px', cursor: 'pointer', lineHeight: 1 },
   empty: { textAlign: 'center' as const, padding: '60px 24px' },
   emptyIcon: { fontSize: 48, marginBottom: 12 },
   emptyText: { color: '#6A6A82', fontSize: 15 },
