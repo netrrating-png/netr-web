@@ -159,12 +159,12 @@ export default function Admin() {
     setLoading(true)
     try {
       const [u, c, pending, r, p, lg] = await Promise.all([
-        supabase('profiles', 'id,username,full_name,netr_score,created_at', 'created_at.desc', 50),
+        supabase('profiles', 'id,username,full_name,netr_score,created_at', 'created_at.desc', 500),
         supabase('courts', 'id,name,city,verified,surface,created_at', 'created_at.desc', 10000),
         supabase('courts', 'id,name,city,submitted_by,created_at', 'created_at.desc,verified.eq.false', 10000),
         supabase('ratings', 'id,rater_id,rated_id,overall_score,created_at', 'created_at.desc', 50),
         supabase('feed_posts', 'id,author_id,content,created_at', 'created_at.desc', 30),
-        supabase('leagues', 'id,name,slug,sport,season,is_active,created_at,owner_id,profiles!owner_id(username,full_name)', 'created_at.desc', 200),
+        supabase('leagues', 'id,name,slug,sport,season,is_active,created_at,owner_id', 'created_at.desc', 200),
       ])
 
       if (Array.isArray(u)) {
@@ -519,8 +519,8 @@ export default function Admin() {
                   </thead>
                   <tbody>
                     {leagues.map((lg, i) => {
-                      const profile = lg.profiles as { username?: string; full_name?: string } | null
-                      const commissioner = profile?.full_name || profile?.username || lg.owner_id?.slice(0, 8) + '...'
+                      const profile = users.find((u: any) => u.id === lg.owner_id)
+                      const commissioner = profile?.full_name || profile?.username || (lg.owner_id?.slice(0, 8) + '...')
                       return (
                         <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : '#0A0A0D' }}>
                           <td style={{ ...S.td, fontWeight: 600 }}>{lg.name}</td>
