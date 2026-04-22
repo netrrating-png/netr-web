@@ -323,22 +323,22 @@ export default function SchedulePage() {
             </form>
           )}
 
+          {/* Completed — shown first so recently saved games are immediately visible */}
+          {completed.length > 0 && (
+            <section style={S.section}>
+              <div style={S.sectionLabel}>Results ({completed.length})</div>
+              <div style={S.gameList}>
+                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} leagueId={leagueId} />)}
+              </div>
+            </section>
+          )}
+
           {/* Upcoming */}
           {upcoming.length > 0 && (
             <section style={S.section}>
               <div style={S.sectionLabel}>Upcoming ({upcoming.length})</div>
               <div style={S.gameList}>
                 {upcoming.map(g => <GameRow key={g.id} game={g} onCancel={() => cancelGame(g.id)} leagueId={leagueId} />)}
-              </div>
-            </section>
-          )}
-
-          {/* Completed */}
-          {completed.length > 0 && (
-            <section style={S.section}>
-              <div style={S.sectionLabel}>Results ({completed.length})</div>
-              <div style={S.gameList}>
-                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} leagueId={leagueId} />)}
               </div>
             </section>
           )}

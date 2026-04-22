@@ -65,6 +65,7 @@ export default function BoxScorePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!leagueId || !gameId) return
@@ -116,12 +117,19 @@ export default function BoxScorePage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
+    setSaveError(null)
 
-    await supabase.from('league_games').update({
-      home_score: homeScore ? parseInt(homeScore) : null,
-      away_score: awayScore ? parseInt(awayScore) : null,
-      status: homeScore && awayScore ? 'final' : game?.status,
+    const { error: gameErr } = await supabase.from('league_games').update({
+      home_score: homeScore !== '' ? parseInt(homeScore) : null,
+      away_score: awayScore !== '' ? parseInt(awayScore) : null,
+      status: homeScore !== '' && awayScore !== '' ? 'final' : game?.status,
     }).eq('id', gameId)
+
+    if (gameErr) {
+      setSaveError(gameErr.message)
+      setSaving(false)
+      return
+    }
 
     const allRows = [...homeRows, ...awayRows].filter(r => r.player)
     const upserts = allRows.map(r => ({
@@ -144,16 +152,19 @@ export default function BoxScorePage() {
     }))
 
     if (upserts.length > 0) {
-      await supabase.from('league_player_stats').upsert(upserts, { onConflict: 'game_id,player_id' })
-    }
-
-    if (homeScore && awayScore && game) {
-      setGame({ ...game, status: 'final', home_score: parseInt(homeScore), away_score: parseInt(awayScore) })
+      const { error: statsErr } = await supabase.from('league_player_stats').upsert(upserts, { onConflict: 'game_id,player_id' })
+      if (statsErr) {
+        setSaveError(statsErr.message)
+        setSaving(false)
+        return
+      }
     }
 
     setSaving(false)
     setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+    setTimeout(() => {
+      router.push(`/league-portal/${leagueId}/schedule`)
+    }, 1200)
   }
 
   if (loading || !league || !game) return <LoadingScreen />
@@ -288,8 +299,9 @@ export default function BoxScorePage() {
             <div style={S.saveBar}>
               <a href={`/league-portal/${leagueId}/schedule`} style={S.backBtn}>← Back to Schedule</a>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                {saved && <span style={{ fontSize: 14, color: '#39FF14', fontFamily: "'DM Mono', monospace" }}>✓ Saved</span>}
-                {game.status === 'final' && !saved && <span style={{ fontSize: 12, color: '#6A6A82', fontFamily: "'DM Mono', monospace" }}>● Final</span>}
+                {saveError && <span style={{ fontSize: 13, color: '#FF453A', fontFamily: "'DM Sans', sans-serif", maxWidth: 300 }}>⚠ {saveError}</span>}
+                {saved && <span style={{ fontSize: 14, color: '#39FF14', fontFamily: "'DM Mono', monospace" }}>✓ Saved — returning to schedule…</span>}
+                {game.status === 'final' && !saved && !saveError && <span style={{ fontSize: 12, color: '#6A6A82', fontFamily: "'DM Mono', monospace" }}>● Final</span>}
                 <button type="submit" style={{ ...S.saveBtn, ...(saved ? S.saveBtnDone : {}) }} disabled={saving}>
                   {saving ? 'Saving…' : saved ? '✓ Saved!' : game.status === 'final' ? 'Update Box Score' : 'Save Box Score'}
                 </button>
