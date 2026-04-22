@@ -23,6 +23,8 @@ const EMPTY_STAT: Partial<LeaguePlayerStat> = {
 }
 
 function StatStepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const editing = draft !== null
   return (
     <div style={S.stepper}>
       <button
@@ -31,12 +33,12 @@ function StatStepper({ value, onChange }: { value: number; onChange: (v: number)
         style={S.stepBtn}
       >−</button>
       <input
-        type="number"
-        min={0}
-        max={999}
-        value={value}
-        onFocus={e => e.target.select()}
-        onChange={e => onChange(Math.max(0, parseInt(e.target.value) || 0))}
+        type="text"
+        inputMode="numeric"
+        value={editing ? draft : String(value)}
+        onFocus={e => { setDraft(String(value)); e.target.select() }}
+        onChange={e => setDraft(e.target.value.replace(/[^0-9]/g, ''))}
+        onBlur={() => { onChange(Math.max(0, parseInt(draft ?? '0') || 0)); setDraft(null) }}
         style={S.stepInput}
       />
       <button
