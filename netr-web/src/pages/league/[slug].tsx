@@ -209,21 +209,24 @@ export default function PublicLeaguePage() {
 
         {/* SCHEDULE */}
         {activeTab==='schedule'&&<section>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,flexWrap:'wrap',gap:10}}>
-            <SecTitle accent={accent} noMargin>Full Schedule</SecTitle>
-            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-              <a href={`/api/league/${league.slug}/calendar`} target="_blank" rel="noopener noreferrer"
-                style={{display:'inline-flex',alignItems:'center',gap:6,background:'#0F0F14',border:'1px solid #1C1C26',borderRadius:8,color:'#EEEEF5',fontSize:12,fontFamily:"'DM Sans',sans-serif",padding:'7px 14px',textDecoration:'none',whiteSpace:'nowrap'}}>
-                📅 Download .ics
-              </a>
-              <a href={`webcal://${typeof window!=='undefined'?window.location.host:''}/api/league/${league.slug}/calendar`}
-                style={{display:'inline-flex',alignItems:'center',gap:6,background:'#0F0F14',border:'1px solid #1C1C26',borderRadius:8,color:'#EEEEF5',fontSize:12,fontFamily:"'DM Sans',sans-serif",padding:'7px 14px',textDecoration:'none',whiteSpace:'nowrap'}}>
-                🍎 Apple Calendar
-              </a>
-              <a href={`https://calendar.google.com/calendar/r?cid=https://${typeof window!=='undefined'?window.location.host:''}/api/league/${league.slug}/calendar`} target="_blank" rel="noopener noreferrer"
-                style={{display:'inline-flex',alignItems:'center',gap:6,background:'#0F0F14',border:'1px solid #1C1C26',borderRadius:8,color:'#EEEEF5',fontSize:12,fontFamily:"'DM Sans',sans-serif",padding:'7px 14px',textDecoration:'none',whiteSpace:'nowrap'}}>
-                📆 Google Calendar
-              </a>
+          <div style={{marginBottom:16}}>
+            <SecTitle accent={accent}>Full Schedule</SecTitle>
+            <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:10,padding:'14px 16px',marginBottom:16}}>
+              <div style={{fontSize:12,color:'#6A6A82',fontFamily:"'DM Mono',monospace",marginBottom:10,textTransform:'uppercase',letterSpacing:1}}>Subscribe — games auto-update when schedule changes</div>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                <a href={`webcal://${typeof window!=='undefined'?window.location.host:''}/api/league/${league.slug}/calendar`}
+                  style={{display:'inline-flex',alignItems:'center',gap:6,background:'#0F0F14',border:'1px solid #2E2E3A',borderRadius:8,color:'#EEEEF5',fontSize:13,fontFamily:"'DM Sans',sans-serif",padding:'9px 16px',textDecoration:'none',whiteSpace:'nowrap',fontWeight:500}}>
+                  🍎 iPhone / Apple Calendar
+                </a>
+                <a href={`https://calendar.google.com/calendar/r?cid=https://${typeof window!=='undefined'?window.location.host:''}/api/league/${league.slug}/calendar`} target="_blank" rel="noopener noreferrer"
+                  style={{display:'inline-flex',alignItems:'center',gap:6,background:'#0F0F14',border:'1px solid #2E2E3A',borderRadius:8,color:'#EEEEF5',fontSize:13,fontFamily:"'DM Sans',sans-serif",padding:'9px 16px',textDecoration:'none',whiteSpace:'nowrap',fontWeight:500}}>
+                  📆 Android / Google Calendar
+                </a>
+                <a href={`/api/league/${league.slug}/calendar`} target="_blank" rel="noopener noreferrer"
+                  style={{display:'inline-flex',alignItems:'center',gap:6,background:'transparent',border:'1px solid #1C1C26',borderRadius:8,color:'#4A4A5E',fontSize:12,fontFamily:"'DM Sans',sans-serif",padding:'9px 14px',textDecoration:'none',whiteSpace:'nowrap'}}>
+                  ↓ Outlook / .ics
+                </a>
+              </div>
             </div>
           </div>
           {allGames.length===0?<Empty>No games yet.</Empty>:<div style={{display:'flex',flexDirection:'column',gap:8}}>{allGames.map(g=><GCard key={g.id} g={g} tMap={tMap} accent={accent} showLoc onClick={g.status==='final'?()=>setBoxGameId(g.id):undefined}/>)}</div>}
