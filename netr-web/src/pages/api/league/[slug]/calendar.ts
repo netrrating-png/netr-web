@@ -15,7 +15,7 @@ function icsEscape(s: string) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { slug } = req.query as { slug: string }
+  const { slug, team: teamId } = req.query as { slug: string; team?: string }
 
   const { data: league } = await supabase
     .from('leagues')
@@ -25,12 +25,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!league) return res.status(404).end('League not found')
 
-  const { data: games } = await supabase
+  let gamesQuery = supabase
     .from('league_games')
     .select('id, scheduled_at, location, status, home_team_id, away_team_id')
     .eq('league_id', league.id)
     .in('status', ['scheduled', 'final'])
     .order('scheduled_at')
+
+  if (teamId) {
+    gamesQuery = gamesQuery.or(`home_team_id.eq.${teamId},away_team_id.eq.${teamId}`)
+  }
+
+  const { data: games } = await gamesQuery
 
   const { data: teams } = await supabase
     .from('league_teams')
@@ -39,6 +45,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const teamMap: Record<string, string> = {}
   for (const t of teams ?? []) teamMap[t.id] = t.name
+
+  const calName = teamId && teamMap[teamId]
+    ? `${teamMap[teamId]} – ${league.name}`
+    : league.name
 
   const events = (games ?? []).map(g => {
     const start = icsDate(g.scheduled_at)
@@ -67,7 +77,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     'PRODID:-//NETR//League Calendar//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    `X-WR-CALNAME:${icsEscape(league.name)}`,
+    `X-WR-CALNAME:${icsEscape(calName)}`,
     `X-WR-TIMEZONE:America/New_York`,
     ...events,
     'END:VCALENDAR',

@@ -1,3 +1,4 @@
+import React from 'react'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
@@ -101,6 +102,7 @@ export default function PublicLeaguePage() {
   const modalTeam=teamModalId?teams.find(t=>t.id===teamModalId)??null:null
   const modalPlayers=teamModalId?players.filter(p=>p.team_id===teamModalId):[]
   const modalPStats=teamModalId?pStats.filter(s=>s.team_id===teamModalId):[]
+  const myTeamId=myPlayerId?players.find(p=>p.id===myPlayerId)?.team_id??null:null
 
   return(<>
     <Head>
@@ -196,20 +198,7 @@ export default function PublicLeaguePage() {
             </section>
             <section>
               <SecTitle accent={accent}>Upcoming Games</SecTitle>
-              <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}}>
-                <a href={`webcal://${typeof window!=='undefined'?window.location.host:''}/api/league/${league.slug}/calendar`}
-                  style={{display:'inline-flex',alignItems:'center',gap:5,background:'#0F0F14',border:'1px solid #2E2E3A',borderRadius:8,color:'#EEEEF5',fontSize:12,fontFamily:"'DM Sans',sans-serif",padding:'7px 14px',textDecoration:'none',whiteSpace:'nowrap'}}>
-                  🍎 iPhone / Apple Calendar
-                </a>
-                <a href={`https://calendar.google.com/calendar/r?cid=https://${typeof window!=='undefined'?window.location.host:''}/api/league/${league.slug}/calendar`} target="_blank" rel="noopener noreferrer"
-                  style={{display:'inline-flex',alignItems:'center',gap:5,background:'#0F0F14',border:'1px solid #2E2E3A',borderRadius:8,color:'#EEEEF5',fontSize:12,fontFamily:"'DM Sans',sans-serif",padding:'7px 14px',textDecoration:'none',whiteSpace:'nowrap'}}>
-                  📆 Android / Google Calendar
-                </a>
-                <a href={`/api/league/${league.slug}/calendar`} target="_blank" rel="noopener noreferrer"
-                  style={{display:'inline-flex',alignItems:'center',gap:5,background:'transparent',border:'1px solid #1C1C26',borderRadius:8,color:'#4A4A5E',fontSize:12,fontFamily:"'DM Sans',sans-serif",padding:'7px 12px',textDecoration:'none',whiteSpace:'nowrap'}}>
-                  ↓ Outlook / .ics
-                </a>
-              </div>
+              {myTeamId&&<CalendarButtons slug={league.slug} teamId={myTeamId} size="sm"/>}
               {upcoming.length===0?<Empty>No games scheduled.</Empty>:<div style={{display:'flex',flexDirection:'column',gap:10}}>{upcoming.slice(0,8).map(g=><div key={g.id}><GCard g={g} tMap={tMap} accent={accent} rsvpCount={attendanceCounts[g.id]||0}/>{myPlayerId&&<RsvpRow gameId={g.id} myStatus={myAttendance[g.id]||null} accent={accent} onRsvp={rsvp}/>}</div>)}</div>}
             </section>
           </div>
@@ -220,21 +209,13 @@ export default function PublicLeaguePage() {
           <div style={{marginBottom:16}}>
             <SecTitle accent={accent}>Full Schedule</SecTitle>
             <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:10,padding:'14px 16px',marginBottom:16}}>
-              <div style={{fontSize:12,color:'#6A6A82',fontFamily:"'DM Mono',monospace",marginBottom:10,textTransform:'uppercase',letterSpacing:1}}>Subscribe — games auto-update when schedule changes</div>
-              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-                <a href={`webcal://${typeof window!=='undefined'?window.location.host:''}/api/league/${league.slug}/calendar`}
-                  style={{display:'inline-flex',alignItems:'center',gap:6,background:'#0F0F14',border:'1px solid #2E2E3A',borderRadius:8,color:'#EEEEF5',fontSize:13,fontFamily:"'DM Sans',sans-serif",padding:'9px 16px',textDecoration:'none',whiteSpace:'nowrap',fontWeight:500}}>
-                  🍎 iPhone / Apple Calendar
-                </a>
-                <a href={`https://calendar.google.com/calendar/r?cid=https://${typeof window!=='undefined'?window.location.host:''}/api/league/${league.slug}/calendar`} target="_blank" rel="noopener noreferrer"
-                  style={{display:'inline-flex',alignItems:'center',gap:6,background:'#0F0F14',border:'1px solid #2E2E3A',borderRadius:8,color:'#EEEEF5',fontSize:13,fontFamily:"'DM Sans',sans-serif",padding:'9px 16px',textDecoration:'none',whiteSpace:'nowrap',fontWeight:500}}>
-                  📆 Android / Google Calendar
-                </a>
-                <a href={`/api/league/${league.slug}/calendar`} target="_blank" rel="noopener noreferrer"
-                  style={{display:'inline-flex',alignItems:'center',gap:6,background:'transparent',border:'1px solid #1C1C26',borderRadius:8,color:'#4A4A5E',fontSize:12,fontFamily:"'DM Sans',sans-serif",padding:'9px 14px',textDecoration:'none',whiteSpace:'nowrap'}}>
-                  ↓ Outlook / .ics
-                </a>
+              <div style={{fontSize:12,color:'#6A6A82',fontFamily:"'DM Mono',monospace",marginBottom:10,textTransform:'uppercase',letterSpacing:1}}>
+                {myTeamId?`Subscribe to ${teams.find(t=>t.id===myTeamId)?.name??'Your Team'}'s games`:'Subscribe — games auto-update when schedule changes'}
               </div>
+              <CalendarButtons slug={league.slug} teamId={myTeamId??undefined} size="lg"/>
+              {myTeamId&&<div style={{marginTop:8,fontSize:11,color:'#3A3A4E',fontFamily:"'DM Mono',monospace"}}>
+                <a href={`/league/${league.slug}?tab=teams`} onClick={()=>setTab('teams')} style={{color:'#4A4A5E',textDecoration:'underline',cursor:'pointer'}}>Find another team</a>
+              </div>}
             </div>
           </div>
           {allGames.length===0?<Empty>No games yet.</Empty>:<div style={{display:'flex',flexDirection:'column',gap:8}}>{allGames.map(g=><GCard key={g.id} g={g} tMap={tMap} accent={accent} showLoc onClick={g.status==='final'?()=>setBoxGameId(g.id):undefined}/>)}</div>}
@@ -357,6 +338,9 @@ export default function PublicLeaguePage() {
               </div>}
             </div>
           </div>
+          <div style={{marginBottom:16}}>
+            <CalendarButtons slug={league.slug} teamId={modalTeam.id} size="sm"/>
+          </div>
           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,textTransform:'uppercase',letterSpacing:1,color:'#6A6A82',marginBottom:10}}>Roster</div>
           {modalPlayers.length===0?<div style={{fontSize:13,color:'#6A6A82'}}>No players yet.</div>:(
             <div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',minWidth:modalPStats.length>0?400:200}}>
@@ -386,6 +370,21 @@ export default function PublicLeaguePage() {
       )}
     </div>
   </>)
+}
+
+function CalendarButtons({slug,teamId,size}:{slug:string;teamId?:string;size:'sm'|'lg'}) {
+  const host=typeof window!=='undefined'?window.location.host:''
+  const qs=teamId?`?team=${teamId}`:''
+  const pad=size==='lg'?'9px 16px':'7px 12px'
+  const fs=size==='lg'?13:12
+  const btn:React.CSSProperties={display:'inline-flex',alignItems:'center',gap:5,background:'#0F0F14',border:'1px solid #2E2E3A',borderRadius:8,color:'#EEEEF5',fontSize:fs,fontFamily:"'DM Sans',sans-serif",padding:pad,textDecoration:'none',whiteSpace:'nowrap'}
+  return(
+    <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+      <a href={`webcal://${host}/api/league/${slug}/calendar${qs}`} style={btn}>🍎 iPhone / Apple</a>
+      <a href={`https://calendar.google.com/calendar/r?cid=https://${host}/api/league/${slug}/calendar${qs}`} target="_blank" rel="noopener noreferrer" style={btn}>📆 Google</a>
+      <a href={`/api/league/${slug}/calendar${qs}`} target="_blank" rel="noopener noreferrer" style={{...btn,background:'transparent',border:'1px solid #1C1C26',color:'#4A4A5E'}}>↓ .ics</a>
+    </div>
+  )
 }
 
 function RsvpRow({gameId,myStatus,accent,onRsvp}:{gameId:string;myStatus:'yes'|'no'|'maybe'|null;accent:string;onRsvp:(id:string,s:'yes'|'no'|'maybe')=>void}) {
