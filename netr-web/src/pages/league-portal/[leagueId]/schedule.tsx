@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
-import { supabase, League, LeagueTeam, LeagueGame } from '../../../lib/supabase'
+import { supabase, League, LeagueTeam, LeagueGame, LeagueGameAttendance } from '../../../lib/supabase'
 import { PortalNav } from './index'
 import { DISPLAY_DOW, DISPLAY_LABELS, generateMatchups, assignDates, AssignConfig, GameSlot, getPlayoffBracket, fmtPreviewRange } from '../../../lib/schedule-utils'
 
@@ -38,6 +38,9 @@ export default function SchedulePage() {
 
   // team availability
   const [availability, setAvailability] = useState<Record<string, number[]>>({})
+
+  // attendance (RSVP counts per game)
+  const [attendance, setAttendance] = useState<LeagueGameAttendance[]>([])
 
   // standings for playoffs
   const [standings, setStandings] = useState<StandingRow[]>([])
@@ -78,6 +81,16 @@ export default function SchedulePage() {
       }))
       setGames(enriched)
       setStandings((standingsRes as { data: StandingRow[] | null }).data ?? [])
+
+      const gameIds = (gamesRes.data ?? []).map((g: LeagueGame) => g.id)
+      if (gameIds.length > 0) {
+        const { data: att } = await supabase
+          .from('league_game_attendance')
+          .select('game_id,player_id,status')
+          .in('game_id', gameIds)
+        setAttendance((att ?? []) as LeagueGameAttendance[])
+      }
+
       setLoading(false)
     })
   }, [leagueId])
@@ -341,7 +354,7 @@ export default function SchedulePage() {
             <section style={S.section}>
               <div style={S.sectionLabel}>Results ({completed.length})</div>
               <div style={S.gameList}>
-                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} onDelete={() => deleteGame(g.id)} onEdit={editGame} leagueId={leagueId} />)}
+                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} onDelete={() => deleteGame(g.id)} onEdit={editGame} leagueId={leagueId} rsvpYes={attendance.filter(a => a.game_id === g.id && a.status === 'yes').length} />)}
               </div>
             </section>
           )}
@@ -351,7 +364,7 @@ export default function SchedulePage() {
             <section style={S.section}>
               <div style={S.sectionLabel}>Upcoming ({upcoming.length})</div>
               <div style={S.gameList}>
-                {upcoming.map(g => <GameRow key={g.id} game={g} onCancel={() => cancelGame(g.id)} onEdit={editGame} leagueId={leagueId} />)}
+                {upcoming.map(g => <GameRow key={g.id} game={g} onCancel={() => cancelGame(g.id)} onEdit={editGame} leagueId={leagueId} rsvpYes={attendance.filter(a => a.game_id === g.id && a.status === 'yes').length} />)}
               </div>
             </section>
           )}
@@ -463,7 +476,7 @@ export default function SchedulePage() {
   )
 }
 
-function GameRow({ game, onCancel, onDelete, onEdit, leagueId }: { game: GameWithTeams; onCancel?: () => void; onDelete?: () => void; onEdit?: (id: string, updates: Partial<LeagueGame>) => void; leagueId: string }) {
+function GameRow({ game, onCancel, onDelete, onEdit, leagueId, rsvpYes = 0 }: { game: GameWithTeams; onCancel?: () => void; onDelete?: () => void; onEdit?: (id: string, updates: Partial<LeagueGame>) => void; leagueId: string; rsvpYes?: number }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({ scheduled_at: game.scheduled_at.slice(0, 16), location: game.location ?? '' })
@@ -525,6 +538,11 @@ function GameRow({ game, onCancel, onDelete, onEdit, leagueId }: { game: GameWit
       </div>
 
       <div style={S.gameActions}>
+        {game.status === 'scheduled' && rsvpYes > 0 && (
+          <span style={{ fontSize: 12, color: '#39FF14', fontFamily: "'DM Mono', monospace", background: 'rgba(57,255,20,0.08)', border: '1px solid rgba(57,255,20,0.2)', borderRadius: 99, padding: '3px 10px' }}>
+            ✓ {rsvpYes} in
+          </span>
+        )}
         {game.status === 'final' && <span style={S.finalBadge}>Final</span>}
         {game.status === 'scheduled' && (
           <a href={`/league-portal/${leagueId}/score/${game.id}`} style={S.scoreBtn}>Enter Score + Stats</a>

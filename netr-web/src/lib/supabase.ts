@@ -71,6 +71,14 @@ export type LeagueGame = {
   created_at: string
 }
 
+export type LeagueGameAttendance = {
+  id: string
+  game_id: string
+  player_id: string
+  status: 'yes' | 'no' | 'maybe'
+  updated_at: string
+}
+
 export type LeaguePlayerStat = {
   id: string
   game_id: string
