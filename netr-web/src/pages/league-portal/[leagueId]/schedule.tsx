@@ -173,6 +173,13 @@ export default function SchedulePage() {
     setGames(prev => prev.filter(g => g.id !== id))
   }
 
+  function editGame(id: string, updates: Partial<LeagueGame>) {
+    setGames(prev =>
+      prev.map(g => g.id === id ? { ...g, ...updates } : g)
+        .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))
+    )
+  }
+
   if (loading || !league) return <LoadingScreen />
 
   const regularGames = games.filter(g => !g.game_type || g.game_type === 'regular')
@@ -334,7 +341,7 @@ export default function SchedulePage() {
             <section style={S.section}>
               <div style={S.sectionLabel}>Results ({completed.length})</div>
               <div style={S.gameList}>
-                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} onDelete={() => deleteGame(g.id)} leagueId={leagueId} />)}
+                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} onDelete={() => deleteGame(g.id)} onEdit={editGame} leagueId={leagueId} />)}
               </div>
             </section>
           )}
@@ -344,7 +351,7 @@ export default function SchedulePage() {
             <section style={S.section}>
               <div style={S.sectionLabel}>Upcoming ({upcoming.length})</div>
               <div style={S.gameList}>
-                {upcoming.map(g => <GameRow key={g.id} game={g} onCancel={() => cancelGame(g.id)} leagueId={leagueId} />)}
+                {upcoming.map(g => <GameRow key={g.id} game={g} onCancel={() => cancelGame(g.id)} onEdit={editGame} leagueId={leagueId} />)}
               </div>
             </section>
           )}
@@ -456,12 +463,52 @@ export default function SchedulePage() {
   )
 }
 
-function GameRow({ game, onCancel, onDelete, leagueId }: { game: GameWithTeams; onCancel?: () => void; onDelete?: () => void; leagueId: string }) {
+function GameRow({ game, onCancel, onDelete, onEdit, leagueId }: { game: GameWithTeams; onCancel?: () => void; onDelete?: () => void; onEdit?: (id: string, updates: Partial<LeagueGame>) => void; leagueId: string }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editForm, setEditForm] = useState({ scheduled_at: game.scheduled_at.slice(0, 16), location: game.location ?? '' })
+  const [savingEdit, setSavingEdit] = useState(false)
+
+  async function saveEdit() {
+    setSavingEdit(true)
+    const updates: Partial<LeagueGame> = {
+      scheduled_at: new Date(editForm.scheduled_at).toISOString(),
+      location: editForm.location || null,
+    }
+    await supabase.from('league_games').update(updates).eq('id', game.id)
+    onEdit?.(game.id, updates)
+    setSavingEdit(false)
+    setEditing(false)
+  }
+
   if (!game.home_team || !game.away_team) return null
   const d = new Date(game.scheduled_at)
   const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
   const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+
+  if (editing) {
+    return (
+      <div style={{ ...S.gameRow, flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15 }}>{game.home_team.name} vs {game.away_team.name}</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={S.label}>Date & Time</label>
+            <input type="datetime-local" value={editForm.scheduled_at} onChange={e => setEditForm(f => ({ ...f, scheduled_at: e.target.value }))} style={S.input} />
+          </div>
+          <div>
+            <label style={S.label}>Location</label>
+            <input type="text" value={editForm.location} onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} style={S.input} placeholder="Gym or court name" />
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={() => setEditing(false)} style={S.cancelBtn}>Cancel</button>
+          <button onClick={saveEdit} style={S.saveBtn} disabled={savingEdit}>{savingEdit ? 'Saving…' : 'Save Changes'}</button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ ...S.gameRow, opacity: game.status === 'cancelled' ? 0.45 : 1 }}>
@@ -484,6 +531,9 @@ function GameRow({ game, onCancel, onDelete, leagueId }: { game: GameWithTeams; 
         )}
         {game.status === 'final' && (
           <a href={`/league-portal/${leagueId}/score/${game.id}`} style={S.editBtn}>Edit Score + Stats</a>
+        )}
+        {game.status === 'scheduled' && onEdit && (
+          <button onClick={() => setEditing(true)} style={S.cancelSmBtn}>Edit</button>
         )}
         {game.status === 'scheduled' && onCancel && (
           <button onClick={onCancel} style={S.cancelSmBtn}>Cancel</button>
