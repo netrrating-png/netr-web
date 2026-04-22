@@ -14,11 +14,15 @@ export type League = {
   season: string | null
   location: string | null
   description: string | null
+  logo_url: string | null
   is_active: boolean
   enabled_stats: string[] | null
   min_games_for_stats: number | null
   default_game_location: string | null
   stat_display: 'per_game' | 'totals' | null
+  games_per_team: number | null
+  playoff_teams: number | null
+  playoff_format: string | null
   created_at: string
 }
 
@@ -29,6 +33,7 @@ export type LeagueTeam = {
   color: string
   logo_url: string | null
   join_token: string
+  available_days: number[] | null
   created_at: string
 }
 
@@ -54,6 +59,9 @@ export type LeagueGame = {
   status: 'scheduled' | 'final' | 'cancelled'
   home_score: number | null
   away_score: number | null
+  game_type: 'regular' | 'playoff' | null
+  playoff_round: number | null
+  playoff_bracket_slot: number | null
   created_at: string
 }
 

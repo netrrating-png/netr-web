@@ -40,6 +40,14 @@ export default function TeamsPage() {
 
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
+  const [showCsvModal, setShowCsvModal] = useState(false)
+  const [csvInput, setCsvInput] = useState('')
+  const [csvTab, setCsvTab] = useState<'paste' | 'file'>('paste')
+  const [csvPreview, setCsvPreview] = useState<{ teamName: string; players: { name: string; jersey: string; pos: string }[] }[]>([])
+  const [csvErrors, setCsvErrors] = useState<string[]>([])
+  const [importing, setImporting] = useState(false)
+  const [importDone, setImportDone] = useState('')
+  const csvFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!leagueId) return
@@ -160,6 +168,76 @@ export default function TeamsPage() {
     setTeams(prev => prev.map(t => t.id === teamId ? { ...t, players: t.players.filter(p => p.id !== playerId) } : t))
   }
 
+  function parseCsv(raw: string) {
+    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean)
+    const errors: string[] = []
+    const byTeam: Record<string, { name: string; jersey: string; pos: string }[]> = {}
+    for (let i = 0; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim())
+      if (i === 0 && cols[0].toLowerCase().includes('team')) continue // skip header
+      const teamName = cols[0] ?? ''
+      const playerName = cols[1] ?? ''
+      if (!teamName || !playerName) { errors.push(`Row ${i + 1}: missing team or player name`); continue }
+      if (!byTeam[teamName]) byTeam[teamName] = []
+      byTeam[teamName].push({ name: playerName, jersey: cols[2] ?? '', pos: cols[3] ?? '' })
+    }
+    const preview = Object.entries(byTeam).map(([teamName, players]) => ({ teamName, players }))
+    setCsvPreview(preview)
+    setCsvErrors(errors)
+  }
+
+  function downloadTemplate() {
+    const csv = 'Team Name,Player Name,Jersey,Position\nLakers,LeBron James,23,SF\nLakers,Anthony Davis,3,C\nCeltics,Jayson Tatum,0,SF\n'
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+    a.download = 'roster-template.csv'
+    a.click()
+  }
+
+  async function handleCsvImport() {
+    if (csvPreview.length === 0) return
+    setImporting(true)
+    const COLORS = ['#39FF14','#FF453A','#FF9500','#4A9EFF','#BF5AF2','#F5C542']
+    let colorIdx = teams.length % COLORS.length
+    let totalPlayers = 0
+
+    for (const group of csvPreview) {
+      const existing = teams.find(t => t.name.toLowerCase() === group.teamName.toLowerCase())
+      let teamId = existing?.id
+      if (!teamId) {
+        const { data } = await supabase.from('league_teams')
+          .insert({ league_id: leagueId, name: group.teamName, color: COLORS[colorIdx % COLORS.length] })
+          .select().single()
+        if (data) { teamId = data.id; colorIdx++ }
+      }
+      if (!teamId) continue
+      const rows = group.players.map(p => ({
+        team_id: teamId, league_id: leagueId,
+        display_name: p.name,
+        jersey_number: p.jersey || null,
+        position: p.pos || null,
+      }))
+      await supabase.from('league_players').insert(rows)
+      totalPlayers += rows.length
+    }
+
+    // Reload
+    const [teamsRes, playersRes] = await Promise.all([
+      supabase.from('league_teams').select('*').eq('league_id', leagueId).order('created_at'),
+      supabase.from('league_players').select('*').eq('league_id', leagueId),
+    ])
+    const playersByTeam: Record<string, LeaguePlayer[]> = {}
+    for (const p of (playersRes.data ?? [])) {
+      if (!playersByTeam[p.team_id]) playersByTeam[p.team_id] = []
+      playersByTeam[p.team_id].push(p)
+    }
+    setTeams((teamsRes.data ?? []).map(t => ({ ...t, players: playersByTeam[t.id] ?? [] })))
+    setImportDone(`Imported ${totalPlayers} players across ${csvPreview.length} teams.`)
+    setCsvPreview([])
+    setCsvInput('')
+    setImporting(false)
+  }
+
   function copyJoinLink(token: string) {
     navigator.clipboard.writeText(`${window.location.origin}/join/${token}`)
     setCopied(token)
@@ -185,7 +263,10 @@ export default function TeamsPage() {
               <h1 style={S.title}>Teams & Rosters</h1>
               <p style={S.sub}>{teams.length} team{teams.length !== 1 ? 's' : ''} · {teams.reduce((n, t) => n + t.players.length, 0)} players total</p>
             </div>
-            <button onClick={() => setShowTeamForm(true)} style={S.addBtn}>+ Add Team</button>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => { setShowCsvModal(true); setImportDone('') }} style={S.importBtn}>⬆ Import CSV</button>
+              <button onClick={() => setShowTeamForm(true)} style={S.addBtn}>+ Add Team</button>
+            </div>
           </div>
 
           {/* Add team form */}
@@ -325,6 +406,105 @@ export default function TeamsPage() {
           </div>
         </main>
       </div>
+
+      {/* CSV Import Modal */}
+      {showCsvModal && (
+        <div style={S.overlay}>
+          <div style={S.csvModal}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div style={S.csvModalTitle}>Import Roster CSV</div>
+              <button onClick={() => { setShowCsvModal(false); setCsvPreview([]); setCsvInput(''); setImportDone('') }} style={S.closeBtn}>✕</button>
+            </div>
+
+            {importDone ? (
+              <div style={{ textAlign: 'center' as const, padding: '40px 0' }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+                <div style={{ color: '#39FF14', fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 700 }}>{importDone}</div>
+                <button onClick={() => { setShowCsvModal(false); setImportDone('') }} style={{ ...S.saveBtn, marginTop: 24 }}>Done</button>
+              </div>
+            ) : (
+              <>
+                {/* Instructions */}
+                <div style={S.csvInstructions}>
+                  <div style={S.csvInstTitle}>CSV Format</div>
+                  <pre style={S.csvCode}>{`Team Name,Player Name,Jersey,Position\nLakers,LeBron James,23,SF\nLakers,Anthony Davis,3,C\nCeltics,Jayson Tatum,0,SF`}</pre>
+                  <div style={S.csvInstGrid}>
+                    <div><strong style={{ color: '#EEEEF5' }}>Google Sheets:</strong> File → Download → Comma-separated values</div>
+                    <div><strong style={{ color: '#EEEEF5' }}>Excel:</strong> File → Save As → CSV UTF-8 (Comma delimited)</div>
+                    <div><strong style={{ color: '#EEEEF5' }}>Numbers (Mac):</strong> File → Export To → CSV</div>
+                  </div>
+                  <button onClick={downloadTemplate} style={S.templateBtn}>⬇ Download Template</button>
+                </div>
+
+                {/* Input tabs */}
+                <div style={{ display: 'flex', gap: 0, marginBottom: 12, borderBottom: '1px solid #1C1C26' }}>
+                  {(['paste', 'file'] as const).map(t => (
+                    <button key={t} onClick={() => setCsvTab(t)} style={{ ...S.csvTabBtn, ...(csvTab === t ? S.csvTabActive : {}) }}>
+                      {t === 'paste' ? 'Paste CSV' : 'Upload File'}
+                    </button>
+                  ))}
+                </div>
+
+                {csvTab === 'paste' ? (
+                  <textarea
+                    value={csvInput}
+                    onChange={e => { setCsvInput(e.target.value); parseCsv(e.target.value) }}
+                    placeholder="Paste your CSV here…"
+                    rows={6}
+                    style={S.csvTextarea}
+                  />
+                ) : (
+                  <div style={S.csvFileZone}>
+                    <input ref={csvFileRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      file.text().then(text => { setCsvInput(text); parseCsv(text) })
+                    }} />
+                    <button onClick={() => csvFileRef.current?.click()} style={S.templateBtn}>Choose CSV File</button>
+                    {csvInput && <span style={{ fontSize: 12, color: '#39FF14', marginLeft: 12 }}>File loaded ✓</span>}
+                  </div>
+                )}
+
+                {/* Errors */}
+                {csvErrors.length > 0 && (
+                  <div style={S.csvErrorBox}>
+                    {csvErrors.map((e, i) => <div key={i}>{e}</div>)}
+                  </div>
+                )}
+
+                {/* Preview */}
+                {csvPreview.length > 0 && (
+                  <div style={{ marginTop: 16 }}>
+                    <div style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace", textTransform: 'uppercase' as const, letterSpacing: 2, marginBottom: 10 }}>
+                      Preview — {csvPreview.reduce((n, g) => n + g.players.length, 0)} players · {csvPreview.length} teams
+                    </div>
+                    {csvPreview.map(group => (
+                      <div key={group.teamName} style={S.csvPreviewGroup}>
+                        <div style={S.csvPreviewTeam}>{group.teamName} <span style={{ color: '#6A6A82', fontWeight: 400 }}>({group.players.length})</span></div>
+                        {group.players.map((p, i) => (
+                          <div key={i} style={S.csvPreviewPlayer}>
+                            {p.jersey && <span style={{ color: '#6A6A82', fontFamily: "'DM Mono', monospace", minWidth: 28, display: 'inline-block' }}>#{p.jersey}</span>}
+                            {p.name}
+                            {p.pos && <span style={{ color: '#6A6A82', marginLeft: 8 }}>{p.pos}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Import button */}
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+                  <button onClick={() => { setCsvPreview([]); setCsvInput('') }} style={S.cancelBtn} disabled={csvPreview.length === 0}>Clear</button>
+                  <button onClick={handleCsvImport} style={S.saveBtn} disabled={csvPreview.length === 0 || importing}>
+                    {importing ? 'Importing…' : `Import ${csvPreview.reduce((n, g) => n + g.players.length, 0)} Players`}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   )
 }
@@ -438,4 +618,22 @@ const S: Record<string, React.CSSProperties> = {
   playerForm: { marginTop: 8 },
   playerFormRow: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const },
   addPlayerBtn: { background: 'none', border: '1px dashed #2E2E3A', borderRadius: 8, color: '#6A6A82', fontSize: 13, padding: '8px 16px', cursor: 'pointer', width: '100%', textAlign: 'left' as const, marginTop: 4 },
+  importBtn: { background: '#1C1C26', border: '1px solid #2E2E3A', borderRadius: 8, color: '#EEEEF5', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, textTransform: 'uppercase' as const, letterSpacing: 1, padding: '10px 18px', cursor: 'pointer' },
+  overlay: { position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  csvModal: { background: '#0F0F14', border: '1px solid #2E2E3A', borderRadius: 16, padding: 32, width: '100%', maxWidth: 680, maxHeight: '90vh', overflowY: 'auto' as const },
+  csvModalTitle: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 26, textTransform: 'uppercase' as const },
+  closeBtn: { background: 'none', border: '1px solid #2E2E3A', borderRadius: 8, color: '#6A6A82', fontSize: 16, width: 36, height: 36, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  csvInstructions: { background: '#0A0A0E', border: '1px solid #1C1C26', borderRadius: 10, padding: 16, marginBottom: 20 },
+  csvInstTitle: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, textTransform: 'uppercase' as const, letterSpacing: 1, color: '#6A6A82', marginBottom: 8 },
+  csvCode: { fontFamily: "'DM Mono', monospace", fontSize: 12, color: '#39FF14', background: '#040406', border: '1px solid #1C1C26', borderRadius: 6, padding: '10px 14px', margin: '0 0 12px', overflowX: 'auto' as const, whiteSpace: 'pre' as const },
+  csvInstGrid: { display: 'flex', flexDirection: 'column' as const, gap: 6, fontSize: 12, color: '#6A6A82', lineHeight: 1.5, marginBottom: 12 },
+  templateBtn: { background: '#1C1C26', border: '1px solid #2E2E3A', borderRadius: 8, color: '#EEEEF5', fontFamily: "'DM Mono', monospace", fontSize: 12, padding: '7px 14px', cursor: 'pointer' },
+  csvTabBtn: { background: 'none', border: 'none', borderBottom: '2px solid transparent', color: '#6A6A82', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, textTransform: 'uppercase' as const, letterSpacing: 1, padding: '10px 18px', cursor: 'pointer' },
+  csvTabActive: { color: '#39FF14', borderBottomColor: '#39FF14' },
+  csvTextarea: { width: '100%', background: '#0A0A0E', border: '1px solid #1C1C26', borderRadius: 8, color: '#EEEEF5', fontFamily: "'DM Mono', monospace", fontSize: 12, padding: '12px 14px', outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const, minHeight: 120 },
+  csvFileZone: { background: '#0A0A0E', border: '1px dashed #2E2E3A', borderRadius: 8, padding: '24px', display: 'flex', alignItems: 'center', marginBottom: 12 },
+  csvErrorBox: { background: 'rgba(255,68,85,0.08)', border: '1px solid rgba(255,68,85,0.2)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#FF8899', fontFamily: "'DM Mono', monospace", marginTop: 8 },
+  csvPreviewGroup: { marginBottom: 14 },
+  csvPreviewTeam: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 16, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 6 },
+  csvPreviewPlayer: { fontSize: 13, color: '#A0A0B8', padding: '3px 0', borderBottom: '1px solid #14141C' },
 }

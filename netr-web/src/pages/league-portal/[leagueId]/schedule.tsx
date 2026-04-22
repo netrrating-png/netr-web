@@ -3,8 +3,16 @@ import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
 import { supabase, League, LeagueTeam, LeagueGame } from '../../../lib/supabase'
 import { PortalNav } from './index'
+import { DISPLAY_DOW, DISPLAY_LABELS, generateMatchups, assignDates, AssignConfig, GameSlot, getPlayoffBracket, fmtPreviewRange } from '../../../lib/schedule-utils'
 
-type GameWithTeams = LeagueGame & { home_team: LeagueTeam; away_team: LeagueTeam }
+type GameWithTeams = LeagueGame & { home_team?: LeagueTeam; away_team?: LeagueTeam }
+type StandingRow = { team_id: string; team_name: string; color: string; wins: number; losses: number }
+
+function getWinner(slot: number, playoffGames: GameWithTeams[]): string | null {
+  const g = playoffGames.find(g => g.playoff_bracket_slot === slot)
+  if (!g || g.status !== 'final' || g.home_score == null || g.away_score == null) return null
+  return g.home_score > g.away_score ? g.home_team_id : g.away_team_id
+}
 
 export default function SchedulePage() {
   const router = useRouter()
@@ -20,34 +28,121 @@ export default function SchedulePage() {
   const [homeScore, setHomeScore] = useState('')
   const [awayScore, setAwayScore] = useState('')
 
+  // tab
+  const [tab, setTab] = useState<'regular' | 'playoffs'>('regular')
+
+  // generator
+  const [showGenerator, setShowGenerator] = useState(false)
+  const [gamesPerTeam, setGamesPerTeam] = useState(10)
+  const [genConfig, setGenConfig] = useState<AssignConfig>({ startDate: new Date().toISOString().slice(0,10), gameDays: [1,3], gameTime: '19:00', gamesPerDay: 2, minsBetweenGames: 60, location: '' })
+  const [preview, setPreview] = useState<GameSlot[] | null>(null)
+  const [previewConflicts, setPreviewConflicts] = useState(0)
+  const [savingSchedule, setSavingSchedule] = useState(false)
+
+  // team availability
+  const [availability, setAvailability] = useState<Record<string, number[]>>({})
+
+  // standings for playoffs
+  const [standings, setStandings] = useState<StandingRow[]>([])
+  const [playoffDate, setPlayoffDate] = useState(new Date().toISOString().slice(0,10))
+  const [generatingPlayoffs, setGeneratingPlayoffs] = useState(false)
+
   useEffect(() => {
     if (!leagueId) return
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.replace('/league-portal/login'); return }
 
-      const [leagueRes, teamsRes, gamesRes] = await Promise.all([
+      const [leagueRes, teamsRes, gamesRes, standingsRes] = await Promise.all([
         supabase.from('leagues').select('*').eq('id', leagueId).eq('owner_id', user.id).single(),
         supabase.from('league_teams').select('*').eq('league_id', leagueId).order('name'),
         supabase.from('league_games').select('*').eq('league_id', leagueId).order('scheduled_at'),
+        Promise.resolve(supabase.from('league_standings').select('*').eq('league_id', leagueId).order('wins', { ascending: false })).catch(() => ({ data: [] })),
       ])
 
       if (!leagueRes.data) { router.replace('/league-portal'); return }
-      setLeague(leagueRes.data)
+      const lg = leagueRes.data as League
+      setLeague(lg)
+      if (lg.games_per_team) setGamesPerTeam(lg.games_per_team)
+      if (lg.default_game_location) setGenConfig(c => ({ ...c, location: lg.default_game_location! }))
 
+      const teamsList = teamsRes.data ?? []
       const teamsById: Record<string, LeagueTeam> = {}
-      for (const t of (teamsRes.data ?? [])) teamsById[t.id] = t
-      setTeams(teamsRes.data ?? [])
+      for (const t of teamsList) teamsById[t.id] = t
+      setTeams(teamsList)
 
-      const enriched = (gamesRes.data ?? []).map(g => ({
+      const avail: Record<string, number[]> = {}
+      for (const t of teamsList) avail[t.id] = t.available_days ?? [0,1,2,3,4,5,6]
+      setAvailability(avail)
+
+      const enriched = (gamesRes.data ?? []).map((g: LeagueGame) => ({
         ...g,
         home_team: teamsById[g.home_team_id],
         away_team: teamsById[g.away_team_id],
-      })).filter(g => g.home_team && g.away_team)
-
+      }))
       setGames(enriched)
+      setStandings((standingsRes as { data: StandingRow[] | null }).data ?? [])
       setLoading(false)
     })
   }, [leagueId])
+
+  function handlePreview() {
+    if (teams.length < 2) return
+    const matchups = generateMatchups(teams.map(t => t.id), gamesPerTeam)
+    const avail: Record<string, number[]> = {}
+    for (const t of teams) avail[t.id] = availability[t.id] ?? [0,1,2,3,4,5,6]
+    const { games: slots, conflicts } = assignDates(matchups, avail, genConfig)
+    setPreview(slots)
+    setPreviewConflicts(conflicts)
+  }
+
+  async function handleSaveSchedule() {
+    if (!preview) return
+    setSavingSchedule(true)
+    const rows = preview.map(g => ({ league_id: leagueId, home_team_id: g.home_team_id, away_team_id: g.away_team_id, scheduled_at: g.scheduled_at, location: g.location || null, game_type: 'regular', status: 'scheduled' }))
+    for (let i = 0; i < rows.length; i += 50) await supabase.from('league_games').insert(rows.slice(i, i+50))
+    const { data } = await supabase.from('league_games').select('*').eq('league_id', leagueId).order('scheduled_at')
+    const teamsById: Record<string, LeagueTeam> = {}
+    for (const t of teams) teamsById[t.id] = t
+    setGames((data ?? []).map((g: LeagueGame) => ({ ...g, home_team: teamsById[g.home_team_id], away_team: teamsById[g.away_team_id] })))
+    setPreview(null)
+    setShowGenerator(false)
+    setSavingSchedule(false)
+  }
+
+  async function handleAvailChange(teamId: string, day: number, checked: boolean) {
+    const curr = availability[teamId] ?? [0,1,2,3,4,5,6]
+    const next = checked ? [...curr, day].sort((a,b)=>a-b) : curr.filter(d => d !== day)
+    setAvailability(prev => ({ ...prev, [teamId]: next }))
+    await supabase.from('league_teams').update({ available_days: next }).eq('id', teamId)
+  }
+
+  async function handleGeneratePlayoffs() {
+    const n = league?.playoff_teams ?? 4
+    const bracket = getPlayoffBracket(n)
+    if (!bracket) return
+    setGeneratingPlayoffs(true)
+    const playoffGames = games.filter(g => g.game_type === 'playoff')
+    const maxRound = playoffGames.length > 0 ? Math.max(...playoffGames.map(g => g.playoff_round ?? 0)) : 0
+    const nextRoundTemplate = bracket.find(r => r.roundNum === maxRound + 1)
+    if (!nextRoundTemplate) { setGeneratingPlayoffs(false); return }
+    const scheduledAt = new Date(playoffDate + 'T19:00:00').toISOString()
+    const newRows: Record<string, unknown>[] = []
+    for (const bg of nextRoundTemplate.games) {
+      const homeTeamId = bg.prevHomeSlot === null ? (standings[bg.homeSeed - 1]?.team_id ?? null) : getWinner(bg.prevHomeSlot, playoffGames)
+      const awayTeamId = bg.prevAwaySlot === null ? (standings[bg.awaySeed - 1]?.team_id ?? null) : getWinner(bg.prevAwaySlot, playoffGames)
+      if (!homeTeamId || !awayTeamId) continue
+      newRows.push({ league_id: leagueId, home_team_id: homeTeamId, away_team_id: awayTeamId, scheduled_at: scheduledAt, location: league?.default_game_location ?? null, game_type: 'playoff', playoff_round: nextRoundTemplate.roundNum, playoff_bracket_slot: bg.slot, status: 'scheduled' })
+    }
+    if (newRows.length > 0) {
+      const { data } = await supabase.from('league_games').insert(newRows).select()
+      if (data) {
+        const teamsById: Record<string, LeagueTeam> = {}
+        for (const t of teams) teamsById[t.id] = t
+        setGames(prev => [...prev, ...(data as LeagueGame[]).map(g => ({ ...g, home_team: teamsById[g.home_team_id], away_team: teamsById[g.away_team_id] }))].sort((a,b) => a.scheduled_at.localeCompare(b.scheduled_at)))
+      }
+    }
+    setGeneratingPlayoffs(false)
+  }
 
   async function addGame(e: React.FormEvent) {
     e.preventDefault()
@@ -83,6 +178,7 @@ export default function SchedulePage() {
 
     if (data) {
       setGames(prev => prev.map(g => g.id === data.id ? { ...g, ...data } : g))
+      supabase.from('league_standings').select('*').eq('league_id', leagueId).order('wins', { ascending: false }).then(r => { if (r.data) setStandings(r.data as StandingRow[]) })
     }
     setScoreGame(null)
     setHomeScore('')
@@ -97,9 +193,17 @@ export default function SchedulePage() {
 
   if (loading || !league) return <LoadingScreen />
 
-  const upcoming = games.filter(g => g.status === 'scheduled')
-  const completed = games.filter(g => g.status === 'final')
-  const cancelled = games.filter(g => g.status === 'cancelled')
+  const regularGames = games.filter(g => !g.game_type || g.game_type === 'regular')
+  const playoffGames = games.filter(g => g.game_type === 'playoff')
+  const upcoming = regularGames.filter(g => g.status === 'scheduled')
+  const completed = regularGames.filter(g => g.status === 'final')
+
+  const n = league.playoff_teams ?? 4
+  const bracketTemplate = n > 0 ? getPlayoffBracket(n) : null
+  const maxPlayoffRound = playoffGames.length > 0 ? Math.max(...playoffGames.map(g => g.playoff_round ?? 0)) : 0
+  const currentRoundGames = playoffGames.filter(g => g.playoff_round === maxPlayoffRound)
+  const currentRoundComplete = maxPlayoffRound === 0 || currentRoundGames.every(g => g.status === 'final')
+  const allRoundsComplete = !!bracketTemplate && maxPlayoffRound >= bracketTemplate.length && currentRoundComplete
 
   return (
     <>
@@ -110,30 +214,104 @@ export default function SchedulePage() {
       </Head>
 
       <div style={S.page}>
-        <PortalNav leagueName={league.name} leagueId={leagueId} active="schedule" />
+        <PortalNav leagueName={league.name} leagueId={leagueId} active="schedule" logoUrl={league.logo_url} />
 
         <main style={S.main}>
           <div style={S.header}>
             <div>
-              <h1 style={S.title}>Schedule & Scores</h1>
-              <p style={S.sub}>{games.length} game{games.length !== 1 ? 's' : ''} total · {completed.length} played</p>
+              <h1 style={S.title}>Schedule</h1>
+              <p style={S.sub}>{regularGames.length} regular season · {playoffGames.length} playoff</p>
             </div>
-            <button onClick={() => setShowForm(true)} style={S.addBtn} disabled={teams.length < 2}>
-              + Add Game
-            </button>
+            <div style={S.tabSwitch}>
+              {(['regular','playoffs'] as const).map(t => (
+                <button key={t} onClick={() => setTab(t)} style={{ ...S.switchBtn, ...(tab === t ? S.switchActive : {}) }}>
+                  {t === 'regular' ? 'Regular Season' : `Playoffs${n > 0 ? ` (${n})` : ''}`}
+                </button>
+              ))}
+            </div>
           </div>
 
+          {/* ── REGULAR SEASON TAB ── */}
+          {tab === 'regular' && (<>
           {teams.length < 2 && (
             <div style={S.notice}>
-              You need at least 2 teams before scheduling games.{' '}
+              Add at least 2 teams before scheduling.{' '}
               <a href={`/league-portal/${leagueId}/teams`} style={{ color: '#39FF14' }}>Add teams →</a>
             </div>
           )}
 
-          {/* Add game form */}
+          {/* Generator toggle row */}
+          {teams.length >= 2 && (
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+              <button onClick={() => { setShowGenerator(v => !v); setPreview(null) }} style={S.addBtn}>
+                {showGenerator ? '▲ Hide Generator' : '⚙ Generate Schedule'}
+              </button>
+              <button onClick={() => setShowForm(v => !v)} style={S.outlineBtn}>+ Add Single Game</button>
+            </div>
+          )}
+
+          {/* Schedule Generator Panel */}
+          {showGenerator && (
+            <div style={S.genPanel}>
+              <div style={S.genTitle}>Schedule Generator</div>
+              {regularGames.length > 0 && <div style={S.genWarn}>⚠ You already have {regularGames.length} regular season game{regularGames.length !== 1 ? 's' : ''}. Generating will ADD new games, not replace them.</div>}
+              <div style={S.genGrid}>
+                <div><label style={S.label}>Games Per Team</label><input type="number" min={1} max={82} value={gamesPerTeam} onChange={e => setGamesPerTeam(parseInt(e.target.value)||1)} style={S.input} /></div>
+                <div><label style={S.label}>Season Start Date</label><input type="date" value={genConfig.startDate} onChange={e => setGenConfig(c => ({ ...c, startDate: e.target.value }))} style={S.input} /></div>
+                <div><label style={S.label}>Game Time</label><input type="time" value={genConfig.gameTime} onChange={e => setGenConfig(c => ({ ...c, gameTime: e.target.value }))} style={S.input} /></div>
+                <div><label style={S.label}>Games Per Day</label><select value={genConfig.gamesPerDay} onChange={e => setGenConfig(c => ({ ...c, gamesPerDay: parseInt(e.target.value) }))} style={S.select}>{[1,2,3,4].map(n => <option key={n} value={n}>{n}</option>)}</select></div>
+                <div><label style={S.label}>Mins Between Games</label><select value={genConfig.minsBetweenGames} onChange={e => setGenConfig(c => ({ ...c, minsBetweenGames: parseInt(e.target.value) }))} style={S.select}>{[30,45,60,75,90,120].map(n => <option key={n} value={n}>{n} min</option>)}</select></div>
+                <div><label style={S.label}>Default Location</label><input type="text" value={genConfig.location} placeholder="Gym name" onChange={e => setGenConfig(c => ({ ...c, location: e.target.value }))} style={S.input} /></div>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={S.label}>Game Days</label>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  {DISPLAY_LABELS.map((lbl, i) => { const day = DISPLAY_DOW[i]; const on = genConfig.gameDays.includes(day); return (
+                    <button key={day} type="button" onClick={() => setGenConfig(c => ({ ...c, gameDays: on ? c.gameDays.filter(d => d !== day) : [...c.gameDays, day] }))} style={{ ...S.dayChip, ...(on ? S.dayChipOn : {}) }}>{lbl}</button>
+                  )})}
+                </div>
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <label style={S.label}>Team Availability</label>
+                <p style={{ fontSize: 12, color: '#6A6A82', margin: '4px 0 10px' }}>Uncheck days a team can&apos;t play. The scheduler avoids those days for that team.</p>
+                <div style={S.availGrid}>
+                  <div style={S.availHeader}><div style={S.availTeamCol}/>{DISPLAY_LABELS.map(d => <div key={d} style={S.availDayCol}>{d}</div>)}</div>
+                  {teams.map(team => {
+                    const days = availability[team.id] ?? [0,1,2,3,4,5,6]
+                    return (
+                      <div key={team.id} style={S.availRow}>
+                        <div style={S.availTeamName}><span style={{ width:10, height:10, borderRadius:'50%', background: team.color, display:'inline-block', marginRight:8 }}/>{team.name}</div>
+                        {DISPLAY_DOW.map(day => <div key={day} style={S.availCell}><input type="checkbox" checked={days.includes(day)} onChange={e => handleAvailChange(team.id, day, e.target.checked)} /></div>)}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+              {preview ? (
+                <div style={S.previewBox}>
+                  <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:16, marginBottom:8 }}>Preview</div>
+                  <div style={{ display:'flex', gap:20, flexWrap:'wrap' as const, marginBottom:12, fontSize:14 }}>
+                    <span><strong style={{ color:'#EEEEF5' }}>{preview.length}</strong> games</span>
+                    <span><strong style={{ color:'#EEEEF5' }}>{fmtPreviewRange(preview)}</strong></span>
+                    {previewConflicts > 0 && <span style={{ color:'#F5C542' }}>⚠ {previewConflicts} conflict{previewConflicts!==1?'s':''}</span>}
+                  </div>
+                  <div style={{ display:'flex', gap:10 }}>
+                    <button onClick={() => setPreview(null)} style={S.cancelBtn}>Clear</button>
+                    <button onClick={handleSaveSchedule} style={S.saveBtn} disabled={savingSchedule}>{savingSchedule ? 'Saving…' : `Save ${preview.length} Games`}</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display:'flex', justifyContent:'flex-end' }}>
+                  <button onClick={handlePreview} style={S.saveBtn} disabled={genConfig.gameDays.length===0}>Preview Schedule</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Manual add-game form */}
           {showForm && (
             <form onSubmit={addGame} style={S.inlineForm}>
-              <h3 style={S.formTitle}>Schedule a Game</h3>
+              <h3 style={S.formTitle}>Add Single Game</h3>
               <div style={S.formGrid}>
                 <div>
                   <label style={S.label}>Home Team *</label>
@@ -169,40 +347,10 @@ export default function SchedulePage() {
             </form>
           )}
 
-          {/* Score entry modal */}
-          {scoreGame && (
-            <div style={S.overlay}>
-              <form onSubmit={finalizeScore} style={S.modal}>
-                <h3 style={S.modalTitle}>Enter Final Score</h3>
-                <div style={S.scoreRow}>
-                  <div style={S.scoreTeam}>
-                    <div style={{ ...S.scoreTeamDot, background: scoreGame.home_team.color }} />
-                    <div style={S.scoreTeamName}>{scoreGame.home_team.name}</div>
-                    <input type="number" min="0" value={homeScore} onChange={e => setHomeScore(e.target.value)} style={S.scoreInput} placeholder="0" required autoFocus />
-                  </div>
-                  <div style={S.scoreDash}>—</div>
-                  <div style={S.scoreTeam}>
-                    <div style={{ ...S.scoreTeamDot, background: scoreGame.away_team.color }} />
-                    <div style={S.scoreTeamName}>{scoreGame.away_team.name}</div>
-                    <input type="number" min="0" value={awayScore} onChange={e => setAwayScore(e.target.value)} style={S.scoreInput} placeholder="0" required />
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 24 }}>
-                  <button type="button" onClick={() => setScoreGame(null)} style={S.cancelBtn}>Cancel</button>
-                  <button type="submit" style={S.saveBtn} disabled={saving}>{saving ? 'Saving…' : 'Save Final Score'}</button>
-                </div>
-                <div style={S.modalNote}>
-                  Want to enter player stats?{' '}
-                  <a href={`/league-portal/${leagueId}/score/${scoreGame.id}`} style={{ color: '#39FF14' }}>Full box score →</a>
-                </div>
-              </form>
-            </div>
-          )}
-
           {/* Upcoming */}
           {upcoming.length > 0 && (
             <section style={S.section}>
-              <div style={S.sectionLabel}>Upcoming</div>
+              <div style={S.sectionLabel}>Upcoming ({upcoming.length})</div>
               <div style={S.gameList}>
                 {upcoming.map(g => <GameRow key={g.id} game={g} onEnterScore={() => { setScoreGame(g); setHomeScore(''); setAwayScore('') }} onCancel={() => cancelGame(g.id)} leagueId={leagueId} />)}
               </div>
@@ -212,26 +360,148 @@ export default function SchedulePage() {
           {/* Completed */}
           {completed.length > 0 && (
             <section style={S.section}>
-              <div style={S.sectionLabel}>Results</div>
+              <div style={S.sectionLabel}>Results ({completed.length})</div>
               <div style={S.gameList}>
                 {[...completed].reverse().map(g => <GameRow key={g.id} game={g} leagueId={leagueId} />)}
               </div>
             </section>
           )}
 
-          {games.length === 0 && (
+          {regularGames.length === 0 && !showGenerator && (
             <div style={S.empty}>
               <div style={S.emptyIcon}>📅</div>
-              <p style={S.emptyText}>No games scheduled yet. Add your first game above.</p>
+              <p style={S.emptyText}>No regular season games yet.</p>
+              {teams.length >= 2 ? <button onClick={() => setShowGenerator(true)} style={S.saveBtn}>Generate Schedule</button> : <a href={`/league-portal/${leagueId}/teams`} style={{ color:'#39FF14' }}>Add teams first →</a>}
             </div>
           )}
+          </>)}
+
+          {/* ── PLAYOFFS TAB ── */}
+          {tab === 'playoffs' && (<>
+            {n === 0 ? (
+              <div style={S.notice}>Playoffs not configured. Go to <a href={`/league-portal/${leagueId}/settings`} style={{ color:'#39FF14' }}>Settings</a> to set the number of playoff teams.</div>
+            ) : (<>
+              {standings.length > 0 && (
+                <div style={{ ...S.inlineForm, marginBottom:24 }}>
+                  <div style={S.sectionLabel}>Current Seedings (top {n})</div>
+                  {standings.slice(0, n).map((s, i) => (
+                    <div key={s.team_id} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 0', borderBottom:'1px solid #14141C' }}>
+                      <span style={{ fontFamily:"'DM Mono',monospace", color:'#6A6A82', minWidth:24 }}>#{i+1}</span>
+                      <span style={{ width:10, height:10, borderRadius:'50%', background:s.color, display:'inline-block' }}/>
+                      <span style={{ flex:1, fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:17 }}>{s.team_name}</span>
+                      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:13, color:'#6A6A82' }}>{s.wins}–{s.losses}</span>
+                    </div>
+                  ))}
+                  <div style={{ fontSize:12, color:'#6A6A82', marginTop:10 }}>Seedings are based on regular season standings.</div>
+                </div>
+              )}
+
+              {bracketTemplate && bracketTemplate.map(round => {
+                const roundGames = playoffGames.filter(g => g.playoff_round === round.roundNum)
+                const roundComplete = roundGames.length === round.games.length && roundGames.every(g => g.status === 'final')
+                return (
+                  <div key={round.roundNum} style={{ marginBottom:24 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12 }}>
+                      <div style={S.sectionLabel}>Round {round.roundNum} — {round.name}</div>
+                      {roundComplete && <span style={{ background:'rgba(57,255,20,0.12)', color:'#39FF14', fontSize:11, fontFamily:"'DM Mono',monospace", padding:'2px 10px', borderRadius:99 }}>✓ Complete</span>}
+                      {!roundComplete && roundGames.length > 0 && <span style={{ background:'rgba(245,197,66,0.12)', color:'#F5C542', fontSize:11, fontFamily:"'DM Mono',monospace", padding:'2px 10px', borderRadius:99 }}>In Progress</span>}
+                    </div>
+                    <div style={{ display:'flex', flexDirection:'column' as const, gap:8 }}>
+                      {round.games.map(bg => {
+                        const dbg = playoffGames.find(g => g.playoff_bracket_slot === bg.slot)
+                        const homeName = dbg?.home_team?.name ?? (bg.prevHomeSlot === null ? `#${bg.homeSeed} Seed` : `W Game ${bg.prevHomeSlot}`)
+                        const awayName = dbg?.away_team?.name ?? (bg.prevAwaySlot === null ? `#${bg.awaySeed} Seed` : `W Game ${bg.prevAwaySlot}`)
+                        return (
+                          <div key={bg.slot} style={S.bracketRow}>
+                            <div style={{ flex:1 }}>
+                              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+                                {dbg?.home_team && <span style={{ width:8, height:8, borderRadius:'50%', background:dbg.home_team.color, display:'inline-block' }}/>}
+                                <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:17, color: dbg?.status==='final' && (dbg.home_score??0) > (dbg.away_score??0) ? '#39FF14' : '#EEEEF5' }}>{homeName}</span>
+                                {dbg?.status==='final' && <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:20, marginLeft:'auto', color:'#EEEEF5' }}>{dbg.home_score}</span>}
+                              </div>
+                              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                                {dbg?.away_team && <span style={{ width:8, height:8, borderRadius:'50%', background:dbg.away_team.color, display:'inline-block' }}/>}
+                                <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:17, color: dbg?.status==='final' && (dbg.away_score??0) > (dbg.home_score??0) ? '#39FF14' : '#EEEEF5' }}>{awayName}</span>
+                                {dbg?.status==='final' && <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:20, marginLeft:'auto', color:'#EEEEF5' }}>{dbg.away_score}</span>}
+                              </div>
+                            </div>
+                            <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                              {!dbg && <span style={{ fontSize:11, color:'#6A6A82', fontFamily:"'DM Mono',monospace" }}>TBD</span>}
+                              {dbg?.status==='scheduled' && <>
+                                <span style={{ fontSize:12, color:'#6A6A82' }}>{new Date(dbg.scheduled_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+                                <button onClick={() => { setScoreGame(dbg); setHomeScore(''); setAwayScore('') }} style={S.scoreBtn}>Enter Score</button>
+                                <a href={`/league-portal/${leagueId}/score/${dbg.id}`} style={S.boxBtn}>Box Score</a>
+                              </>}
+                              {dbg?.status==='final' && <>
+                                <span style={S.finalBadge}>Final</span>
+                                <a href={`/league-portal/${leagueId}/score/${dbg.id}`} style={S.boxBtn}>Box Score</a>
+                              </>}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+
+              {!allRoundsComplete && (
+                <div style={{ ...S.inlineForm, marginTop:8 }}>
+                  <div style={{ marginBottom:12 }}>
+                    <label style={S.label}>{maxPlayoffRound === 0 ? 'Playoff Start Date' : `Round ${maxPlayoffRound+1} Date`}</label>
+                    <input type="date" value={playoffDate} onChange={e => setPlayoffDate(e.target.value)} style={{ ...S.input, maxWidth:200, marginTop:6 }} />
+                  </div>
+                  {maxPlayoffRound === 0 ? (
+                    <button onClick={handleGeneratePlayoffs} style={S.saveBtn} disabled={generatingPlayoffs || standings.length < n || !playoffDate}>
+                      {generatingPlayoffs ? 'Generating…' : `Generate Round 1 Bracket (${n} teams)`}
+                    </button>
+                  ) : currentRoundComplete ? (
+                    <button onClick={handleGeneratePlayoffs} style={S.saveBtn} disabled={generatingPlayoffs || !playoffDate}>
+                      {generatingPlayoffs ? 'Generating…' : `Generate Round ${maxPlayoffRound+1}`}
+                    </button>
+                  ) : (
+                    <div style={{ color:'#6A6A82', fontSize:14 }}>⏳ Enter all Round {maxPlayoffRound} results before generating Round {maxPlayoffRound+1}.</div>
+                  )}
+                  {maxPlayoffRound === 0 && standings.length < n && <p style={{ fontSize:12, color:'#F5C542', marginTop:8 }}>Need {n - standings.length} more team{n - standings.length !== 1 ? 's' : ''} in standings.</p>}
+                </div>
+              )}
+              {allRoundsComplete && <div style={{ textAlign:'center' as const, padding:'32px', fontSize:24, fontFamily:"'Barlow Condensed',sans-serif", fontWeight:900, color:'#39FF14' }}>🏆 Playoffs Complete!</div>}
+            </>)}
+          </>)}
         </main>
+
+        {scoreGame && (
+          <div style={S.overlay}>
+            <form onSubmit={finalizeScore} style={S.modal}>
+              <h3 style={S.modalTitle}>Enter Final Score</h3>
+              <div style={S.scoreRow}>
+                <div style={S.scoreTeam}>
+                  <div style={{ ...S.scoreTeamDot, background: scoreGame.home_team?.color ?? '#6A6A82' }} />
+                  <div style={S.scoreTeamName}>{scoreGame.home_team?.name ?? 'Home'}</div>
+                  <input type="number" min="0" value={homeScore} onChange={e => setHomeScore(e.target.value)} style={S.scoreInput} placeholder="0" required autoFocus />
+                </div>
+                <div style={S.scoreDash}>—</div>
+                <div style={S.scoreTeam}>
+                  <div style={{ ...S.scoreTeamDot, background: scoreGame.away_team?.color ?? '#6A6A82' }} />
+                  <div style={S.scoreTeamName}>{scoreGame.away_team?.name ?? 'Away'}</div>
+                  <input type="number" min="0" value={awayScore} onChange={e => setAwayScore(e.target.value)} style={S.scoreInput} placeholder="0" required />
+                </div>
+              </div>
+              <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:24 }}>
+                <button type="button" onClick={() => setScoreGame(null)} style={S.cancelBtn}>Cancel</button>
+                <button type="submit" style={S.saveBtn} disabled={saving}>{saving ? 'Saving…' : 'Save Score'}</button>
+              </div>
+              <div style={S.modalNote}>Want player stats? <a href={`/league-portal/${leagueId}/score/${scoreGame.id}`} style={{ color:'#39FF14' }}>Full box score →</a></div>
+            </form>
+          </div>
+        )}
       </div>
     </>
   )
 }
 
 function GameRow({ game, onEnterScore, onCancel, leagueId }: { game: GameWithTeams; onEnterScore?: () => void; onCancel?: () => void; leagueId: string }) {
+  if (!game.home_team || !game.away_team) return null
   const d = new Date(game.scheduled_at)
   const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
   const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
@@ -337,4 +607,28 @@ const S: Record<string, React.CSSProperties> = {
   scoreInput: { width: '100%', background: '#0A0A0D', border: '2px solid #2E2E3A', borderRadius: 8, color: '#EEEEF5', fontFamily: "'Barlow Condensed', sans-serif", fontSize: 40, fontWeight: 900, padding: '12px', outline: 'none', textAlign: 'center' as const, boxSizing: 'border-box' as const },
   scoreDash: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 36, color: '#2E2E3A', flexShrink: 0 },
   modalNote: { marginTop: 16, textAlign: 'center' as const, fontSize: 13, color: '#6A6A82' },
+  // tab switcher
+  tabSwitch: { display: 'flex', gap: 0, background: '#0F0F14', border: '1px solid #1C1C26', borderRadius: 10, overflow: 'hidden' },
+  switchBtn: { border: 'none', background: 'transparent', color: '#6A6A82', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, textTransform: 'uppercase' as const, letterSpacing: 1, padding: '10px 20px', cursor: 'pointer' },
+  switchActive: { background: '#39FF1420', color: '#39FF14' },
+  // generator
+  outlineBtn: { background: 'transparent', border: '1px solid #2E2E3A', borderRadius: 8, color: '#EEEEF5', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, textTransform: 'uppercase' as const, letterSpacing: 1, padding: '10px 18px', cursor: 'pointer' },
+  genPanel: { background: '#0F0F14', border: '1px solid #39FF1422', borderRadius: 14, padding: 24, marginBottom: 24 },
+  genTitle: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 22, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 16 },
+  genWarn: { background: '#1A1408', border: '1px solid #F5C54230', borderRadius: 8, color: '#F5C542', fontSize: 13, padding: '10px 14px', marginBottom: 16 },
+  genGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 18 },
+  dayChip: { border: '1.5px solid #1C1C26', borderRadius: 8, background: '#0A0A0E', color: '#6A6A82', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, padding: '7px 12px', cursor: 'pointer' },
+  dayChipOn: { background: 'rgba(57,255,20,0.12)', borderColor: '#39FF14', color: '#39FF14' },
+  // availability grid
+  availGrid: { background: '#0A0A0E', border: '1px solid #1C1C26', borderRadius: 10, overflow: 'hidden' },
+  availHeader: { display: 'flex', alignItems: 'center', borderBottom: '1px solid #1C1C26', padding: '6px 12px' },
+  availTeamCol: { flex: 1 },
+  availDayCol: { width: 36, textAlign: 'center' as const, fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace" },
+  availRow: { display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid #14141C' },
+  availTeamName: { flex: 1, fontSize: 13, display: 'flex', alignItems: 'center' },
+  availCell: { width: 36, display: 'flex', justifyContent: 'center' as const },
+  // preview box
+  previewBox: { background: '#0A0A0E', border: '1px solid #1C1C26', borderRadius: 10, padding: 16 },
+  // bracket
+  bracketRow: { background: '#0F0F14', border: '1px solid #1C1C26', borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 16 },
 }
