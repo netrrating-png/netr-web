@@ -24,6 +24,8 @@ export type League = {
   playoff_teams: number | null
   playoff_format: string | null
   fee_amount: number | null
+  banner_url: string | null
+  accent_color: string | null
   created_at: string
 }
 
