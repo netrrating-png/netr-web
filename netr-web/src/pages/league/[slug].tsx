@@ -195,7 +195,13 @@ export default function PublicLeaguePage() {
               {finals.length===0?<Empty>No results yet.</Empty>:<div style={{display:'flex',flexDirection:'column',gap:10}}>{finals.slice(0,8).map(g=><GCard key={g.id} g={g} tMap={tMap} accent={accent} onClick={()=>setBoxGameId(g.id)}/>)}</div>}
             </section>
             <section>
-              <SecTitle accent={accent}>Upcoming Games</SecTitle>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14,flexWrap:'wrap',gap:8}}>
+                <SecTitle accent={accent} noMargin>Upcoming Games</SecTitle>
+                <a href={`/api/league/${league.slug}/calendar`} target="_blank" rel="noopener noreferrer"
+                  style={{display:'inline-flex',alignItems:'center',gap:5,background:'#0F0F14',border:'1px solid #1C1C26',borderRadius:8,color:'#6A6A82',fontSize:11,fontFamily:"'DM Mono',monospace",padding:'5px 12px',textDecoration:'none',whiteSpace:'nowrap'}}>
+                  📅 Add to Calendar
+                </a>
+              </div>
               {upcoming.length===0?<Empty>No games scheduled.</Empty>:<div style={{display:'flex',flexDirection:'column',gap:10}}>{upcoming.slice(0,8).map(g=><div key={g.id}><GCard g={g} tMap={tMap} accent={accent} rsvpCount={attendanceCounts[g.id]||0}/>{myPlayerId&&<RsvpRow gameId={g.id} myStatus={myAttendance[g.id]||null} accent={accent} onRsvp={rsvp}/>}</div>)}</div>}
             </section>
           </div>
