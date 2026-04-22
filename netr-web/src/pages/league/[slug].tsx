@@ -169,7 +169,23 @@ export default function PublicLeaguePage() {
 
         {/* SCHEDULE */}
         {activeTab==='schedule'&&<section>
-          <SecTitle accent={accent}>Full Schedule</SecTitle>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,flexWrap:'wrap',gap:10}}>
+            <SecTitle accent={accent} noMargin>Full Schedule</SecTitle>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+              <a href={`/api/league/${league.slug}/calendar`} target="_blank" rel="noopener noreferrer"
+                style={{display:'inline-flex',alignItems:'center',gap:6,background:'#0F0F14',border:'1px solid #1C1C26',borderRadius:8,color:'#EEEEF5',fontSize:12,fontFamily:"'DM Sans',sans-serif",padding:'7px 14px',textDecoration:'none',whiteSpace:'nowrap'}}>
+                📅 Download .ics
+              </a>
+              <a href={`webcal://${typeof window!=='undefined'?window.location.host:''}/api/league/${league.slug}/calendar`}
+                style={{display:'inline-flex',alignItems:'center',gap:6,background:'#0F0F14',border:'1px solid #1C1C26',borderRadius:8,color:'#EEEEF5',fontSize:12,fontFamily:"'DM Sans',sans-serif",padding:'7px 14px',textDecoration:'none',whiteSpace:'nowrap'}}>
+                🍎 Apple Calendar
+              </a>
+              <a href={`https://calendar.google.com/calendar/r?cid=https://${typeof window!=='undefined'?window.location.host:''}/api/league/${league.slug}/calendar`} target="_blank" rel="noopener noreferrer"
+                style={{display:'inline-flex',alignItems:'center',gap:6,background:'#0F0F14',border:'1px solid #1C1C26',borderRadius:8,color:'#EEEEF5',fontSize:12,fontFamily:"'DM Sans',sans-serif",padding:'7px 14px',textDecoration:'none',whiteSpace:'nowrap'}}>
+                📆 Google Calendar
+              </a>
+            </div>
+          </div>
           {allGames.length===0?<Empty>No games yet.</Empty>:<div style={{display:'flex',flexDirection:'column',gap:8}}>{allGames.map(g=><GCard key={g.id} g={g} tMap={tMap} accent={accent} showLoc onClick={g.status==='final'?()=>setBoxGameId(g.id):undefined}/>)}</div>}
         </section>}
 
@@ -355,8 +371,8 @@ function Modal({children,onClose}:{children:React.ReactNode;onClose:()=>void}) {
   </div>)
 }
 
-function SecTitle({children,accent}:{children:React.ReactNode;accent:string}) {
-  return(<h2 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,textTransform:'uppercase',letterSpacing:0.5,marginBottom:14,color:'#EEEEF5',display:'flex',alignItems:'center',gap:10}}>
+function SecTitle({children,accent,noMargin}:{children:React.ReactNode;accent:string;noMargin?:boolean}) {
+  return(<h2 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,textTransform:'uppercase',letterSpacing:0.5,marginBottom:noMargin?0:14,color:'#EEEEF5',display:'flex',alignItems:'center',gap:10}}>
     <span style={{display:'inline-block',width:4,height:20,background:accent,borderRadius:2,flexShrink:0}}/>{children}
   </h2>)
 }
