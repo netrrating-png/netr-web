@@ -145,6 +145,10 @@ export default function BoxScorePage() {
       await supabase.from('league_player_stats').upsert(upserts, { onConflict: 'game_id,player_id' })
     }
 
+    if (homeScore && awayScore && game) {
+      setGame({ ...game, status: 'final', home_score: parseInt(homeScore), away_score: parseInt(awayScore) })
+    }
+
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
@@ -269,10 +273,8 @@ export default function BoxScorePage() {
             <div style={S.tipsBar}>
               <span style={S.tipIcon}>💡</span>
               <span style={S.tipText}>
-                Use <strong>+/−</strong> to tap through stats, or click a number and type directly.
-                {enabledSet.has('fg%') && ' FG% calculates automatically from FGM/FGA.'}
-                {enabledSet.has('3p%') && ' 3P% from 3PM/3PA.'}
-                {enabledSet.has('ft%') && ' FT% from FTM/FTA.'}
+                Enter the final score above, then fill in each player&apos;s stats below. Hit <strong>Save Box Score</strong> when done — you can come back and edit anytime.
+                {(enabledSet.has('fg%') || enabledSet.has('3p%') || enabledSet.has('ft%')) && ' Shooting percentages calculate automatically.'}
               </span>
             </div>
 
@@ -283,9 +285,13 @@ export default function BoxScorePage() {
             {/* Save bar */}
             <div style={S.saveBar}>
               <a href={`/league-portal/${leagueId}/schedule`} style={S.backBtn}>← Back to Schedule</a>
-              <button type="submit" style={{ ...S.saveBtn, ...(saved ? S.saveBtnDone : {}) }} disabled={saving}>
-                {saving ? 'Saving…' : saved ? '✓ Saved!' : 'Save Box Score'}
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                {saved && <span style={{ fontSize: 14, color: '#39FF14', fontFamily: "'DM Mono', monospace" }}>✓ Saved</span>}
+                {game.status === 'final' && !saved && <span style={{ fontSize: 12, color: '#6A6A82', fontFamily: "'DM Mono', monospace" }}>● Final</span>}
+                <button type="submit" style={{ ...S.saveBtn, ...(saved ? S.saveBtnDone : {}) }} disabled={saving}>
+                  {saving ? 'Saving…' : saved ? '✓ Saved!' : game.status === 'final' ? 'Update Box Score' : 'Save Box Score'}
+                </button>
+              </div>
             </div>
           </main>
         </form>
