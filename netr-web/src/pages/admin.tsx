@@ -117,7 +117,7 @@ const S = {
   },
 }
 
-type Tab = 'overview' | 'users' | 'courts' | 'ratings' | 'feed' | 'qr'
+type Tab = 'overview' | 'users' | 'courts' | 'ratings' | 'feed' | 'qr' | 'leagues'
 
 export default function Admin() {
   const [authed, setAuthed] = useState(false)
@@ -133,6 +133,7 @@ export default function Admin() {
   const [pendingCourts, setPendingCourts] = useState<any[]>([])
   const [ratings, setRatings] = useState<any[]>([])
   const [posts, setPosts] = useState<any[]>([])
+  const [leagues, setLeagues] = useState<any[]>([])
 
   // QR campaign tracker
   const campaigns = [
@@ -157,12 +158,13 @@ export default function Admin() {
   async function loadData() {
     setLoading(true)
     try {
-      const [u, c, pending, r, p] = await Promise.all([
+      const [u, c, pending, r, p, lg] = await Promise.all([
         supabase('profiles', 'id,username,full_name,netr_score,created_at', 'created_at.desc', 50),
         supabase('courts', 'id,name,city,verified,surface,created_at', 'created_at.desc', 10000),
         supabase('courts', 'id,name,city,submitted_by,created_at', 'created_at.desc,verified.eq.false', 10000),
         supabase('ratings', 'id,rater_id,rated_id,overall_score,created_at', 'created_at.desc', 50),
         supabase('feed_posts', 'id,author_id,content,created_at', 'created_at.desc', 30),
+        supabase('leagues', 'id,name,slug,sport,season,is_active,created_at,owner_id,profiles!owner_id(username,full_name)', 'created_at.desc', 200),
       ])
 
       if (Array.isArray(u)) {
@@ -179,6 +181,7 @@ export default function Admin() {
         setStats(s => ({ ...s, ratings: r.length }))
       }
       if (Array.isArray(p)) setPosts(p)
+      if (Array.isArray(lg)) setLeagues(lg)
     } catch (e) {
       console.error(e)
     }
@@ -249,6 +252,7 @@ export default function Admin() {
     { key: 'ratings', label: 'Ratings', icon: '⭐' },
     { key: 'feed', label: 'Feed', icon: '📢' },
     { key: 'qr', label: 'QR Campaigns', icon: '📷' },
+    { key: 'leagues', label: `Leagues${leagues.length > 0 ? ` (${leagues.length})` : ''}`, icon: '🏆' },
   ]
 
   return (
@@ -295,6 +299,7 @@ export default function Admin() {
                   { label: 'Pending Courts', value: pendingCourts.length, color: '#F5C542', icon: '⏳' },
                   { label: 'Total Ratings', value: ratings.length, color: '#9B6DFF', icon: '⭐' },
                   { label: 'Feed Posts', value: posts.length, color: '#FF8C00', icon: '📢' },
+                  { label: 'Active Leagues', value: leagues.filter(l => l.is_active).length, color: '#39FF14', icon: '🏆' },
                 ].map(s => (
                   <div key={s.label} style={{ ...S.card, borderColor: `${s.color}22` }}>
                     <div style={{ fontSize: '24px', marginBottom: '8px' }}>{s.icon}</div>
@@ -492,6 +497,64 @@ export default function Admin() {
                   <strong style={{ color: '#EEEEF5' }}>Preview:</strong> Each QR page auto-detects mobile and redirects to TestFlight after 1 second.<br />
                   <strong style={{ color: '#EEEEF5' }}>Download:</strong> Hit "↓ PNG" to get a high-res 800×800px QR for print use.
                 </div>
+              </div>
+            </>
+          )}
+
+          {/* ── LEAGUES ── */}
+          {tab === 'leagues' && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+                <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '28px', color: '#EEEEF5', margin: 0 }}>All Leagues</h2>
+                <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: '#6A6A82' }}>
+                  <span>{leagues.length} total</span>
+                  <span style={{ color: '#39FF14' }}>{leagues.filter(l => l.is_active).length} active</span>
+                  <span style={{ color: '#6A6A82' }}>{leagues.filter(l => !l.is_active).length} inactive</span>
+                </div>
+              </div>
+              <div style={S.card}>
+                <table style={S.table}>
+                  <thead>
+                    <tr>{['League', 'Commissioner', 'Sport', 'Season', 'Status', 'Created', 'Public Page'].map(h => <th key={h} style={S.th}>{h}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {leagues.map((lg, i) => {
+                      const profile = lg.profiles as { username?: string; full_name?: string } | null
+                      const commissioner = profile?.full_name || profile?.username || lg.owner_id?.slice(0, 8) + '...'
+                      return (
+                        <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : '#0A0A0D' }}>
+                          <td style={{ ...S.td, fontWeight: 600 }}>{lg.name}</td>
+                          <td style={{ ...S.td, color: '#6A6A82' }}>
+                            {profile?.username ? <span style={{ color: '#4A9EFF', fontFamily: 'monospace' }}>@{profile.username}</span> : commissioner}
+                          </td>
+                          <td style={S.td}>{lg.sport || '—'}</td>
+                          <td style={{ ...S.td, color: '#6A6A82' }}>{lg.season || '—'}</td>
+                          <td style={S.td}>
+                            <span style={S.badge(lg.is_active ? '#39FF14' : '#6A6A82')}>{lg.is_active ? 'Active' : 'Inactive'}</span>
+                          </td>
+                          <td style={{ ...S.td, color: '#6A6A82' }}>{lg.created_at ? new Date(lg.created_at).toLocaleDateString() : '—'}</td>
+                          <td style={S.td}>
+                            {lg.slug ? (
+                              <a
+                                href={`/league/${lg.slug}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: '#39FF14', fontSize: '12px', textDecoration: 'none', fontFamily: 'monospace' }}
+                              >
+                                /league/{lg.slug} ↗
+                              </a>
+                            ) : '—'}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {leagues.length === 0 && (
+                      <tr>
+                        <td colSpan={7} style={{ ...S.td, textAlign: 'center', color: '#6A6A82', padding: '32px' }}>No leagues yet</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </>
           )}
