@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
-import { supabase, League, LeagueTeam, LeagueGame } from '../../../lib/supabase'
+import { supabase, League, LeagueTeam, LeagueGame, LeagueGameAttendance } from '../../../lib/supabase'
 import { PortalNav } from './index'
 import { DISPLAY_DOW, DISPLAY_LABELS, generateMatchups, assignDates, AssignConfig, GameSlot, getPlayoffBracket, fmtPreviewRange } from '../../../lib/schedule-utils'
 
@@ -38,6 +38,9 @@ export default function SchedulePage() {
 
   // team availability
   const [availability, setAvailability] = useState<Record<string, number[]>>({})
+
+  // attendance (RSVP counts per game)
+  const [attendance, setAttendance] = useState<LeagueGameAttendance[]>([])
 
   // standings for playoffs
   const [standings, setStandings] = useState<StandingRow[]>([])
@@ -78,6 +81,16 @@ export default function SchedulePage() {
       }))
       setGames(enriched)
       setStandings((standingsRes as { data: StandingRow[] | null }).data ?? [])
+
+      const gameIds = (gamesRes.data ?? []).map((g: LeagueGame) => g.id)
+      if (gameIds.length > 0) {
+        const { data: att } = await supabase
+          .from('league_game_attendance')
+          .select('game_id,player_id,status')
+          .in('game_id', gameIds)
+        setAttendance((att ?? []) as LeagueGameAttendance[])
+      }
+
       setLoading(false)
     })
   }, [leagueId])
@@ -171,6 +184,13 @@ export default function SchedulePage() {
     await supabase.from('league_player_stats').delete().eq('game_id', id)
     await supabase.from('league_games').delete().eq('id', id)
     setGames(prev => prev.filter(g => g.id !== id))
+  }
+
+  function editGame(id: string, updates: Partial<LeagueGame>) {
+    setGames(prev =>
+      prev.map(g => g.id === id ? { ...g, ...updates } : g)
+        .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))
+    )
   }
 
   if (loading || !league) return <LoadingScreen />
@@ -334,7 +354,7 @@ export default function SchedulePage() {
             <section style={S.section}>
               <div style={S.sectionLabel}>Results ({completed.length})</div>
               <div style={S.gameList}>
-                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} onDelete={() => deleteGame(g.id)} leagueId={leagueId} />)}
+                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} onDelete={() => deleteGame(g.id)} onEdit={editGame} leagueId={leagueId} rsvpYes={attendance.filter(a => a.game_id === g.id && a.status === 'yes').length} />)}
               </div>
             </section>
           )}
@@ -344,7 +364,7 @@ export default function SchedulePage() {
             <section style={S.section}>
               <div style={S.sectionLabel}>Upcoming ({upcoming.length})</div>
               <div style={S.gameList}>
-                {upcoming.map(g => <GameRow key={g.id} game={g} onCancel={() => cancelGame(g.id)} leagueId={leagueId} />)}
+                {upcoming.map(g => <GameRow key={g.id} game={g} onCancel={() => cancelGame(g.id)} onEdit={editGame} leagueId={leagueId} rsvpYes={attendance.filter(a => a.game_id === g.id && a.status === 'yes').length} />)}
               </div>
             </section>
           )}
@@ -456,12 +476,52 @@ export default function SchedulePage() {
   )
 }
 
-function GameRow({ game, onCancel, onDelete, leagueId }: { game: GameWithTeams; onCancel?: () => void; onDelete?: () => void; leagueId: string }) {
+function GameRow({ game, onCancel, onDelete, onEdit, leagueId, rsvpYes = 0 }: { game: GameWithTeams; onCancel?: () => void; onDelete?: () => void; onEdit?: (id: string, updates: Partial<LeagueGame>) => void; leagueId: string; rsvpYes?: number }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editForm, setEditForm] = useState({ scheduled_at: game.scheduled_at.slice(0, 16), location: game.location ?? '' })
+  const [savingEdit, setSavingEdit] = useState(false)
+
+  async function saveEdit() {
+    setSavingEdit(true)
+    const updates: Partial<LeagueGame> = {
+      scheduled_at: new Date(editForm.scheduled_at).toISOString(),
+      location: editForm.location || null,
+    }
+    await supabase.from('league_games').update(updates).eq('id', game.id)
+    onEdit?.(game.id, updates)
+    setSavingEdit(false)
+    setEditing(false)
+  }
+
   if (!game.home_team || !game.away_team) return null
   const d = new Date(game.scheduled_at)
   const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
   const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+
+  if (editing) {
+    return (
+      <div style={{ ...S.gameRow, flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15 }}>{game.home_team.name} vs {game.away_team.name}</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={S.label}>Date & Time</label>
+            <input type="datetime-local" value={editForm.scheduled_at} onChange={e => setEditForm(f => ({ ...f, scheduled_at: e.target.value }))} style={S.input} />
+          </div>
+          <div>
+            <label style={S.label}>Location</label>
+            <input type="text" value={editForm.location} onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} style={S.input} placeholder="Gym or court name" />
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={() => setEditing(false)} style={S.cancelBtn}>Cancel</button>
+          <button onClick={saveEdit} style={S.saveBtn} disabled={savingEdit}>{savingEdit ? 'Saving…' : 'Save Changes'}</button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ ...S.gameRow, opacity: game.status === 'cancelled' ? 0.45 : 1 }}>
@@ -478,12 +538,20 @@ function GameRow({ game, onCancel, onDelete, leagueId }: { game: GameWithTeams; 
       </div>
 
       <div style={S.gameActions}>
+        {game.status === 'scheduled' && rsvpYes > 0 && (
+          <span style={{ fontSize: 12, color: '#39FF14', fontFamily: "'DM Mono', monospace", background: 'rgba(57,255,20,0.08)', border: '1px solid rgba(57,255,20,0.2)', borderRadius: 99, padding: '3px 10px' }}>
+            ✓ {rsvpYes} in
+          </span>
+        )}
         {game.status === 'final' && <span style={S.finalBadge}>Final</span>}
         {game.status === 'scheduled' && (
           <a href={`/league-portal/${leagueId}/score/${game.id}`} style={S.scoreBtn}>Enter Score + Stats</a>
         )}
         {game.status === 'final' && (
           <a href={`/league-portal/${leagueId}/score/${game.id}`} style={S.editBtn}>Edit Score + Stats</a>
+        )}
+        {game.status === 'scheduled' && onEdit && (
+          <button onClick={() => setEditing(true)} style={S.cancelSmBtn}>Edit</button>
         )}
         {game.status === 'scheduled' && onCancel && (
           <button onClick={onCancel} style={S.cancelSmBtn}>Cancel</button>
