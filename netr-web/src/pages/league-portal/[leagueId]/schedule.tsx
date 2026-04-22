@@ -489,7 +489,7 @@ function GameRow({ game, onCancel, onDelete, leagueId }: { game: GameWithTeams; 
           <button onClick={onCancel} style={S.cancelSmBtn}>Cancel</button>
         )}
         {onDelete && !confirmDelete && (
-          <button onClick={() => setConfirmDelete(true)} style={S.deleteSmBtn} title="Delete game">🗑</button>
+          <button onClick={() => setConfirmDelete(true)} style={S.deleteSmBtn}>Delete</button>
         )}
         {onDelete && confirmDelete && (
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -559,7 +559,7 @@ const S: Record<string, React.CSSProperties> = {
   scoreBtn: { background: 'linear-gradient(135deg, #39FF14, #00CC2A)', border: 'none', borderRadius: 7, color: '#040406', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: 0.5, padding: '7px 14px', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' as const },
   editBtn: { background: '#1C1C26', border: '1px solid #2E2E3A', borderRadius: 7, color: '#EEEEF5', fontSize: 12, fontFamily: "'DM Mono', monospace", padding: '6px 12px', textDecoration: 'none', whiteSpace: 'nowrap' as const },
   cancelSmBtn: { background: 'none', border: '1px solid #2E2E3A', borderRadius: 7, color: '#6A6A82', fontSize: 12, padding: '6px 12px', cursor: 'pointer' },
-  deleteSmBtn: { background: 'none', border: '1px solid #2E2E3A', borderRadius: 7, color: '#6A6A82', fontSize: 14, padding: '4px 8px', cursor: 'pointer', lineHeight: 1 },
+  deleteSmBtn: { background: 'none', border: '1px solid #FF453A44', borderRadius: 7, color: '#FF453A', fontSize: 12, padding: '6px 12px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" },
   empty: { textAlign: 'center' as const, padding: '60px 24px' },
   emptyIcon: { fontSize: 48, marginBottom: 12 },
   emptyText: { color: '#6A6A82', fontSize: 15 },
