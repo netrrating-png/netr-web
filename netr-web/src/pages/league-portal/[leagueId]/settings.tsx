@@ -41,6 +41,7 @@ export default function SettingsPage() {
   const [league, setLeague]         = useState<League | null>(null)
   const [loading, setLoading]       = useState(true)
   const [showDelete, setShowDelete] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [deleting, setDeleting]     = useState(false)
 
@@ -50,6 +51,7 @@ export default function SettingsPage() {
   const [location, setLocation]   = useState('')
   const [defGameLoc, setDefGameLoc] = useState('')
   const [description, setDescription] = useState('')
+  const [feeAmount, setFeeAmount] = useState<string>('')
   const detailsSave = useSaveState()
 
   // Stat config
@@ -90,6 +92,7 @@ export default function SettingsPage() {
       setLocation(data.location ?? '')
       setDefGameLoc(data.default_game_location ?? '')
       setDescription(data.description ?? '')
+      setFeeAmount(data.fee_amount != null ? String(data.fee_amount) : '')
       setEnabledStats((data.enabled_stats ?? DEFAULT_ENABLED_STATS) as StatKey[])
       setMinGames(data.min_games_for_stats ?? 1)
       setStatDisplay(data.stat_display ?? 'per_game')
@@ -104,6 +107,7 @@ export default function SettingsPage() {
 
   function saveDetails(e: React.FormEvent) {
     e.preventDefault()
+    const parsedFee = feeAmount.trim() ? parseInt(feeAmount.trim(), 10) : null
     detailsSave.trigger(
       supabase.from('leagues').update({
         name: name.trim(),
@@ -111,6 +115,7 @@ export default function SettingsPage() {
         location: location.trim() || null,
         default_game_location: defGameLoc.trim() || null,
         description: description.trim() || null,
+        fee_amount: isNaN(parsedFee as number) ? null : parsedFee,
       }).eq('id', leagueId)
     )
   }
@@ -301,6 +306,18 @@ export default function SettingsPage() {
                 />
                 <div style={S.hint}>Pre-fills the location when you schedule a game.</div>
               </div>
+              <div style={S.field}>
+                <label style={S.label}>Team Entry Fee ($)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={feeAmount}
+                  onChange={e => setFeeAmount(e.target.value)}
+                  style={S.input}
+                  placeholder="e.g. 1200"
+                />
+                <div style={S.hint}>Optional. Shows on each team's payment status in the Teams page.</div>
+              </div>
             </div>
 
             <div style={S.field}>
@@ -422,6 +439,40 @@ export default function SettingsPage() {
               >
                 {isActive ? 'Archive Season' : 'Reactivate Season'}
               </button>
+            </div>
+          </div>
+
+          {/* ── League Page ── */}
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>League Page</div>
+                <div style={S.cardSub}>Share this link with your players — standings, schedule, and results. No login required.</div>
+              </div>
+            </div>
+            <div style={S.leagueLinkRow}>
+              <code style={S.leagueLinkCode}>
+                {typeof window !== 'undefined' ? window.location.origin : ''}/league/{league.slug}
+              </code>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/league/${league.slug}`)
+                  setLinkCopied(true)
+                  setTimeout(() => setLinkCopied(false), 2500)
+                }}
+                style={S.copyBtn}
+              >
+                {linkCopied ? '✓ Copied!' : 'Copy Link'}
+              </button>
+              <a
+                href={`/league/${league.slug}`}
+                target="_blank"
+                rel="noreferrer"
+                style={S.previewLink}
+              >
+                Preview ↗
+              </a>
             </div>
           </div>
 
@@ -704,5 +755,39 @@ const S: Record<string, React.CSSProperties> = {
     textTransform: 'uppercase' as const,
     padding: '10px 22px',
     cursor: 'pointer',
+  },
+  leagueLinkRow: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const },
+  leagueLinkCode: {
+    flex: 1,
+    minWidth: 200,
+    background: '#0A0A0E',
+    border: '1px solid #2A2A38',
+    borderRadius: 8,
+    color: '#39FF14',
+    fontFamily: "'DM Mono', monospace",
+    fontSize: 13,
+    padding: '10px 14px',
+    wordBreak: 'break-all' as const,
+  },
+  copyBtn: {
+    background: 'rgba(57,255,20,0.12)',
+    border: '1px solid rgba(57,255,20,0.3)',
+    borderRadius: 8,
+    color: '#39FF14',
+    fontFamily: "'Barlow Condensed', sans-serif",
+    fontWeight: 700,
+    fontSize: 15,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+    padding: '10px 20px',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
+  },
+  previewLink: {
+    color: '#6A6A82',
+    fontFamily: "'DM Mono', monospace",
+    fontSize: 12,
+    textDecoration: 'none',
+    whiteSpace: 'nowrap' as const,
   },
 }

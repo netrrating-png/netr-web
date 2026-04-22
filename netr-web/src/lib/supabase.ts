@@ -23,6 +23,7 @@ export type League = {
   games_per_team: number | null
   playoff_teams: number | null
   playoff_format: string | null
+  fee_amount: number | null
   created_at: string
 }
 
@@ -34,6 +35,8 @@ export type LeagueTeam = {
   logo_url: string | null
   join_token: string
   available_days: number[] | null
+  fee_paid: boolean
+  fee_note: string | null
   created_at: string
 }
 
