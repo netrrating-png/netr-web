@@ -64,11 +64,17 @@ export default function SettingsPage() {
   const [isActive, setIsActive]   = useState(true)
   const statusSave = useSaveState()
 
-  // Logo upload
-  const logoInputRef = useRef<HTMLInputElement>(null)
-  const [logoUrl, setLogoUrl]       = useState<string | null>(null)
-  const [logoUploading, setLogoUploading] = useState(false)
-  const logoSave = useSaveState()
+  // Logo / banner / branding
+  const logoInputRef   = useRef<HTMLInputElement>(null)
+  const bannerInputRef = useRef<HTMLInputElement>(null)
+  const [logoUrl, setLogoUrl]           = useState<string | null>(null)
+  const [bannerUrl, setBannerUrl]       = useState<string | null>(null)
+  const [accentColor, setAccentColor]   = useState<string>('#39FF14')
+  const [accentInput, setAccentInput]   = useState<string>('#39FF14')
+  const [logoUploading, setLogoUploading]     = useState(false)
+  const [bannerUploading, setBannerUploading] = useState(false)
+  const logoSave   = useSaveState()
+  const brandingSave = useSaveState()
 
   // Schedule & playoff settings
   const [gamesPerTeam, setGamesPerTeam]   = useState(10)
@@ -98,6 +104,10 @@ export default function SettingsPage() {
       setStatDisplay(data.stat_display ?? 'per_game')
       setIsActive(data.is_active)
       setLogoUrl(data.logo_url ?? null)
+      setBannerUrl(data.banner_url ?? null)
+      const color = data.accent_color ?? '#39FF14'
+      setAccentColor(color)
+      setAccentInput(color)
       setGamesPerTeam(data.games_per_team ?? 10)
       setPlayoffTeams(data.playoff_teams ?? 4)
       setPlayoffFormat(data.playoff_format ?? 'single_elimination')
@@ -133,6 +143,27 @@ export default function SettingsPage() {
       logoSave.trigger(supabase.from('leagues').update({ logo_url: publicUrl }).eq('id', leagueId))
     }
     setLogoUploading(false)
+  }
+
+  async function handleBannerUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setBannerUploading(true)
+    const ext = file.name.split('.').pop() ?? 'jpg'
+    const path = `${leagueId}/banner-${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('league-logos').upload(path, file, { upsert: true })
+    if (!error) {
+      const { data: { publicUrl } } = supabase.storage.from('league-logos').getPublicUrl(path)
+      setBannerUrl(publicUrl)
+      brandingSave.trigger(supabase.from('leagues').update({ banner_url: publicUrl }).eq('id', leagueId))
+    }
+    setBannerUploading(false)
+  }
+
+  function saveAccentColor(color: string) {
+    setAccentColor(color)
+    setAccentInput(color)
+    brandingSave.trigger(supabase.from('leagues').update({ accent_color: color }).eq('id', leagueId))
   }
 
   function saveScheduleSettings(e: React.FormEvent) {
@@ -192,28 +223,95 @@ export default function SettingsPage() {
         <main style={S.main}>
           <h1 style={S.pageTitle}>Commissioner Settings</h1>
 
-          {/* ── League Identity (logo) ── */}
+          {/* ── League Branding ── */}
           <div style={S.card}>
             <div style={S.cardHead}>
               <div>
-                <div style={S.cardTitle}>League Identity</div>
-                <div style={S.cardSub}>Your league logo appears next to the league name in the dashboard and in the NETR app.</div>
+                <div style={S.cardTitle}>League Branding</div>
+                <div style={S.cardSub}>Customize how your public league page looks. Players see this when they open your link.</div>
               </div>
-              <SaveIndicator state={logoSave.state} />
+              <SaveIndicator state={brandingSave.state || logoSave.state} />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' as const }}>
-              {logoUrl && (
-                <img src={logoUrl} alt="League logo" style={{ width: 72, height: 72, borderRadius: 10, objectFit: 'cover', border: '1px solid #2A2A38' }} />
-              )}
-              <div>
-                <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: 'none' }} onChange={handleLogoUpload} />
-                <button type="button" onClick={() => logoInputRef.current?.click()} style={S.saveBtn} disabled={logoUploading}>
-                  {logoUploading ? 'Uploading…' : logoUrl ? 'Change Logo' : 'Upload Logo'}
+
+            {/* Banner */}
+            <div style={S.brandingSection}>
+              <div style={S.brandingLabel}>Banner Image</div>
+              <div style={S.hint}>Full-width hero image at the top of your league page. Recommended: 1400×400px, JPG or PNG.</div>
+              <div style={{ marginTop: 12 }}>
+                {bannerUrl && (
+                  <div style={{ marginBottom: 12, borderRadius: 10, overflow: 'hidden', border: '1px solid #2A2A38', maxHeight: 120 }}>
+                    <img src={bannerUrl} alt="Banner" style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }} />
+                  </div>
+                )}
+                <input ref={bannerInputRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: 'none' }} onChange={handleBannerUpload} />
+                <button type="button" onClick={() => bannerInputRef.current?.click()} style={S.uploadBtn} disabled={bannerUploading}>
+                  {bannerUploading ? 'Uploading…' : bannerUrl ? 'Change Banner' : 'Upload Banner'}
                 </button>
-                <div style={{ ...S.hint, marginTop: 8 }}>PNG, JPG, or WebP · Recommended: 512×512px</div>
-                <div style={{ ...S.hint, marginTop: 4 }}>⚠ Requires the <code style={{ fontFamily: "'DM Mono', monospace", fontSize: 11 }}>league-logos</code> storage bucket — run the SQL at the bottom of migration 004 in your Supabase dashboard first.</div>
               </div>
             </div>
+
+            {/* Logo */}
+            <div style={S.brandingSection}>
+              <div style={S.brandingLabel}>League Logo</div>
+              <div style={S.hint}>Shown in the header of your league page. Recommended: 512×512px square.</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 12 }}>
+                {logoUrl && (
+                  <img src={logoUrl} alt="League logo" style={{ width: 64, height: 64, borderRadius: 10, objectFit: 'cover', border: '1px solid #2A2A38', flexShrink: 0 }} />
+                )}
+                <div>
+                  <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: 'none' }} onChange={handleLogoUpload} />
+                  <button type="button" onClick={() => logoInputRef.current?.click()} style={S.uploadBtn} disabled={logoUploading}>
+                    {logoUploading ? 'Uploading…' : logoUrl ? 'Change Logo' : 'Upload Logo'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Accent Color */}
+            <div style={S.brandingSection}>
+              <div style={S.brandingLabel}>Accent Color</div>
+              <div style={S.hint}>Applied to standings, score highlights, and section titles on your league page.</div>
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, marginBottom: 14 }}>
+                  {['#39FF14','#FF453A','#FF9500','#FFD60A','#4A9EFF','#BF5AF2','#FF375F','#00C8FF','#FF6B35','#FFFFFF'].map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => saveAccentColor(c)}
+                      title={c}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        background: c,
+                        border: accentColor === c ? '3px solid #EEEEF5' : '2px solid transparent',
+                        outline: accentColor === c ? `3px solid ${c}` : 'none',
+                        outlineOffset: 2,
+                        cursor: 'pointer',
+                        padding: 0,
+                        flexShrink: 0,
+                        boxSizing: 'border-box' as const,
+                      }}
+                    />
+                  ))}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: accentColor, border: '1px solid #2A2A38', flexShrink: 0 }} />
+                  <input
+                    value={accentInput}
+                    onChange={e => setAccentInput(e.target.value)}
+                    onBlur={() => { if (/^#[0-9A-Fa-f]{6}$/.test(accentInput)) saveAccentColor(accentInput) }}
+                    onKeyDown={e => { if (e.key === 'Enter' && /^#[0-9A-Fa-f]{6}$/.test(accentInput)) saveAccentColor(accentInput) }}
+                    style={{ ...S.input, width: 120, fontFamily: "'DM Mono', monospace", fontSize: 13 }}
+                    placeholder="#39FF14"
+                    maxLength={7}
+                  />
+                  <span style={S.hint}>Custom hex</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={S.hint}>⚠ Requires the <code style={{ fontFamily: "'DM Mono', monospace", fontSize: 11 }}>league-logos</code> storage bucket in Supabase.</div>
           </div>
 
           {/* ── Schedule & Playoffs ── */}
@@ -756,6 +854,9 @@ const S: Record<string, React.CSSProperties> = {
     padding: '10px 22px',
     cursor: 'pointer',
   },
+  brandingSection: { marginBottom: 28, paddingBottom: 28, borderBottom: '1px solid #1C1C26' },
+  brandingLabel: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 16, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 4, color: '#EEEEF5' },
+  uploadBtn: { background: '#1C1C26', border: '1px solid #2E2E3A', borderRadius: 8, color: '#EEEEF5', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, textTransform: 'uppercase' as const, letterSpacing: 0.5, padding: '9px 18px', cursor: 'pointer' },
   leagueLinkRow: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const },
   leagueLinkCode: {
     flex: 1,

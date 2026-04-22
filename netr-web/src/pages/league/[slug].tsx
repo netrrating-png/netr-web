@@ -12,6 +12,8 @@ type League = {
   location: string | null
   description: string | null
   logo_url: string | null
+  banner_url: string | null
+  accent_color: string | null
   is_active: boolean
 }
 
@@ -25,11 +27,7 @@ type Standing = {
   pts_against: number
 }
 
-type Team = {
-  id: string
-  name: string
-  color: string
-}
+type Team = { id: string; name: string; color: string }
 
 type Game = {
   id: string
@@ -43,111 +41,190 @@ type Game = {
   game_type: string | null
 }
 
+type PlayerStat = {
+  player_id: string
+  display_name: string
+  team_name: string
+  team_color: string
+  games: number
+  ppg: number
+  rpg: number
+  apg: number
+}
+
+const DEFAULT_ACCENT = '#39FF14'
+
 export default function PublicLeaguePage() {
   const router = useRouter()
   const { slug } = router.query as { slug: string }
 
-  const [league, setLeague] = useState<League | null>(null)
-  const [standings, setStandings] = useState<Standing[]>([])
-  const [teams, setTeams] = useState<Team[]>([])
+  const [league, setLeague]           = useState<League | null>(null)
+  const [standings, setStandings]     = useState<Standing[]>([])
+  const [teams, setTeams]             = useState<Team[]>([])
   const [recentGames, setRecentGames] = useState<Game[]>([])
   const [upcomingGames, setUpcomingGames] = useState<Game[]>([])
-  const [loading, setLoading] = useState(true)
+  const [statLeaders, setStatLeaders] = useState<PlayerStat[]>([])
+  const [loading, setLoading]   = useState(true)
   const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
     if (!slug) return
-
-    async function load() {
-      const { data: leagueData } = await supabase
-        .from('leagues')
-        .select('id, name, slug, sport, season, location, description, logo_url, is_active')
-        .eq('slug', slug)
-        .single()
-
-      if (!leagueData) { setNotFound(true); setLoading(false); return }
-      setLeague(leagueData)
-
-      const [standingsRes, teamsRes, recentRes, upcomingRes] = await Promise.all([
-        supabase.from('league_standings').select('*').eq('league_id', leagueData.id).order('wins', { ascending: false }),
-        supabase.from('league_teams').select('id, name, color').eq('league_id', leagueData.id),
-        supabase.from('league_games').select('*').eq('league_id', leagueData.id).eq('status', 'final').eq('game_type', 'regular').order('scheduled_at', { ascending: false }).limit(8),
-        supabase.from('league_games').select('*').eq('league_id', leagueData.id).eq('status', 'scheduled').order('scheduled_at', { ascending: true }).limit(8),
-      ])
-
-      setStandings(standingsRes.data ?? [])
-      setTeams(teamsRes.data ?? [])
-      setRecentGames(recentRes.data ?? [])
-      setUpcomingGames(upcomingRes.data ?? [])
-      setLoading(false)
-    }
-
     load()
   }, [slug])
+
+  async function load() {
+    const { data: lg } = await supabase
+      .from('leagues')
+      .select('id, name, slug, sport, season, location, description, logo_url, banner_url, accent_color, is_active')
+      .eq('slug', slug)
+      .single()
+
+    if (!lg) { setNotFound(true); setLoading(false); return }
+    setLeague(lg)
+
+    const [standingsRes, teamsRes, recentRes, upcomingRes, playersRes] = await Promise.all([
+      supabase.from('league_standings').select('*').eq('league_id', lg.id).order('wins', { ascending: false }),
+      supabase.from('league_teams').select('id, name, color').eq('league_id', lg.id),
+      supabase.from('league_games').select('*').eq('league_id', lg.id).eq('status', 'final').eq('game_type', 'regular').order('scheduled_at', { ascending: false }).limit(8),
+      supabase.from('league_games').select('*').eq('league_id', lg.id).eq('status', 'scheduled').order('scheduled_at', { ascending: true }).limit(8),
+      supabase.from('league_players').select('id, display_name, team_id').eq('league_id', lg.id),
+    ])
+
+    setStandings(standingsRes.data ?? [])
+    setTeams(teamsRes.data ?? [])
+    setRecentGames(recentRes.data ?? [])
+    setUpcomingGames(upcomingRes.data ?? [])
+
+    const players = playersRes.data ?? []
+    const teamList = teamsRes.data ?? []
+    if (players.length > 0) {
+      const { data: rawStats } = await supabase
+        .from('league_player_stats')
+        .select('player_id, points, rebounds, assists')
+        .in('player_id', players.map(p => p.id))
+
+      if (rawStats && rawStats.length > 0) {
+        const teamMap: Record<string, Team> = {}
+        for (const t of teamList) teamMap[t.id] = t
+
+        const agg: Record<string, { name: string; teamName: string; teamColor: string; pts: number; reb: number; ast: number; gp: number }> = {}
+        for (const s of rawStats) {
+          if (!agg[s.player_id]) {
+            const p = players.find(x => x.id === s.player_id)
+            const t = p ? teamMap[p.team_id] : null
+            agg[s.player_id] = { name: p?.display_name ?? '—', teamName: t?.name ?? '—', teamColor: t?.color ?? '#6A6A82', pts: 0, reb: 0, ast: 0, gp: 0 }
+          }
+          agg[s.player_id].pts += s.points ?? 0
+          agg[s.player_id].reb += s.rebounds ?? 0
+          agg[s.player_id].ast += s.assists ?? 0
+          agg[s.player_id].gp++
+        }
+
+        const leaders: PlayerStat[] = Object.entries(agg)
+          .filter(([, v]) => v.gp >= 1)
+          .map(([id, v]) => ({
+            player_id: id,
+            display_name: v.name,
+            team_name: v.teamName,
+            team_color: v.teamColor,
+            games: v.gp,
+            ppg: Math.round((v.pts / v.gp) * 10) / 10,
+            rpg: Math.round((v.reb / v.gp) * 10) / 10,
+            apg: Math.round((v.ast / v.gp) * 10) / 10,
+          }))
+        setStatLeaders(leaders)
+      }
+    }
+
+    setLoading(false)
+  }
 
   if (loading) return <LoadingScreen />
   if (notFound || !league) return <NotFoundScreen />
 
+  const accent = league.accent_color || DEFAULT_ACCENT
   const teamMap: Record<string, Team> = {}
   for (const t of teams) teamMap[t.id] = t
+
+  const topScorers  = [...statLeaders].sort((a, b) => b.ppg - a.ppg).slice(0, 5)
+  const topRebounds = [...statLeaders].sort((a, b) => b.rpg - a.rpg).slice(0, 5)
+  const topAssists  = [...statLeaders].sort((a, b) => b.apg - a.apg).slice(0, 5)
 
   return (
     <>
       <Head>
-        <title>{league.name} — NETR</title>
-        <meta name="description" content={`${league.name} standings, schedule, and results — powered by NETR`} />
+        <title>{league.name}</title>
+        <meta name="description" content={`${league.name} — standings, schedule, stats${league.season ? ` · ${league.season}` : ''}${league.location ? ` · ${league.location}` : ''}`} />
         <meta name="robots" content="noindex" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
       </Head>
 
-      <div style={S.page}>
-        {/* Header */}
-        <header style={S.header}>
-          <div style={S.headerInner}>
-            <div style={S.headerLeft}>
+      <div style={{ minHeight: '100vh', background: '#040406', fontFamily: "'DM Sans', sans-serif", color: '#EEEEF5' }}>
+
+        {/* ── Hero / Header ── */}
+        <div style={{ position: 'relative' as const, background: league.banner_url ? 'transparent' : '#0A0A0E' }}>
+          {league.banner_url && (
+            <>
+              <img
+                src={league.banner_url}
+                alt=""
+                style={{ width: '100%', height: 240, objectFit: 'cover', display: 'block' }}
+              />
+              <div style={{ position: 'absolute' as const, inset: 0, background: 'linear-gradient(to bottom, rgba(4,4,6,0.3) 0%, rgba(4,4,6,0.85) 100%)' }} />
+            </>
+          )}
+          <div style={{
+            position: league.banner_url ? 'absolute' as const : 'relative' as const,
+            bottom: 0, left: 0, right: 0,
+            padding: '28px 24px 24px',
+          }}>
+            <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', alignItems: 'flex-end', gap: 20 }}>
               {league.logo_url && (
-                <img src={league.logo_url} alt={league.name} style={S.leagueLogo} />
+                <img
+                  src={league.logo_url}
+                  alt={league.name}
+                  style={{ width: 88, height: 88, borderRadius: 14, objectFit: 'cover', border: `3px solid ${accent}`, flexShrink: 0, background: '#0A0A0E' }}
+                />
               )}
-              <div>
-                <div style={S.sportLabel}>🏀 {league.sport ?? 'Basketball'}</div>
-                <h1 style={S.leagueName}>{league.name}</h1>
-                <div style={S.metaRow}>
-                  {league.season && <span style={S.chip}>{league.season}</span>}
-                  {league.location && <span style={S.chip}>📍 {league.location}</span>}
-                  <span style={{
-                    ...S.chip,
-                    background: league.is_active ? 'rgba(57,255,20,0.12)' : 'rgba(106,106,130,0.12)',
-                    color: league.is_active ? '#39FF14' : '#6A6A82',
-                  }}>
-                    {league.is_active ? '● Active' : '● Archived'}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 'clamp(28px, 6vw, 52px)', textTransform: 'uppercase', lineHeight: 1, marginBottom: 10, textShadow: league.banner_url ? '0 2px 12px rgba(0,0,0,0.6)' : 'none' }}>
+                  {league.name}
+                </h1>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                  {league.season && <span style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)', color: '#EEEEF5', fontSize: 12, padding: '4px 10px', borderRadius: 99, fontFamily: "'DM Mono', monospace" }}>{league.season}</span>}
+                  {league.location && <span style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)', color: '#EEEEF5', fontSize: 12, padding: '4px 10px', borderRadius: 99, fontFamily: "'DM Mono', monospace" }}>📍 {league.location}</span>}
+                  <span style={{ background: league.is_active ? `${accent}20` : 'rgba(106,106,130,0.12)', color: league.is_active ? accent : '#6A6A82', fontSize: 12, padding: '4px 10px', borderRadius: 99, fontFamily: "'DM Mono', monospace", border: `1px solid ${league.is_active ? `${accent}40` : 'transparent'}` }}>
+                    {league.is_active ? '● Active' : '○ Archived'}
                   </span>
                 </div>
               </div>
             </div>
-            <a href="https://netrrating.com" style={S.poweredBy}>Powered by NETR</a>
           </div>
-        </header>
+          {/* Bottom border accent line */}
+          <div style={{ height: 3, background: `linear-gradient(90deg, ${accent}, transparent)` }} />
+        </div>
 
-        <main style={S.main}>
-          {/* Standings */}
-          <section style={S.section}>
-            <h2 style={S.sectionTitle}>Standings</h2>
+        <main style={{ maxWidth: 900, margin: '0 auto', padding: '36px 16px 64px' }}>
+
+          {/* ── Standings ── */}
+          <section style={{ marginBottom: 40 }}>
+            <SectionTitle accent={accent}>Standings</SectionTitle>
             {standings.length === 0 ? (
-              <div style={S.empty}>No games played yet.</div>
+              <Empty>No games played yet.</Empty>
             ) : (
-              <div style={S.tableWrap}>
-                <table style={S.table}>
+              <div style={{ background: '#0F0F14', border: '1px solid #1C1C26', borderRadius: 12, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' as const }}>
                   <thead>
-                    <tr>
-                      <th style={{ ...S.th, width: 36 }}>#</th>
-                      <th style={{ ...S.th, textAlign: 'left' as const }}>Team</th>
-                      <th style={S.th}>W</th>
-                      <th style={S.th}>L</th>
-                      <th style={S.th}>PCT</th>
-                      <th style={{ ...S.th, display: 'none' } as React.CSSProperties} className="hide-mobile">PF</th>
-                      <th style={{ ...S.th, display: 'none' } as React.CSSProperties} className="hide-mobile">PA</th>
-                      <th style={S.th}>DIFF</th>
+                    <tr style={{ background: '#0A0A0E', borderBottom: '1px solid #1C1C26' }}>
+                      <th style={TH}>#</th>
+                      <th style={{ ...TH, textAlign: 'left' as const }}>Team</th>
+                      <th style={TH}>W</th>
+                      <th style={TH}>L</th>
+                      <th style={TH}>PCT</th>
+                      <th style={TH}>PF</th>
+                      <th style={TH}>PA</th>
+                      <th style={TH}>DIFF</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -157,22 +234,20 @@ export default function PublicLeaguePage() {
                       const diff = s.pts_for - s.pts_against
                       const isFirst = i === 0 && s.wins > 0
                       return (
-                        <tr key={s.team_id} style={{ ...S.tr, background: isFirst ? 'rgba(57,255,20,0.04)' : 'transparent' }}>
-                          <td style={{ ...S.td, textAlign: 'center' as const, color: '#6A6A82', fontFamily: "'DM Mono', monospace", fontSize: 13 }}>
-                            {isFirst ? '🏆' : i + 1}
-                          </td>
-                          <td style={S.td}>
-                            <div style={S.teamCell}>
-                              <div style={{ ...S.teamDot, background: s.color, boxShadow: `0 0 6px ${s.color}66` }} />
-                              <span style={{ ...S.teamNameStyle, color: isFirst ? '#EEEEF5' : '#C8C8D4' }}>{s.team_name}</span>
+                        <tr key={s.team_id} style={{ borderBottom: '1px solid #14141C', background: isFirst ? `${accent}08` : 'transparent' }}>
+                          <td style={{ ...TD, color: '#6A6A82', fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{isFirst ? '🏆' : i + 1}</td>
+                          <td style={TD}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{ width: 10, height: 10, borderRadius: '50%', background: s.color, boxShadow: `0 0 6px ${s.color}66`, flexShrink: 0 }} />
+                              <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 16, textTransform: 'uppercase' as const, letterSpacing: 0.3, color: isFirst ? '#EEEEF5' : '#C8C8D4' }}>{s.team_name}</span>
                             </div>
                           </td>
-                          <td style={{ ...S.td, color: '#39FF14', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 18 }}>{s.wins}</td>
-                          <td style={{ ...S.td, color: '#6A6A82', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 18 }}>{s.losses}</td>
-                          <td style={{ ...S.td, fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{pct}</td>
-                          <td style={{ ...S.td, fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{s.pts_for}</td>
-                          <td style={{ ...S.td, fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{s.pts_against}</td>
-                          <td style={{ ...S.td, fontFamily: "'DM Mono', monospace", fontSize: 13, color: diff > 0 ? '#39FF14' : diff < 0 ? '#FF453A' : '#6A6A82' }}>
+                          <td style={{ ...TD, color: accent, fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 18 }}>{s.wins}</td>
+                          <td style={{ ...TD, color: '#6A6A82', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 18 }}>{s.losses}</td>
+                          <td style={{ ...TD, fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{pct}</td>
+                          <td style={{ ...TD, fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{s.pts_for}</td>
+                          <td style={{ ...TD, fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{s.pts_against}</td>
+                          <td style={{ ...TD, fontFamily: "'DM Mono', monospace", fontSize: 13, color: diff > 0 ? accent : diff < 0 ? '#FF453A' : '#6A6A82' }}>
                             {diff > 0 ? '+' : ''}{diff}
                           </td>
                         </tr>
@@ -184,41 +259,49 @@ export default function PublicLeaguePage() {
             )}
           </section>
 
-          <div style={S.twoCol}>
-            {/* Recent Results */}
-            <section style={S.section}>
-              <h2 style={S.sectionTitle}>Recent Results</h2>
+          {/* ── Stats Leaders ── */}
+          {statLeaders.length > 0 && (
+            <section style={{ marginBottom: 40 }}>
+              <SectionTitle accent={accent}>Stats Leaders</SectionTitle>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
+                <StatLeaderCard title="Points" unit="PPG" leaders={topScorers} getValue={p => p.ppg} accent={accent} />
+                <StatLeaderCard title="Rebounds" unit="RPG" leaders={topRebounds} getValue={p => p.rpg} accent={accent} />
+                <StatLeaderCard title="Assists" unit="APG" leaders={topAssists} getValue={p => p.apg} accent={accent} />
+              </div>
+            </section>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 32 }}>
+            {/* ── Recent Results ── */}
+            <section>
+              <SectionTitle accent={accent}>Recent Results</SectionTitle>
               {recentGames.length === 0 ? (
-                <div style={S.empty}>No results yet.</div>
+                <Empty>No results yet.</Empty>
               ) : (
-                <div style={S.gameList}>
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
                   {recentGames.map(g => {
                     const home = teamMap[g.home_team_id]
                     const away = teamMap[g.away_team_id]
                     const homeWon = (g.home_score ?? 0) > (g.away_score ?? 0)
                     return (
-                      <div key={g.id} style={S.gameCard}>
-                        <div style={S.gameCardDate}>
-                          {formatDate(g.scheduled_at)}
-                          <span style={S.finalBadge}>Final</span>
+                      <div key={g.id} style={{ background: '#0F0F14', border: '1px solid #1C1C26', borderRadius: 10, padding: '14px 16px' }}>
+                        <div style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace", marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+                          {fmtDate(g.scheduled_at)}
+                          <span style={{ background: `${accent}20`, color: accent, borderRadius: 99, padding: '2px 8px', fontSize: 10, letterSpacing: 0.5, border: `1px solid ${accent}40` }}>Final</span>
                         </div>
-                        <div style={S.gameRow}>
-                          <div style={{ ...S.gameTeam, flex: 1, textAlign: 'right' as const }}>
-                            {home && <div style={{ ...S.teamDot, background: home.color, display: 'inline-block', marginRight: 6, verticalAlign: 'middle' }} />}
-                            <span style={{ color: homeWon ? '#EEEEF5' : '#6A6A82', fontWeight: homeWon ? 700 : 400 }}>
-                              {home?.name ?? '—'}
-                            </span>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <div style={{ flex: 1, textAlign: 'right' as const, fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, textTransform: 'uppercase' as const, color: homeWon ? '#EEEEF5' : '#6A6A82' }}>
+                            {home && <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: home.color, marginRight: 6, verticalAlign: 'middle' }} />}
+                            {home?.name ?? '—'}
                           </div>
-                          <div style={S.scoreBox}>
-                            <span style={{ color: homeWon ? '#39FF14' : '#6A6A82', fontWeight: 900 }}>{g.home_score ?? 0}</span>
-                            <span style={S.scoreSep}>–</span>
-                            <span style={{ color: !homeWon ? '#39FF14' : '#6A6A82', fontWeight: 900 }}>{g.away_score ?? 0}</span>
+                          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', flexShrink: 0 }}>
+                            <span style={{ color: homeWon ? accent : '#6A6A82' }}>{g.home_score ?? 0}</span>
+                            <span style={{ color: '#2E2E3A', fontSize: 16 }}>–</span>
+                            <span style={{ color: !homeWon ? accent : '#6A6A82' }}>{g.away_score ?? 0}</span>
                           </div>
-                          <div style={{ ...S.gameTeam, flex: 1, textAlign: 'left' as const }}>
-                            {away && <div style={{ ...S.teamDot, background: away.color, display: 'inline-block', marginRight: 6, verticalAlign: 'middle' }} />}
-                            <span style={{ color: !homeWon ? '#EEEEF5' : '#6A6A82', fontWeight: !homeWon ? 700 : 400 }}>
-                              {away?.name ?? '—'}
-                            </span>
+                          <div style={{ flex: 1, fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, textTransform: 'uppercase' as const, color: !homeWon ? '#EEEEF5' : '#6A6A82' }}>
+                            {away && <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: away.color, marginRight: 6, verticalAlign: 'middle' }} />}
+                            {away?.name ?? '—'}
                           </div>
                         </div>
                       </div>
@@ -228,31 +311,31 @@ export default function PublicLeaguePage() {
               )}
             </section>
 
-            {/* Upcoming Games */}
-            <section style={S.section}>
-              <h2 style={S.sectionTitle}>Upcoming Games</h2>
+            {/* ── Upcoming Games ── */}
+            <section>
+              <SectionTitle accent={accent}>Upcoming Games</SectionTitle>
               {upcomingGames.length === 0 ? (
-                <div style={S.empty}>No upcoming games scheduled.</div>
+                <Empty>No upcoming games scheduled.</Empty>
               ) : (
-                <div style={S.gameList}>
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
                   {upcomingGames.map(g => {
                     const home = teamMap[g.home_team_id]
                     const away = teamMap[g.away_team_id]
                     return (
-                      <div key={g.id} style={S.gameCard}>
-                        <div style={S.gameCardDate}>
-                          {formatDateTime(g.scheduled_at)}
-                          {g.location && <span style={S.locationLabel}>📍 {g.location}</span>}
+                      <div key={g.id} style={{ background: '#0F0F14', border: '1px solid #1C1C26', borderRadius: 10, padding: '14px 16px' }}>
+                        <div style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace", marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
+                          {fmtDateTime(g.scheduled_at)}
+                          {g.location && <span>📍 {g.location}</span>}
                         </div>
-                        <div style={S.gameRow}>
-                          <div style={{ ...S.gameTeam, flex: 1, textAlign: 'right' as const }}>
-                            {home && <div style={{ ...S.teamDot, background: home.color, display: 'inline-block', marginRight: 6, verticalAlign: 'middle' }} />}
-                            <span>{home?.name ?? '—'}</span>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <div style={{ flex: 1, textAlign: 'right' as const, fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, textTransform: 'uppercase' as const }}>
+                            {home && <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: home.color, marginRight: 6, verticalAlign: 'middle' }} />}
+                            {home?.name ?? '—'}
                           </div>
-                          <div style={S.vsBox}>VS</div>
-                          <div style={{ ...S.gameTeam, flex: 1, textAlign: 'left' as const }}>
-                            {away && <div style={{ ...S.teamDot, background: away.color, display: 'inline-block', marginRight: 6, verticalAlign: 'middle' }} />}
-                            <span>{away?.name ?? '—'}</span>
+                          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 14, color: '#6A6A82', fontWeight: 700, letterSpacing: 1, padding: '0 12px', flexShrink: 0 }}>VS</div>
+                          <div style={{ flex: 1, fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, textTransform: 'uppercase' as const }}>
+                            {away && <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: away.color, marginRight: 6, verticalAlign: 'middle' }} />}
+                            {away?.name ?? '—'}
                           </div>
                         </div>
                       </div>
@@ -264,21 +347,61 @@ export default function PublicLeaguePage() {
           </div>
         </main>
 
-        <footer style={S.footer}>
-          <a href="https://netrrating.com" style={S.footerLink}>NETR</a>
-          <span style={S.footerSep}>·</span>
-          <span>League management & player stats</span>
+        <footer style={{ borderTop: '1px solid #1C1C26', padding: '20px 24px', textAlign: 'center' as const, fontSize: 11, color: '#3A3A4E', fontFamily: "'DM Mono', monospace" }}>
+          Powered by <a href="https://netrrating.com" style={{ color: '#4A4A5E', textDecoration: 'none' }}>NETR</a>
         </footer>
       </div>
     </>
   )
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+function SectionTitle({ children, accent }: { children: React.ReactNode; accent: string }) {
+  return (
+    <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 22, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 14, color: '#EEEEF5', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <span style={{ display: 'inline-block', width: 4, height: 20, background: accent, borderRadius: 2, flexShrink: 0 }} />
+      {children}
+    </h2>
+  )
 }
 
-function formatDateTime(iso: string) {
+function StatLeaderCard({ title, unit, leaders, getValue, accent }: {
+  title: string
+  unit: string
+  leaders: PlayerStat[]
+  getValue: (p: PlayerStat) => number
+  accent: string
+}) {
+  return (
+    <div style={{ background: '#0F0F14', border: '1px solid #1C1C26', borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ padding: '14px 16px 10px', borderBottom: '1px solid #1C1C26', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 16, textTransform: 'uppercase' as const, letterSpacing: 0.5 }}>{title}</span>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: accent, letterSpacing: 1 }}>{unit}</span>
+      </div>
+      {leaders.map((p, i) => (
+        <div key={p.player_id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: i < leaders.length - 1 ? '1px solid #0D0D12' : 'none', background: i === 0 ? `${accent}06` : 'transparent' }}>
+          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: i === 0 ? accent : '#3A3A4E', width: 16, textAlign: 'center' as const, flexShrink: 0 }}>{i + 1}</span>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: p.team_color, flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, textTransform: 'uppercase' as const, letterSpacing: 0.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, color: i === 0 ? '#EEEEF5' : '#C8C8D4' }}>{p.display_name}</div>
+            <div style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace" }}>{p.team_name} · {p.games}G</div>
+          </div>
+          <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: i === 0 ? 22 : 18, color: i === 0 ? accent : '#EEEEF5', flexShrink: 0 }}>
+            {getValue(p)}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function Empty({ children }: { children: React.ReactNode }) {
+  return <div style={{ color: '#6A6A82', fontSize: 14, padding: '20px 0' }}>{children}</div>
+}
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+function fmtDateTime(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
@@ -300,41 +423,5 @@ function NotFoundScreen() {
   )
 }
 
-const S: Record<string, React.CSSProperties> = {
-  page: { minHeight: '100vh', background: '#040406', fontFamily: "'DM Sans', sans-serif", color: '#EEEEF5' },
-  header: { background: '#0A0A0E', borderBottom: '1px solid #1C1C26', padding: '24px 24px 20px' },
-  headerInner: { maxWidth: 900, margin: '0 auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' as const },
-  headerLeft: { display: 'flex', alignItems: 'flex-start', gap: 16 },
-  leagueLogo: { width: 64, height: 64, borderRadius: 10, objectFit: 'cover' as const, border: '1px solid #2A2A38', flexShrink: 0 },
-  sportLabel: { fontSize: 12, color: '#6A6A82', marginBottom: 4 },
-  leagueName: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 36, textTransform: 'uppercase' as const, lineHeight: 1, marginBottom: 8 },
-  metaRow: { display: 'flex', gap: 8, flexWrap: 'wrap' as const },
-  chip: { background: '#1C1C26', color: '#EEEEF5', fontSize: 12, padding: '4px 10px', borderRadius: 99, fontFamily: "'DM Mono', monospace" },
-  poweredBy: { color: '#39FF14', fontSize: 11, fontFamily: "'DM Mono', monospace", textDecoration: 'none', whiteSpace: 'nowrap' as const, paddingTop: 4 },
-  main: { maxWidth: 900, margin: '0 auto', padding: '32px 16px 48px' },
-  section: { marginBottom: 36 },
-  sectionTitle: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 22, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 14, color: '#EEEEF5' },
-  empty: { color: '#6A6A82', fontSize: 14, padding: '20px 0' },
-  tableWrap: { background: '#0F0F14', border: '1px solid #1C1C26', borderRadius: 12, overflow: 'hidden' },
-  table: { width: '100%', borderCollapse: 'collapse' as const },
-  th: { textAlign: 'center' as const, fontSize: 10, color: '#6A6A82', textTransform: 'uppercase' as const, letterSpacing: 2, fontFamily: "'DM Mono', monospace", fontWeight: 400, padding: '12px 12px', borderBottom: '1px solid #1C1C26', background: '#0A0A0E' },
-  tr: { borderBottom: '1px solid #14141C' },
-  td: { padding: '12px 12px', textAlign: 'center' as const, fontSize: 14 },
-  teamCell: { display: 'flex', alignItems: 'center', gap: 8 },
-  teamDot: { width: 10, height: 10, borderRadius: '50%', flexShrink: 0 },
-  teamNameStyle: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 16, textTransform: 'uppercase' as const, letterSpacing: 0.3 },
-  twoCol: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 32 },
-  gameList: { display: 'flex', flexDirection: 'column' as const, gap: 10 },
-  gameCard: { background: '#0F0F14', border: '1px solid #1C1C26', borderRadius: 10, padding: '14px 16px' },
-  gameCardDate: { fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace", marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 },
-  finalBadge: { background: 'rgba(57,255,20,0.12)', color: '#39FF14', borderRadius: 99, padding: '2px 8px', fontSize: 10, letterSpacing: 0.5 },
-  locationLabel: { color: '#6A6A82', fontSize: 11 },
-  gameRow: { display: 'flex', alignItems: 'center', gap: 0 },
-  gameTeam: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, textTransform: 'uppercase' as const, letterSpacing: 0.3, color: '#EEEEF5' },
-  scoreBox: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', flexShrink: 0 },
-  scoreSep: { color: '#2E2E3A', fontSize: 16 },
-  vsBox: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 14, color: '#6A6A82', fontWeight: 700, letterSpacing: 1, padding: '0 12px', flexShrink: 0 },
-  footer: { borderTop: '1px solid #1C1C26', padding: '20px 24px', textAlign: 'center' as const, fontSize: 12, color: '#6A6A82', fontFamily: "'DM Mono', monospace", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  footerLink: { color: '#39FF14', textDecoration: 'none' },
-  footerSep: { color: '#2E2E3A' },
-}
+const TH: React.CSSProperties = { textAlign: 'center', fontSize: 10, color: '#6A6A82', textTransform: 'uppercase', letterSpacing: 2, fontFamily: "'DM Mono', monospace", fontWeight: 400, padding: '12px 10px' }
+const TD: React.CSSProperties = { padding: '12px 10px', textAlign: 'center', fontSize: 14 }
