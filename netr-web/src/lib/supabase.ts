@@ -26,6 +26,7 @@ export type League = {
   fee_amount: number | null
   banner_url: string | null
   accent_color: string | null
+  announcement: string | null
   created_at: string
 }
 

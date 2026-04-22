@@ -54,6 +54,10 @@ export default function SettingsPage() {
   const [feeAmount, setFeeAmount] = useState<string>('')
   const detailsSave = useSaveState()
 
+  // Announcement
+  const [announcement, setAnnouncement] = useState('')
+  const announcementSave = useSaveState()
+
   // Stat config
   const [enabledStats, setEnabledStats] = useState<StatKey[]>([])
   const [minGames, setMinGames]         = useState(1)
@@ -99,6 +103,7 @@ export default function SettingsPage() {
       setDefGameLoc(data.default_game_location ?? '')
       setDescription(data.description ?? '')
       setFeeAmount(data.fee_amount != null ? String(data.fee_amount) : '')
+      setAnnouncement(data.announcement ?? '')
       setEnabledStats((data.enabled_stats ?? DEFAULT_ENABLED_STATS) as StatKey[])
       setMinGames(data.min_games_for_stats ?? 1)
       setStatDisplay(data.stat_display ?? 'per_game')
@@ -164,6 +169,19 @@ export default function SettingsPage() {
     setAccentColor(color)
     setAccentInput(color)
     brandingSave.trigger(supabase.from('leagues').update({ accent_color: color }).eq('id', leagueId))
+  }
+
+  function saveAnnouncement() {
+    announcementSave.trigger(
+      supabase.from('leagues').update({ announcement: announcement.trim() || null }).eq('id', leagueId)
+    )
+  }
+
+  function clearAnnouncement() {
+    setAnnouncement('')
+    announcementSave.trigger(
+      supabase.from('leagues').update({ announcement: null }).eq('id', leagueId)
+    )
   }
 
   function saveScheduleSettings(e: React.FormEvent) {
@@ -536,6 +554,34 @@ export default function SettingsPage() {
                 style={{ ...S.toggleBtn, ...(isActive ? S.toggleBtnArchive : S.toggleBtnActivate) }}
               >
                 {isActive ? 'Archive Season' : 'Reactivate Season'}
+              </button>
+            </div>
+          </div>
+
+          {/* ── Announcement ── */}
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>Announcement</div>
+                <div style={S.cardSub}>Shows as a banner at the top of your public league page. Use it for cancellations, reminders, or league news.</div>
+              </div>
+              <SaveIndicator state={announcementSave.state} />
+            </div>
+            <textarea
+              value={announcement}
+              onChange={e => setAnnouncement(e.target.value)}
+              rows={3}
+              style={S.textarea}
+              placeholder="e.g. ⚠️ Tonight's games are CANCELLED due to gym conflict. Next game: Thu May 7 @ 7pm."
+            />
+            <div style={{ display: 'flex', gap: 10, marginTop: 14, justifyContent: 'flex-end' as const }}>
+              {announcement && (
+                <button type="button" onClick={clearAnnouncement} style={S.cancelBtn}>
+                  Clear
+                </button>
+              )}
+              <button type="button" onClick={saveAnnouncement} style={S.saveBtn} disabled={announcementSave.state === 'saving'}>
+                {announcementSave.state === 'saving' ? 'Saving…' : 'Post Announcement'}
               </button>
             </div>
           </div>
