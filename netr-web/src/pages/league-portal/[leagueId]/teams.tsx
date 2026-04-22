@@ -37,6 +37,9 @@ export default function TeamsPage() {
   const [addingPlayer, setAddingPlayer] = useState<string | null>(null)
   const [playerName, setPlayerName] = useState('')
   const [playerJersey, setPlayerJersey] = useState('')
+  // Fee note editing
+  const [editingFeeNote, setEditingFeeNote] = useState<string | null>(null)
+  const [feeNoteValue, setFeeNoteValue] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
@@ -168,6 +171,19 @@ export default function TeamsPage() {
     setTeams(prev => prev.map(t => t.id === teamId ? { ...t, players: t.players.filter(p => p.id !== playerId) } : t))
   }
 
+  async function toggleFeePaid(team: TeamWithPlayers) {
+    const newVal = !team.fee_paid
+    setTeams(prev => prev.map(t => t.id === team.id ? { ...t, fee_paid: newVal } : t))
+    const { data } = await supabase.from('league_teams').update({ fee_paid: newVal }).eq('id', team.id).select().single()
+    if (!data) setTeams(prev => prev.map(t => t.id === team.id ? { ...t, fee_paid: team.fee_paid } : t))
+  }
+
+  async function saveFeeNote(teamId: string) {
+    await supabase.from('league_teams').update({ fee_note: feeNoteValue || null }).eq('id', teamId)
+    setTeams(prev => prev.map(t => t.id === teamId ? { ...t, fee_note: feeNoteValue || null } : t))
+    setEditingFeeNote(null)
+  }
+
   function parseCsv(raw: string) {
     const lines = raw.split('\n').map(l => l.trim()).filter(Boolean)
     const errors: string[] = []
@@ -221,7 +237,6 @@ export default function TeamsPage() {
       totalPlayers += rows.length
     }
 
-    // Reload
     const [teamsRes, playersRes] = await Promise.all([
       supabase.from('league_teams').select('*').eq('league_id', leagueId).order('created_at'),
       supabase.from('league_players').select('*').eq('league_id', leagueId),
@@ -333,6 +348,21 @@ export default function TeamsPage() {
                     </div>
                     <div style={S.teamRight}>
                       <button
+                        onClick={e => { e.stopPropagation(); toggleFeePaid(team) }}
+                        style={{
+                          ...S.paidPill,
+                          background: team.fee_paid ? 'rgba(57,255,20,0.12)' : 'rgba(245,197,66,0.10)',
+                          color: team.fee_paid ? '#39FF14' : '#F5C542',
+                          border: `1px solid ${team.fee_paid ? 'rgba(57,255,20,0.3)' : 'rgba(245,197,66,0.3)'}`,
+                        }}
+                        title={team.fee_paid ? 'Mark as unpaid' : 'Mark as paid'}
+                      >
+                        {team.fee_paid
+                          ? `✓ Paid${league?.fee_amount ? ` $${league.fee_amount.toLocaleString()}` : ''}`
+                          : `Unpaid${league?.fee_amount ? ` $${league.fee_amount.toLocaleString()}` : ''}`
+                        }
+                      </button>
+                      <button
                         onClick={e => { e.stopPropagation(); startEdit(team) }}
                         style={S.editBtn}
                         title="Edit team"
@@ -384,6 +414,32 @@ export default function TeamsPage() {
                         </tbody>
                       </table>
                     )}
+
+                    {/* Fee note */}
+                    <div style={S.feeNoteRow}>
+                      {editingFeeNote === team.id ? (
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1 }}>
+                          <input
+                            value={feeNoteValue}
+                            onChange={e => setFeeNoteValue(e.target.value)}
+                            style={{ ...S.input, flex: 1, marginBottom: 0, fontSize: 12, padding: '6px 10px' }}
+                            placeholder="e.g. paid cash 4/15, short $50…"
+                            autoFocus
+                            onKeyDown={e => { if (e.key === 'Enter') saveFeeNote(team.id); if (e.key === 'Escape') setEditingFeeNote(null) }}
+                          />
+                          <button onClick={() => saveFeeNote(team.id)} style={{ ...S.saveBtn, fontSize: 12, padding: '6px 14px' }}>Save</button>
+                          <button onClick={() => setEditingFeeNote(null)} style={{ ...S.cancelBtn, fontSize: 12, padding: '6px 12px' }}>Cancel</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => { setEditingFeeNote(team.id); setFeeNoteValue(team.fee_note ?? '') }}
+                          style={S.feeNoteBtn}
+                        >
+                          {team.fee_note ? `📝 ${team.fee_note}` : '+ Add payment note'}
+                        </button>
+                      )}
+                    </div>
+
 
                     {addingPlayer === team.id ? (
                       <form onSubmit={e => addPlayer(e, team.id)} style={S.playerForm}>
@@ -601,6 +657,7 @@ const S: Record<string, React.CSSProperties> = {
   teamName: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 20, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
   teamCount: { fontSize: 12, color: '#6A6A82' },
   teamRight: { display: 'flex', alignItems: 'center', gap: 10 },
+  paidPill: { borderRadius: 99, fontFamily: "'DM Mono', monospace", fontSize: 12, padding: '5px 12px', cursor: 'pointer', whiteSpace: 'nowrap' as const, fontWeight: 500 },
   editBtn: { background: '#1C1C26', border: '1px solid #2E2E3A', borderRadius: 8, color: '#EEEEF5', fontSize: 12, fontFamily: "'DM Mono', monospace", padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap' as const },
   shareBtn: { background: '#1C1C26', border: '1px solid #2E2E3A', borderRadius: 8, color: '#EEEEF5', fontSize: 12, fontFamily: "'DM Mono', monospace", padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap' as const },
   chevron: { color: '#6A6A82', fontSize: 12, fontFamily: "'DM Mono', monospace" },
@@ -618,6 +675,8 @@ const S: Record<string, React.CSSProperties> = {
   playerForm: { marginTop: 8 },
   playerFormRow: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const },
   addPlayerBtn: { background: 'none', border: '1px dashed #2E2E3A', borderRadius: 8, color: '#6A6A82', fontSize: 13, padding: '8px 16px', cursor: 'pointer', width: '100%', textAlign: 'left' as const, marginTop: 4 },
+  feeNoteRow: { display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 12, marginBottom: 4, borderBottom: '1px solid #14141C' },
+  feeNoteBtn: { background: 'none', border: 'none', color: '#6A6A82', fontSize: 12, fontFamily: "'DM Mono', monospace", cursor: 'pointer', padding: '4px 0', textAlign: 'left' as const },
   importBtn: { background: '#1C1C26', border: '1px solid #2E2E3A', borderRadius: 8, color: '#EEEEF5', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, textTransform: 'uppercase' as const, letterSpacing: 1, padding: '10px 18px', cursor: 'pointer' },
   overlay: { position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 },
   csvModal: { background: '#0F0F14', border: '1px solid #2E2E3A', borderRadius: 16, padding: 32, width: '100%', maxWidth: 680, maxHeight: '90vh', overflowY: 'auto' as const },

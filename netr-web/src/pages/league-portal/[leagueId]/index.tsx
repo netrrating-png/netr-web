@@ -33,6 +33,7 @@ export default function LeagueOverview() {
 
   const gamesPlayed = games.filter(g => g.status === 'final').length
   const upcoming = games.filter(g => g.status === 'scheduled').length
+  const paidTeams = teams.filter(t => t.fee_paid).length
 
   return (
     <>
@@ -64,16 +65,28 @@ export default function LeagueOverview() {
           {/* Quick stats */}
           <div style={S.statsRow}>
             {[
-              { label: 'Teams', value: teams.length },
-              { label: 'Games Played', value: gamesPlayed },
-              { label: 'Upcoming', value: upcoming },
-              { label: 'Total Games', value: games.length },
+              { label: 'Teams', value: String(teams.length) },
+              { label: 'Games Played', value: String(gamesPlayed) },
+              { label: 'Upcoming', value: String(upcoming) },
+              { label: 'Total Games', value: String(games.length) },
             ].map(s => (
               <div key={s.label} style={S.statCard}>
                 <div style={S.statVal}>{s.value}</div>
                 <div style={S.statLabel}>{s.label}</div>
               </div>
             ))}
+            {/* Teams Paid card — always shown */}
+            <div style={{ ...S.statCard, borderColor: paidTeams === teams.length && teams.length > 0 ? 'rgba(57,255,20,0.3)' : '#1C1C26' }}>
+              <div style={{ ...S.statVal, color: paidTeams === teams.length && teams.length > 0 ? '#39FF14' : paidTeams > 0 ? '#F5C542' : '#6A6A82' }}>
+                {paidTeams}/{teams.length}
+              </div>
+              <div style={S.statLabel}>Teams Paid</div>
+              {league.fee_amount ? (
+                <div style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace", marginTop: 4 }}>
+                  ${(paidTeams * league.fee_amount).toLocaleString()} / ${(teams.length * league.fee_amount).toLocaleString()}
+                </div>
+              ) : null}
+            </div>
           </div>
 
           {/* Quick nav cards */}
@@ -94,6 +107,15 @@ export default function LeagueOverview() {
                 <div style={S.navCardArrow}>→</div>
               </a>
             ))}
+            {/* Share league page — external link */}
+            <a href={`/league/${league.slug}`} target="_blank" rel="noreferrer" style={{ ...S.navCard, borderColor: 'rgba(57,255,20,0.2)' }}>
+              <div style={S.navCardIcon}>🔗</div>
+              <div>
+                <div style={S.navCardTitle}>Player League Page</div>
+                <div style={S.navCardDesc}>netrrating.com/league/{league.slug} — share with your players</div>
+              </div>
+              <div style={S.navCardArrow}>↗</div>
+            </a>
           </div>
 
           {/* Commissioner Guide */}
