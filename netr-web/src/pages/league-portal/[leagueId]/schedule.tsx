@@ -24,9 +24,6 @@ export default function SchedulePage() {
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ home_team_id: '', away_team_id: '', scheduled_at: '', location: '' })
-  const [scoreGame, setScoreGame] = useState<GameWithTeams | null>(null)
-  const [homeScore, setHomeScore] = useState('')
-  const [awayScore, setAwayScore] = useState('')
 
   // tab
   const [tab, setTab] = useState<'regular' | 'playoffs'>('regular')
@@ -165,30 +162,15 @@ export default function SchedulePage() {
     setSaving(false)
   }
 
-  async function finalizeScore(e: React.FormEvent) {
-    e.preventDefault()
-    if (!scoreGame) return
-    setSaving(true)
-    const { data } = await supabase
-      .from('league_games')
-      .update({ home_score: parseInt(homeScore), away_score: parseInt(awayScore), status: 'final' })
-      .eq('id', scoreGame.id)
-      .select()
-      .single()
-
-    if (data) {
-      setGames(prev => prev.map(g => g.id === data.id ? { ...g, ...data } : g))
-      supabase.from('league_standings').select('*').eq('league_id', leagueId).order('wins', { ascending: false }).then(r => { if (r.data) setStandings(r.data as StandingRow[]) })
-    }
-    setScoreGame(null)
-    setHomeScore('')
-    setAwayScore('')
-    setSaving(false)
-  }
-
   async function cancelGame(id: string) {
     await supabase.from('league_games').update({ status: 'cancelled' }).eq('id', id)
     setGames(prev => prev.map(g => g.id === id ? { ...g, status: 'cancelled' } : g))
+  }
+
+  async function deleteGame(id: string) {
+    await supabase.from('league_player_stats').delete().eq('game_id', id)
+    await supabase.from('league_games').delete().eq('id', id)
+    setGames(prev => prev.filter(g => g.id !== id))
   }
 
   if (loading || !league) return <LoadingScreen />
@@ -347,22 +329,22 @@ export default function SchedulePage() {
             </form>
           )}
 
+          {/* Completed — shown first so recently saved games are immediately visible */}
+          {completed.length > 0 && (
+            <section style={S.section}>
+              <div style={S.sectionLabel}>Results ({completed.length})</div>
+              <div style={S.gameList}>
+                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} onDelete={() => deleteGame(g.id)} leagueId={leagueId} />)}
+              </div>
+            </section>
+          )}
+
           {/* Upcoming */}
           {upcoming.length > 0 && (
             <section style={S.section}>
               <div style={S.sectionLabel}>Upcoming ({upcoming.length})</div>
               <div style={S.gameList}>
-                {upcoming.map(g => <GameRow key={g.id} game={g} onEnterScore={() => { setScoreGame(g); setHomeScore(''); setAwayScore('') }} onCancel={() => cancelGame(g.id)} leagueId={leagueId} />)}
-              </div>
-            </section>
-          )}
-
-          {/* Completed */}
-          {completed.length > 0 && (
-            <section style={S.section}>
-              <div style={S.sectionLabel}>Results ({completed.length})</div>
-              <div style={S.gameList}>
-                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} leagueId={leagueId} />)}
+                {upcoming.map(g => <GameRow key={g.id} game={g} onCancel={() => cancelGame(g.id)} leagueId={leagueId} />)}
               </div>
             </section>
           )}
@@ -429,8 +411,7 @@ export default function SchedulePage() {
                               {!dbg && <span style={{ fontSize:11, color:'#6A6A82', fontFamily:"'DM Mono',monospace" }}>TBD</span>}
                               {dbg?.status==='scheduled' && <>
                                 <span style={{ fontSize:12, color:'#6A6A82' }}>{new Date(dbg.scheduled_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
-                                <button onClick={() => { setScoreGame(dbg); setHomeScore(''); setAwayScore('') }} style={S.scoreBtn}>Enter Score</button>
-                                <a href={`/league-portal/${leagueId}/score/${dbg.id}`} style={S.boxBtn}>Box Score</a>
+                                <a href={`/league-portal/${leagueId}/score/${dbg.id}`} style={S.scoreBtn}>Enter Score + Stats</a>
                               </>}
                               {dbg?.status==='final' && <>
                                 <span style={S.finalBadge}>Final</span>
@@ -470,37 +451,13 @@ export default function SchedulePage() {
           </>)}
         </main>
 
-        {scoreGame && (
-          <div style={S.overlay}>
-            <form onSubmit={finalizeScore} style={S.modal}>
-              <h3 style={S.modalTitle}>Enter Final Score</h3>
-              <div style={S.scoreRow}>
-                <div style={S.scoreTeam}>
-                  <div style={{ ...S.scoreTeamDot, background: scoreGame.home_team?.color ?? '#6A6A82' }} />
-                  <div style={S.scoreTeamName}>{scoreGame.home_team?.name ?? 'Home'}</div>
-                  <input type="number" min="0" value={homeScore} onChange={e => setHomeScore(e.target.value)} style={S.scoreInput} placeholder="0" required autoFocus />
-                </div>
-                <div style={S.scoreDash}>—</div>
-                <div style={S.scoreTeam}>
-                  <div style={{ ...S.scoreTeamDot, background: scoreGame.away_team?.color ?? '#6A6A82' }} />
-                  <div style={S.scoreTeamName}>{scoreGame.away_team?.name ?? 'Away'}</div>
-                  <input type="number" min="0" value={awayScore} onChange={e => setAwayScore(e.target.value)} style={S.scoreInput} placeholder="0" required />
-                </div>
-              </div>
-              <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:24 }}>
-                <button type="button" onClick={() => setScoreGame(null)} style={S.cancelBtn}>Cancel</button>
-                <button type="submit" style={S.saveBtn} disabled={saving}>{saving ? 'Saving…' : 'Save Score'}</button>
-              </div>
-              <div style={S.modalNote}>Want player stats? <a href={`/league-portal/${leagueId}/score/${scoreGame.id}`} style={{ color:'#39FF14' }}>Full box score →</a></div>
-            </form>
-          </div>
-        )}
       </div>
     </>
   )
 }
 
-function GameRow({ game, onEnterScore, onCancel, leagueId }: { game: GameWithTeams; onEnterScore?: () => void; onCancel?: () => void; leagueId: string }) {
+function GameRow({ game, onCancel, onDelete, leagueId }: { game: GameWithTeams; onCancel?: () => void; onDelete?: () => void; leagueId: string }) {
+  const [confirmDelete, setConfirmDelete] = useState(false)
   if (!game.home_team || !game.away_team) return null
   const d = new Date(game.scheduled_at)
   const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
@@ -521,17 +478,25 @@ function GameRow({ game, onEnterScore, onCancel, leagueId }: { game: GameWithTea
       </div>
 
       <div style={S.gameActions}>
-        {game.status === 'final' && (
-          <span style={S.finalBadge}>Final</span>
-        )}
-        {game.status === 'scheduled' && onEnterScore && (
-          <button onClick={onEnterScore} style={S.scoreBtn}>Enter Score</button>
+        {game.status === 'final' && <span style={S.finalBadge}>Final</span>}
+        {game.status === 'scheduled' && (
+          <a href={`/league-portal/${leagueId}/score/${game.id}`} style={S.scoreBtn}>Enter Score + Stats</a>
         )}
         {game.status === 'final' && (
-          <a href={`/league-portal/${leagueId}/score/${game.id}`} style={S.boxBtn}>Box Score</a>
+          <a href={`/league-portal/${leagueId}/score/${game.id}`} style={S.editBtn}>Edit Score + Stats</a>
         )}
         {game.status === 'scheduled' && onCancel && (
           <button onClick={onCancel} style={S.cancelSmBtn}>Cancel</button>
+        )}
+        {onDelete && !confirmDelete && (
+          <button onClick={() => setConfirmDelete(true)} style={S.deleteSmBtn}>Delete</button>
+        )}
+        {onDelete && confirmDelete && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 12, color: '#FF453A', fontFamily: "'DM Sans', sans-serif" }}>Delete?</span>
+            <button onClick={onDelete} style={{ ...S.cancelSmBtn, color: '#FF453A', borderColor: '#FF453A' }}>Yes</button>
+            <button onClick={() => setConfirmDelete(false)} style={S.cancelSmBtn}>No</button>
+          </span>
         )}
       </div>
     </div>
@@ -591,9 +556,10 @@ const S: Record<string, React.CSSProperties> = {
   chipScore: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, marginLeft: 4 },
   gameActions: { display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 },
   finalBadge: { background: 'rgba(57,255,20,0.12)', color: '#39FF14', fontSize: 11, fontFamily: "'DM Mono', monospace", padding: '3px 10px', borderRadius: 99, letterSpacing: 0.5 },
-  scoreBtn: { background: 'linear-gradient(135deg, #39FF14, #00CC2A)', border: 'none', borderRadius: 7, color: '#040406', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: 0.5, padding: '7px 14px', cursor: 'pointer' },
-  boxBtn: { background: '#1C1C26', border: '1px solid #2E2E3A', borderRadius: 7, color: '#EEEEF5', fontSize: 12, fontFamily: "'DM Mono', monospace", padding: '6px 12px', textDecoration: 'none', whiteSpace: 'nowrap' as const },
+  scoreBtn: { background: 'linear-gradient(135deg, #39FF14, #00CC2A)', border: 'none', borderRadius: 7, color: '#040406', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: 0.5, padding: '7px 14px', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' as const },
+  editBtn: { background: '#1C1C26', border: '1px solid #2E2E3A', borderRadius: 7, color: '#EEEEF5', fontSize: 12, fontFamily: "'DM Mono', monospace", padding: '6px 12px', textDecoration: 'none', whiteSpace: 'nowrap' as const },
   cancelSmBtn: { background: 'none', border: '1px solid #2E2E3A', borderRadius: 7, color: '#6A6A82', fontSize: 12, padding: '6px 12px', cursor: 'pointer' },
+  deleteSmBtn: { background: 'none', border: '1px solid #FF453A44', borderRadius: 7, color: '#FF453A', fontSize: 12, padding: '6px 12px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" },
   empty: { textAlign: 'center' as const, padding: '60px 24px' },
   emptyIcon: { fontSize: 48, marginBottom: 12 },
   emptyText: { color: '#6A6A82', fontSize: 15 },

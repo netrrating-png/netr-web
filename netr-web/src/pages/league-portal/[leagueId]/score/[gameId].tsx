@@ -23,6 +23,8 @@ const EMPTY_STAT: Partial<LeaguePlayerStat> = {
 }
 
 function StatStepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const editing = draft !== null
   return (
     <div style={S.stepper}>
       <button
@@ -31,12 +33,12 @@ function StatStepper({ value, onChange }: { value: number; onChange: (v: number)
         style={S.stepBtn}
       >−</button>
       <input
-        type="number"
-        min={0}
-        max={999}
-        value={value}
-        onFocus={e => e.target.select()}
-        onChange={e => onChange(Math.max(0, parseInt(e.target.value) || 0))}
+        type="text"
+        inputMode="numeric"
+        value={editing ? draft : String(value)}
+        onFocus={e => { setDraft(String(value)); e.target.select() }}
+        onChange={e => setDraft(e.target.value.replace(/[^0-9]/g, ''))}
+        onBlur={() => { onChange(Math.max(0, parseInt(draft ?? '0') || 0)); setDraft(null) }}
         style={S.stepInput}
       />
       <button
@@ -63,6 +65,7 @@ export default function BoxScorePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!leagueId || !gameId) return
@@ -114,12 +117,19 @@ export default function BoxScorePage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
+    setSaveError(null)
 
-    await supabase.from('league_games').update({
-      home_score: homeScore ? parseInt(homeScore) : null,
-      away_score: awayScore ? parseInt(awayScore) : null,
-      status: homeScore && awayScore ? 'final' : game?.status,
+    const { error: gameErr } = await supabase.from('league_games').update({
+      home_score: homeScore !== '' ? parseInt(homeScore) : null,
+      away_score: awayScore !== '' ? parseInt(awayScore) : null,
+      status: homeScore !== '' && awayScore !== '' ? 'final' : game?.status,
     }).eq('id', gameId)
+
+    if (gameErr) {
+      setSaveError(gameErr.message)
+      setSaving(false)
+      return
+    }
 
     const allRows = [...homeRows, ...awayRows].filter(r => r.player)
     const upserts = allRows.map(r => ({
@@ -142,12 +152,19 @@ export default function BoxScorePage() {
     }))
 
     if (upserts.length > 0) {
-      await supabase.from('league_player_stats').upsert(upserts, { onConflict: 'game_id,player_id' })
+      const { error: statsErr } = await supabase.from('league_player_stats').upsert(upserts, { onConflict: 'game_id,player_id' })
+      if (statsErr) {
+        setSaveError(statsErr.message)
+        setSaving(false)
+        return
+      }
     }
 
     setSaving(false)
     setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+    setTimeout(() => {
+      router.push(`/league-portal/${leagueId}/schedule`)
+    }, 1200)
   }
 
   if (loading || !league || !game) return <LoadingScreen />
@@ -269,10 +286,8 @@ export default function BoxScorePage() {
             <div style={S.tipsBar}>
               <span style={S.tipIcon}>💡</span>
               <span style={S.tipText}>
-                Use <strong>+/−</strong> to tap through stats, or click a number and type directly.
-                {enabledSet.has('fg%') && ' FG% calculates automatically from FGM/FGA.'}
-                {enabledSet.has('3p%') && ' 3P% from 3PM/3PA.'}
-                {enabledSet.has('ft%') && ' FT% from FTM/FTA.'}
+                Enter the final score above, then fill in each player&apos;s stats below. Hit <strong>Save Box Score</strong> when done — you can come back and edit anytime.
+                {(enabledSet.has('fg%') || enabledSet.has('3p%') || enabledSet.has('ft%')) && ' Shooting percentages calculate automatically.'}
               </span>
             </div>
 
@@ -283,9 +298,14 @@ export default function BoxScorePage() {
             {/* Save bar */}
             <div style={S.saveBar}>
               <a href={`/league-portal/${leagueId}/schedule`} style={S.backBtn}>← Back to Schedule</a>
-              <button type="submit" style={{ ...S.saveBtn, ...(saved ? S.saveBtnDone : {}) }} disabled={saving}>
-                {saving ? 'Saving…' : saved ? '✓ Saved!' : 'Save Box Score'}
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                {saveError && <span style={{ fontSize: 13, color: '#FF453A', fontFamily: "'DM Sans', sans-serif", maxWidth: 300 }}>⚠ {saveError}</span>}
+                {saved && <span style={{ fontSize: 14, color: '#39FF14', fontFamily: "'DM Mono', monospace" }}>✓ Saved — returning to schedule…</span>}
+                {game.status === 'final' && !saved && !saveError && <span style={{ fontSize: 12, color: '#6A6A82', fontFamily: "'DM Mono', monospace" }}>● Final</span>}
+                <button type="submit" style={{ ...S.saveBtn, ...(saved ? S.saveBtnDone : {}) }} disabled={saving}>
+                  {saving ? 'Saving…' : saved ? '✓ Saved!' : game.status === 'final' ? 'Update Box Score' : 'Save Box Score'}
+                </button>
+              </div>
             </div>
           </main>
         </form>
