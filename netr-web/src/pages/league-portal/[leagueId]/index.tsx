@@ -43,7 +43,7 @@ export default function LeagueOverview() {
       </Head>
 
       <div style={S.page}>
-        <PortalNav leagueName={league.name} leagueId={leagueId} active="overview" />
+        <PortalNav leagueName={league.name} leagueId={leagueId} active="overview" logoUrl={league.logo_url} />
 
         <main style={S.main}>
           {/* League header */}
@@ -161,7 +161,7 @@ export default function LeagueOverview() {
   )
 }
 
-export function PortalNav({ leagueName, leagueId, active }: { leagueName: string; leagueId: string; active: string }) {
+export function PortalNav({ leagueName, leagueId, active, logoUrl }: { leagueName: string; leagueId: string; active: string; logoUrl?: string | null }) {
   const tabs = [
     { key: 'overview',  label: 'Overview',  href: `/league-portal/${leagueId}` },
     { key: 'teams',     label: 'Teams',     href: `/league-portal/${leagueId}/teams` },
@@ -175,7 +175,10 @@ export function PortalNav({ leagueName, leagueId, active }: { leagueName: string
     <nav style={S.nav}>
       <div style={S.navTop}>
         <a href="/league-portal" style={S.backLink}>← My Leagues</a>
-        <span style={S.logo}>NETR <span style={{ color: '#EEEEF5', opacity: 0.5 }}>LEAGUES</span></span>
+        <span style={S.logo}>
+          {logoUrl && <img src={logoUrl} alt="" style={{ width: 26, height: 26, borderRadius: 5, objectFit: 'cover', marginRight: 8, verticalAlign: 'middle' }} />}
+          NETR <span style={{ color: '#EEEEF5', opacity: 0.5 }}>LEAGUES</span>
+        </span>
       </div>
       <div style={S.tabRow}>
         {tabs.map(t => (

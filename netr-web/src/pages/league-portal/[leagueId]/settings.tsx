@@ -1,6 +1,6 @@
 import Head from 'next/head'
 import { useRouter } from 'next/router'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase, League } from '../../../lib/supabase'
 import { PortalNav } from './index'
 import { STAT_DEFS, DEFAULT_ENABLED_STATS, StatKey } from '../../../lib/stat-config'
@@ -62,6 +62,18 @@ export default function SettingsPage() {
   const [isActive, setIsActive]   = useState(true)
   const statusSave = useSaveState()
 
+  // Logo upload
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  const [logoUrl, setLogoUrl]       = useState<string | null>(null)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const logoSave = useSaveState()
+
+  // Schedule & playoff settings
+  const [gamesPerTeam, setGamesPerTeam]   = useState(10)
+  const [playoffTeams, setPlayoffTeams]   = useState(4)
+  const [playoffFormat, setPlayoffFormat] = useState('single_elimination')
+  const scheduleSave = useSaveState()
+
   useEffect(() => {
     if (!leagueId) return
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -82,6 +94,10 @@ export default function SettingsPage() {
       setMinGames(data.min_games_for_stats ?? 1)
       setStatDisplay(data.stat_display ?? 'per_game')
       setIsActive(data.is_active)
+      setLogoUrl(data.logo_url ?? null)
+      setGamesPerTeam(data.games_per_team ?? 10)
+      setPlayoffTeams(data.playoff_teams ?? 4)
+      setPlayoffFormat(data.playoff_format ?? 'single_elimination')
       setLoading(false)
     })
   }, [leagueId])
@@ -95,6 +111,32 @@ export default function SettingsPage() {
         location: location.trim() || null,
         default_game_location: defGameLoc.trim() || null,
         description: description.trim() || null,
+      }).eq('id', leagueId)
+    )
+  }
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setLogoUploading(true)
+    const ext = file.name.split('.').pop() ?? 'jpg'
+    const path = `${leagueId}/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('league-logos').upload(path, file, { upsert: true })
+    if (!error) {
+      const { data: { publicUrl } } = supabase.storage.from('league-logos').getPublicUrl(path)
+      setLogoUrl(publicUrl)
+      logoSave.trigger(supabase.from('leagues').update({ logo_url: publicUrl }).eq('id', leagueId))
+    }
+    setLogoUploading(false)
+  }
+
+  function saveScheduleSettings(e: React.FormEvent) {
+    e.preventDefault()
+    scheduleSave.trigger(
+      supabase.from('leagues').update({
+        games_per_team: gamesPerTeam,
+        playoff_teams: playoffTeams,
+        playoff_format: playoffFormat,
       }).eq('id', leagueId)
     )
   }
@@ -140,10 +182,75 @@ export default function SettingsPage() {
       </Head>
 
       <div style={S.page}>
-        <PortalNav leagueName={league.name} leagueId={leagueId} active="settings" />
+        <PortalNav leagueName={league.name} leagueId={leagueId} active="settings" logoUrl={logoUrl} />
 
         <main style={S.main}>
           <h1 style={S.pageTitle}>Commissioner Settings</h1>
+
+          {/* ── League Identity (logo) ── */}
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>League Identity</div>
+                <div style={S.cardSub}>Your league logo appears next to the league name in the dashboard and in the NETR app.</div>
+              </div>
+              <SaveIndicator state={logoSave.state} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' as const }}>
+              {logoUrl && (
+                <img src={logoUrl} alt="League logo" style={{ width: 72, height: 72, borderRadius: 10, objectFit: 'cover', border: '1px solid #2A2A38' }} />
+              )}
+              <div>
+                <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: 'none' }} onChange={handleLogoUpload} />
+                <button type="button" onClick={() => logoInputRef.current?.click()} style={S.saveBtn} disabled={logoUploading}>
+                  {logoUploading ? 'Uploading…' : logoUrl ? 'Change Logo' : 'Upload Logo'}
+                </button>
+                <div style={{ ...S.hint, marginTop: 8 }}>PNG, JPG, or WebP · Recommended: 512×512px</div>
+                <div style={{ ...S.hint, marginTop: 4 }}>⚠ Requires the <code style={{ fontFamily: "'DM Mono', monospace", fontSize: 11 }}>league-logos</code> storage bucket — run the SQL at the bottom of migration 004 in your Supabase dashboard first.</div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Schedule & Playoffs ── */}
+          <form onSubmit={saveScheduleSettings} style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>Schedule &amp; Playoffs</div>
+                <div style={S.cardSub}>Used by the Schedule Generator and playoff bracket.</div>
+              </div>
+              <SaveIndicator state={scheduleSave.state} />
+            </div>
+            <div style={S.fieldGrid}>
+              <div style={S.field}>
+                <label style={S.label}>Games Per Team</label>
+                <input type="number" min={1} max={82} value={gamesPerTeam} onChange={e => setGamesPerTeam(parseInt(e.target.value) || 1)} style={S.input} />
+                <div style={S.hint}>How many regular season games each team plays.</div>
+              </div>
+              <div style={S.field}>
+                <label style={S.label}>Playoff Teams</label>
+                <select value={playoffTeams} onChange={e => setPlayoffTeams(parseInt(e.target.value))} style={S.input}>
+                  <option value={0}>No playoffs</option>
+                  <option value={2}>2 teams</option>
+                  <option value={4}>4 teams</option>
+                  <option value={6}>6 teams</option>
+                  <option value={8}>8 teams</option>
+                </select>
+                <div style={S.hint}>How many teams advance to the postseason.</div>
+              </div>
+              <div style={S.field}>
+                <label style={S.label}>Playoff Format</label>
+                <select value={playoffFormat} onChange={e => setPlayoffFormat(e.target.value)} style={S.input}>
+                  <option value="single_elimination">Single Elimination</option>
+                  <option value="double_elimination" disabled>Double Elimination — coming soon</option>
+                </select>
+              </div>
+            </div>
+            <div style={S.cardFoot}>
+              <button type="submit" style={S.saveBtn} disabled={scheduleSave.state === 'saving'}>
+                {scheduleSave.state === 'saving' ? 'Saving…' : 'Save Schedule Settings'}
+              </button>
+            </div>
+          </form>
 
           {/* ── League Details ── */}
           <form onSubmit={saveDetails} style={S.card}>
