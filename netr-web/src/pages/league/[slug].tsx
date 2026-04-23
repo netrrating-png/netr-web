@@ -154,7 +154,7 @@ export default function PublicLeaguePage() {
       <div style={{background:'#0A0A0E',borderBottom:'1px solid #1C1C26',position:'sticky',top:0,zIndex:50}}>
         <div style={{maxWidth:900,margin:'0 auto',display:'flex',overflowX:'auto'}}>
           {(['overview','schedule','stats','teams'] as Tab[]).map(t=>(
-            <button key={t} onClick={()=>setTab(t)} style={{background:'none',border:'none',borderBottom:activeTab===t?`3px solid ${accent}`:'3px solid transparent',color:activeTab===t?accent:'#6A6A82',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase',letterSpacing:1,padding:'14px 20px',cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>
+            <button key={t} onClick={()=>setTab(t)} style={{background:'none',border:'none',borderBottom:activeTab===t?`3px solid ${accent}`:'3px solid transparent',color:activeTab===t?accent:'#EEEEF5',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase',letterSpacing:1,padding:'14px 20px',cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>
               {{overview:'Overview',schedule:'Schedule',stats:'Stats',teams:'Teams'}[t]}
             </button>
           ))}

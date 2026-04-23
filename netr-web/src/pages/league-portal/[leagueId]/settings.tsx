@@ -670,7 +670,7 @@ export default function SettingsPage() {
             <div style={S.cardHead}>
               <div>
                 <div style={S.cardTitle}>Custom Domain</div>
-                <div style={S.cardSub}>Serve your league page at your own domain (e.g. sihoops.com). Requires a one-time DNS change.</div>
+                <div style={S.cardSub}>Serve your league page at your own domain (e.g. myleague.com). Requires a one-time DNS change.</div>
               </div>
               <SaveIndicator state={domainSave.state} />
             </div>
@@ -681,7 +681,7 @@ export default function SettingsPage() {
                   value={domainInput}
                   onChange={e => setDomainInput(e.target.value)}
                   style={{ ...S.input, flex: 1 }}
-                  placeholder="sihoops.com"
+                  placeholder="myleague.com"
                   type="text"
                 />
                 <button type="submit" style={S.saveBtn} disabled={!domainInput.trim()}>
