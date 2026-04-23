@@ -38,8 +38,8 @@ export function CourtPicker({ courts, courtId, onChange, placeholder = 'Search N
   const filtered = query.trim()
     ? courts.filter(c =>
         `${c.name} ${c.city}`.toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 8)
-    : courts.slice(0, 8)
+      )
+    : courts
 
   function select(c: CourtOption) {
     setQuery(`${c.name} · ${c.city}`)
@@ -108,7 +108,8 @@ export function CourtPicker({ courts, courtId, onChange, placeholder = 'Search N
           border: '1px solid #2A2A38',
           borderRadius: 8,
           marginTop: 4,
-          overflow: 'hidden',
+          overflowY: 'auto' as const,
+          maxHeight: 300,
           boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
         }}>
           {filtered.map(c => (
