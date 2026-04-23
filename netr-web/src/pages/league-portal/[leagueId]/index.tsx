@@ -8,6 +8,7 @@ export default function LeagueOverview() {
   const [league, setLeague] = useState<League | null>(null)
   const [teams, setTeams] = useState<LeagueTeam[]>([])
   const [games, setGames] = useState<LeagueGame[]>([])
+  const [playerCount, setPlayerCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -15,16 +16,18 @@ export default function LeagueOverview() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.replace('/league-portal/login'); return }
 
-      const [leagueRes, teamsRes, gamesRes] = await Promise.all([
+      const [leagueRes, teamsRes, gamesRes, playersRes] = await Promise.all([
         supabase.from('leagues').select('*').eq('id', leagueId).eq('owner_id', user.id).single(),
         supabase.from('league_teams').select('*').eq('league_id', leagueId),
         supabase.from('league_games').select('*').eq('league_id', leagueId).order('scheduled_at'),
+        supabase.from('league_players').select('id', { count: 'exact', head: true }).eq('league_id', leagueId),
       ])
 
       if (!leagueRes.data) { router.replace('/league-portal'); return }
       setLeague(leagueRes.data)
       setTeams(teamsRes.data ?? [])
       setGames(gamesRes.data ?? [])
+      setPlayerCount(playersRes.count ?? 0)
       setLoading(false)
     })
   }, [leagueId])
@@ -66,6 +69,7 @@ export default function LeagueOverview() {
           <div style={S.statsRow}>
             {[
               { label: 'Teams', value: String(teams.length) },
+              { label: 'Players', value: String(playerCount) },
               { label: 'Games Played', value: String(gamesPlayed) },
               { label: 'Upcoming', value: String(upcoming) },
               { label: 'Total Games', value: String(games.length) },
