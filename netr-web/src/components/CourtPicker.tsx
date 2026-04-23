@@ -26,7 +26,7 @@ export function CourtPicker({ courts, courtId, onChange, placeholder = 'Search N
   const updateRect = useCallback(() => {
     if (inputRef.current) {
       const r = inputRef.current.getBoundingClientRect()
-      setDropdownRect({ top: r.bottom + window.scrollY + 4, left: r.left + window.scrollX, width: r.width })
+      setDropdownRect({ top: r.bottom + 4, left: r.left, width: r.width })
     }
   }, [])
 
@@ -75,7 +75,7 @@ export function CourtPicker({ courts, courtId, onChange, placeholder = 'Search N
     <div
       data-court-dropdown
       style={{
-        position: 'absolute',
+        position: 'fixed',
         top: dropdownRect.top,
         left: dropdownRect.left,
         width: dropdownRect.width,
