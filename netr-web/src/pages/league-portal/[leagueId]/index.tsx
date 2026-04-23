@@ -271,7 +271,7 @@ const S: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     letterSpacing: 1,
     textTransform: 'uppercase' as const,
-    color: '#6A6A82',
+    color: '#EEEEF5',
     textDecoration: 'none',
     borderBottom: '2px solid transparent',
     transition: 'color 0.2s',
