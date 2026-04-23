@@ -86,6 +86,15 @@ export default function SettingsPage() {
   const [playoffFormat, setPlayoffFormat] = useState('single_elimination')
   const scheduleSave = useSaveState()
 
+  // Custom domain
+  const [customDomain, setCustomDomain]           = useState('')
+  const [customDomainStatus, setCustomDomainStatus] = useState<'pending'|'active'|'error'|null>(null)
+  const [domainInput, setDomainInput]             = useState('')
+  const [checkingDomain, setCheckingDomain]       = useState(false)
+  const [setupLinkCopied, setSetupLinkCopied]     = useState(false)
+  const [cnameCopied, setCnameCopied]             = useState(false)
+  const domainSave = useSaveState()
+
   useEffect(() => {
     if (!leagueId) return
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -116,6 +125,9 @@ export default function SettingsPage() {
       setGamesPerTeam(data.games_per_team ?? 10)
       setPlayoffTeams(data.playoff_teams ?? 4)
       setPlayoffFormat(data.playoff_format ?? 'single_elimination')
+      setCustomDomain(data.custom_domain ?? '')
+      setDomainInput(data.custom_domain ?? '')
+      setCustomDomainStatus(data.custom_domain_status ?? null)
       setLoading(false)
     })
   }, [leagueId])
@@ -216,6 +228,39 @@ export default function SettingsPage() {
     const next = !isActive
     setIsActive(next)
     statusSave.trigger(supabase.from('leagues').update({ is_active: next }).eq('id', leagueId))
+  }
+
+  async function saveCustomDomainFn(e: React.FormEvent) {
+    e.preventDefault()
+    const cleaned = domainInput.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '')
+    if (!cleaned) return
+    setCustomDomain(cleaned)
+    setCustomDomainStatus('pending')
+    domainSave.trigger(
+      supabase.from('leagues').update({ custom_domain: cleaned, custom_domain_status: 'pending' }).eq('id', leagueId)
+    )
+  }
+
+  async function removeDomain() {
+    setCustomDomain('')
+    setDomainInput('')
+    setCustomDomainStatus(null)
+    await supabase.from('leagues').update({ custom_domain: null, custom_domain_status: 'pending' }).eq('id', leagueId)
+  }
+
+  async function checkDomainStatus() {
+    setCheckingDomain(true)
+    try {
+      const res = await fetch('/api/league/check-domain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leagueId }),
+      })
+      const { status } = await res.json()
+      setCustomDomainStatus(status)
+    } finally {
+      setCheckingDomain(false)
+    }
   }
 
   async function handleDelete() {
@@ -618,6 +663,98 @@ export default function SettingsPage() {
                 Preview ↗
               </a>
             </div>
+          </div>
+
+          {/* ── Custom Domain ── */}
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>Custom Domain</div>
+                <div style={S.cardSub}>Serve your league page at your own domain (e.g. sihoops.com). Requires a one-time DNS change.</div>
+              </div>
+              <SaveIndicator state={domainSave.state} />
+            </div>
+
+            {!customDomain ? (
+              <form onSubmit={saveCustomDomainFn} style={{ display: 'flex', gap: 10 }}>
+                <input
+                  value={domainInput}
+                  onChange={e => setDomainInput(e.target.value)}
+                  style={{ ...S.input, flex: 1 }}
+                  placeholder="sihoops.com"
+                  type="text"
+                />
+                <button type="submit" style={S.saveBtn} disabled={!domainInput.trim()}>
+                  Save
+                </button>
+              </form>
+            ) : (
+              <div>
+                {/* Status row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                  <span style={{ fontSize: 18 }}>
+                    {customDomainStatus === 'active' ? '🟢' : customDomainStatus === 'error' ? '🔴' : '⚪'}
+                  </span>
+                  <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 13, color: customDomainStatus === 'active' ? '#39FF14' : customDomainStatus === 'error' ? '#FF4455' : '#6A6A82' }}>
+                    {customDomainStatus === 'active' ? `Live at ${customDomain}` : customDomainStatus === 'error' ? 'DNS not found — check your record' : `Pending — waiting for DNS`}
+                  </span>
+                </div>
+
+                {/* CNAME record box */}
+                <div style={{ background: '#0A0A0E', border: '1px solid #1C1C26', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+                  <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: '#6A6A82', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 12 }}>Add this DNS record</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr', gap: '8px 16px', marginBottom: 14 }}>
+                    {[['Type', 'CNAME'], ['Host', '@'], ['Value', 'leagues.netr.pro'], ['TTL', '3600']].map(([label, value]) => (
+                      <div key={label} style={{ display: 'contents' }}>
+                        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: '#6A6A82', paddingTop: 2 }}>{label}</div>
+                        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 13, color: '#EEEEF5' }}>{value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { navigator.clipboard.writeText('leagues.netr.pro'); setCnameCopied(true); setTimeout(() => setCnameCopied(false), 2000) }}
+                    style={{ ...S.copyBtn, width: '100%', justifyContent: 'center' as const }}
+                  >
+                    {cnameCopied ? '✓ Copied!' : 'Copy Value: leagues.netr.pro'}
+                  </button>
+                  <div style={{ marginTop: 10, fontSize: 12, color: '#4A4A5E', fontFamily: "'DM Mono',monospace" }}>
+                    www.{customDomain} will also work automatically
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={checkDomainStatus}
+                    disabled={checkingDomain}
+                    style={S.saveBtn}
+                  >
+                    {checkingDomain ? 'Checking…' : 'Check Status'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = `${window.location.origin}/domain-setup?domain=${customDomain}`
+                      navigator.clipboard.writeText(url)
+                      setSetupLinkCopied(true)
+                      setTimeout(() => setSetupLinkCopied(false), 2500)
+                    }}
+                    style={S.cancelBtn}
+                  >
+                    {setupLinkCopied ? '✓ Link Copied!' : 'Send to your web person →'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={removeDomain}
+                    style={{ background: 'none', border: 'none', color: '#4A4A5E', fontSize: 12, fontFamily: "'DM Mono',monospace", cursor: 'pointer', textDecoration: 'underline', marginLeft: 'auto' as const }}
+                  >
+                    Remove domain
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ── Danger Zone ── */}

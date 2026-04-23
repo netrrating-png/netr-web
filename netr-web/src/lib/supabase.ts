@@ -27,6 +27,8 @@ export type League = {
   banner_url: string | null
   accent_color: string | null
   announcement: string | null
+  custom_domain: string | null
+  custom_domain_status: 'pending' | 'active' | 'error' | null
   created_at: string
 }
 
