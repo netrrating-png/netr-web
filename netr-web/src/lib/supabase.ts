@@ -31,6 +31,7 @@ export type League = {
   social_links: Record<string, string> | null
   custom_domain: string | null
   custom_domain_status: 'pending' | 'active' | 'error' | null
+  default_court_id: string | null
   created_at: string
 }
 
@@ -90,6 +91,7 @@ export type LeagueGame = {
   game_type: 'regular' | 'playoff' | null
   playoff_round: number | null
   playoff_bracket_slot: number | null
+  court_id: string | null
   created_at: string
 }
 

@@ -80,6 +80,10 @@ export default function SettingsPage() {
   const logoSave   = useSaveState()
   const brandingSave = useSaveState()
 
+  // Courts (NETR court picker)
+  const [courts, setCourts]               = useState<{ id: string; name: string; city: string }[]>([])
+  const [defaultCourtId, setDefaultCourtId] = useState<string | null>(null)
+
   // Schedule & playoff settings
   const [gamesPerTeam, setGamesPerTeam]   = useState(10)
   const [playoffTeams, setPlayoffTeams]   = useState(4)
@@ -148,15 +152,18 @@ export default function SettingsPage() {
       setCustomDomain(data.custom_domain ?? '')
       setDomainInput(data.custom_domain ?? '')
       setCustomDomainStatus(data.custom_domain_status ?? null)
+      setDefaultCourtId(data.default_court_id ?? null)
       setContactInfo(data.contact_info ?? '')
       setSocialLinks(data.social_links ?? {})
 
-      const [sponsorsRes, galleryRes] = await Promise.all([
+      const [sponsorsRes, galleryRes, courtsRes] = await Promise.all([
         supabase.from('league_sponsors').select('*').eq('league_id', leagueId).order('display_order'),
         supabase.from('league_gallery_photos').select('*').eq('league_id', leagueId).order('created_at', { ascending: false }),
+        supabase.from('courts').select('id,name,city').eq('verified', true).order('name'),
       ])
       setSponsors(sponsorsRes.data ?? [])
       setGalleryPhotos(galleryRes.data ?? [])
+      setCourts(courtsRes.data ?? [])
       setLoading(false)
     })
   }, [leagueId])
@@ -172,6 +179,7 @@ export default function SettingsPage() {
         default_game_location: defGameLoc.trim() || null,
         description: description.trim() || null,
         fee_amount: isNaN(parsedFee as number) ? null : parsedFee,
+        default_court_id: defaultCourtId || null,
       }).eq('id', leagueId)
     )
   }
@@ -558,13 +566,36 @@ export default function SettingsPage() {
               </div>
               <div style={S.field}>
                 <label style={S.label}>Default Game Venue</label>
+                {courts.length > 0 && (
+                  <select
+                    value={defaultCourtId ?? ''}
+                    onChange={e => {
+                      const v = e.target.value
+                      setDefaultCourtId(v || null)
+                      if (v) {
+                        const c = courts.find(c => c.id === v)
+                        if (c) setDefGameLoc(c.name)
+                      }
+                    }}
+                    style={{ ...S.input, marginBottom: 8 }}
+                  >
+                    <option value="">— Link a NETR court (optional) —</option>
+                    {courts.map(c => (
+                      <option key={c.id} value={c.id}>{c.name} · {c.city}</option>
+                    ))}
+                  </select>
+                )}
                 <input
                   value={defGameLoc}
                   onChange={e => setDefGameLoc(e.target.value)}
                   style={S.input}
                   placeholder="Pro Performance Arena, Court 2"
                 />
-                <div style={S.hint}>Pre-fills the location when you schedule a game.</div>
+                <div style={S.hint}>
+                  {defaultCourtId
+                    ? '✓ Linked to NETR court — league games will appear on the court page in the app.'
+                    : 'Pre-fills location when scheduling. Link to a NETR court to show league games in the app.'}
+                </div>
               </div>
               <div style={S.field}>
                 <label style={S.label}>Team Entry Fee ($)</label>

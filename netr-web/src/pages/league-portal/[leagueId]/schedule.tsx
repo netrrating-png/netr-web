@@ -23,7 +23,8 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ home_team_id: '', away_team_id: '', scheduled_at: '', location: '' })
+  const [form, setForm] = useState({ home_team_id: '', away_team_id: '', scheduled_at: '', location: '', court_id: '' })
+  const [courts, setCourts] = useState<{ id: string; name: string; city: string }[]>([])
 
   // tab
   const [tab, setTab] = useState<'regular' | 'playoffs'>('regular')
@@ -52,11 +53,12 @@ export default function SchedulePage() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.replace('/league-portal/login'); return }
 
-      const [leagueRes, teamsRes, gamesRes, standingsRes] = await Promise.all([
+      const [leagueRes, teamsRes, gamesRes, standingsRes, courtsRes] = await Promise.all([
         supabase.from('leagues').select('*').eq('id', leagueId).eq('owner_id', user.id).single(),
         supabase.from('league_teams').select('*').eq('league_id', leagueId).order('name'),
         supabase.from('league_games').select('*').eq('league_id', leagueId).order('scheduled_at'),
         Promise.resolve(supabase.from('league_standings').select('*').eq('league_id', leagueId).order('wins', { ascending: false })).catch(() => ({ data: [] })),
+        supabase.from('courts').select('id,name,city').eq('verified', true).order('name'),
       ])
 
       if (!leagueRes.data) { router.replace('/league-portal'); return }
@@ -64,6 +66,8 @@ export default function SchedulePage() {
       setLeague(lg)
       if (lg.games_per_team) setGamesPerTeam(lg.games_per_team)
       if (lg.default_game_location) setGenConfig(c => ({ ...c, location: lg.default_game_location! }))
+      setCourts(courtsRes.data ?? [])
+      if (lg.default_court_id) setForm(f => ({ ...f, court_id: lg.default_court_id! }))
 
       const teamsList = teamsRes.data ?? []
       const teamsById: Record<string, LeagueTeam> = {}
@@ -108,7 +112,8 @@ export default function SchedulePage() {
   async function handleSaveSchedule() {
     if (!preview) return
     setSavingSchedule(true)
-    const rows = preview.map(g => ({ league_id: leagueId, home_team_id: g.home_team_id, away_team_id: g.away_team_id, scheduled_at: g.scheduled_at, location: g.location || null, game_type: 'regular', status: 'scheduled' }))
+    const defaultCourtId = league?.default_court_id ?? null
+    const rows = preview.map(g => ({ league_id: leagueId, home_team_id: g.home_team_id, away_team_id: g.away_team_id, scheduled_at: g.scheduled_at, location: g.location || null, court_id: defaultCourtId, game_type: 'regular', status: 'scheduled' }))
     for (let i = 0; i < rows.length; i += 50) await supabase.from('league_games').insert(rows.slice(i, i+50))
     const { data } = await supabase.from('league_games').select('*').eq('league_id', leagueId).order('scheduled_at')
     const teamsById: Record<string, LeagueTeam> = {}
@@ -141,7 +146,7 @@ export default function SchedulePage() {
       const homeTeamId = bg.prevHomeSlot === null ? (standings[bg.homeSeed - 1]?.team_id ?? null) : getWinner(bg.prevHomeSlot, playoffGames)
       const awayTeamId = bg.prevAwaySlot === null ? (standings[bg.awaySeed - 1]?.team_id ?? null) : getWinner(bg.prevAwaySlot, playoffGames)
       if (!homeTeamId || !awayTeamId) continue
-      newRows.push({ league_id: leagueId, home_team_id: homeTeamId, away_team_id: awayTeamId, scheduled_at: scheduledAt, location: league?.default_game_location ?? null, game_type: 'playoff', playoff_round: nextRoundTemplate.roundNum, playoff_bracket_slot: bg.slot, status: 'scheduled' })
+      newRows.push({ league_id: leagueId, home_team_id: homeTeamId, away_team_id: awayTeamId, scheduled_at: scheduledAt, location: league?.default_game_location ?? null, court_id: league?.default_court_id ?? null, game_type: 'playoff', playoff_round: nextRoundTemplate.roundNum, playoff_bracket_slot: bg.slot, status: 'scheduled' })
     }
     if (newRows.length > 0) {
       const { data } = await supabase.from('league_games').insert(newRows).select()
@@ -160,7 +165,7 @@ export default function SchedulePage() {
     setSaving(true)
     const { data } = await supabase
       .from('league_games')
-      .insert({ league_id: leagueId, ...form, location: form.location || null })
+      .insert({ league_id: leagueId, ...form, location: form.location || null, court_id: form.court_id || null })
       .select()
       .single()
 
@@ -170,7 +175,7 @@ export default function SchedulePage() {
       setGames(prev => [...prev, { ...data, home_team: teamsById[data.home_team_id], away_team: teamsById[data.away_team_id] }]
         .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at)))
     }
-    setForm({ home_team_id: '', away_team_id: '', scheduled_at: '', location: '' })
+    setForm(f => ({ home_team_id: '', away_team_id: '', scheduled_at: '', location: f.location, court_id: f.court_id }))
     setShowForm(false)
     setSaving(false)
   }
@@ -336,6 +341,20 @@ export default function SchedulePage() {
                 </div>
                 <div>
                   <label style={S.label}>Location</label>
+                  {courts.length > 0 && (
+                    <select
+                      value={form.court_id}
+                      onChange={e => {
+                        const v = e.target.value
+                        const c = courts.find(c => c.id === v)
+                        setForm(f => ({ ...f, court_id: v, location: c ? c.name : f.location }))
+                      }}
+                      style={{ ...S.select, marginBottom: 6 }}
+                    >
+                      <option value="">— NETR court (optional) —</option>
+                      {courts.map(c => <option key={c.id} value={c.id}>{c.name} · {c.city}</option>)}
+                    </select>
+                  )}
                   <input type="text" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} style={S.input} placeholder="Gym or court name" />
                 </div>
               </div>
