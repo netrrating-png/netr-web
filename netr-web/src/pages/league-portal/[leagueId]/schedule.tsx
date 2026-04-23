@@ -2,6 +2,7 @@ import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
 import { supabase, League, LeagueTeam, LeagueGame, LeagueGameAttendance } from '../../../lib/supabase'
+import { CourtPicker } from '../../../components/CourtPicker'
 import { PortalNav } from './index'
 import { DISPLAY_DOW, DISPLAY_LABELS, generateMatchups, assignDates, AssignConfig, GameSlot, getPlayoffBracket, fmtPreviewRange } from '../../../lib/schedule-utils'
 
@@ -342,18 +343,13 @@ export default function SchedulePage() {
                 <div>
                   <label style={S.label}>Location</label>
                   {courts.length > 0 && (
-                    <select
-                      value={form.court_id}
-                      onChange={e => {
-                        const v = e.target.value
-                        const c = courts.find(c => c.id === v)
-                        setForm(f => ({ ...f, court_id: v, location: c ? c.name : f.location }))
-                      }}
-                      style={{ ...S.select, marginBottom: 6 }}
-                    >
-                      <option value="">— NETR court (optional) —</option>
-                      {courts.map(c => <option key={c.id} value={c.id}>{c.name} · {c.city}</option>)}
-                    </select>
+                    <div style={{ marginBottom: 6 }}>
+                      <CourtPicker
+                        courts={courts}
+                        courtId={form.court_id}
+                        onChange={(id, name) => setForm(f => ({ ...f, court_id: id, location: name || f.location }))}
+                      />
+                    </div>
                   )}
                   <input type="text" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} style={S.input} placeholder="Gym or court name" />
                 </div>

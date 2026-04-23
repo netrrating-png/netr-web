@@ -2,6 +2,7 @@ import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect, useRef } from 'react'
 import { supabase, League, LeagueSponsor, LeagueGalleryPhoto } from '../../../lib/supabase'
+import { CourtPicker } from '../../../components/CourtPicker'
 import { PortalNav } from './index'
 import { STAT_DEFS, DEFAULT_ENABLED_STATS, StatKey } from '../../../lib/stat-config'
 
@@ -567,23 +568,16 @@ export default function SettingsPage() {
               <div style={S.field}>
                 <label style={S.label}>Default Game Venue</label>
                 {courts.length > 0 && (
-                  <select
-                    value={defaultCourtId ?? ''}
-                    onChange={e => {
-                      const v = e.target.value
-                      setDefaultCourtId(v || null)
-                      if (v) {
-                        const c = courts.find(c => c.id === v)
-                        if (c) setDefGameLoc(c.name)
-                      }
-                    }}
-                    style={{ ...S.input, marginBottom: 8 }}
-                  >
-                    <option value="">— Link a NETR court (optional) —</option>
-                    {courts.map(c => (
-                      <option key={c.id} value={c.id}>{c.name} · {c.city}</option>
-                    ))}
-                  </select>
+                  <div style={{ marginBottom: 8 }}>
+                    <CourtPicker
+                      courts={courts}
+                      courtId={defaultCourtId ?? ''}
+                      onChange={(id, name) => {
+                        setDefaultCourtId(id || null)
+                        if (name) setDefGameLoc(name)
+                      }}
+                    />
+                  </div>
                 )}
                 <input
                   value={defGameLoc}
