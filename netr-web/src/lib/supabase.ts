@@ -5,6 +5,23 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-k
 
 export const supabase = createClient(url, anonKey)
 
+export async function fetchAllCourts(): Promise<{ id: string; name: string; city: string }[]> {
+  const res = await fetch(
+    `${url}/rest/v1/courts?select=id,name,city&order=name&limit=10000`,
+    {
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+        'Range-Unit': 'items',
+        Range: '0-9999',
+        Prefer: 'count=none',
+      },
+    }
+  )
+  if (!res.ok) return []
+  return res.json()
+}
+
 export type League = {
   id: string
   owner_id: string

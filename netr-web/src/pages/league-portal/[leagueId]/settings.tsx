@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect, useRef } from 'react'
-import { supabase, League, LeagueSponsor, LeagueGalleryPhoto } from '../../../lib/supabase'
+import { supabase, fetchAllCourts, League, LeagueSponsor, LeagueGalleryPhoto } from '../../../lib/supabase'
 import { CourtPicker } from '../../../components/CourtPicker'
 import { PortalNav } from './index'
 import { STAT_DEFS, DEFAULT_ENABLED_STATS, StatKey } from '../../../lib/stat-config'
@@ -160,11 +160,11 @@ export default function SettingsPage() {
       const [sponsorsRes, galleryRes, courtsRes] = await Promise.all([
         supabase.from('league_sponsors').select('*').eq('league_id', leagueId).order('display_order'),
         supabase.from('league_gallery_photos').select('*').eq('league_id', leagueId).order('created_at', { ascending: false }),
-        supabase.from('courts').select('id,name,city').order('name').limit(10000),
+        fetchAllCourts(),
       ])
       setSponsors(sponsorsRes.data ?? [])
       setGalleryPhotos(galleryRes.data ?? [])
-      setCourts(courtsRes.data ?? [])
+      setCourts(courtsRes ?? [])
       setLoading(false)
     })
   }, [leagueId])

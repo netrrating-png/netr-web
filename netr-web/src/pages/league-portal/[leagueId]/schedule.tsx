@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
-import { supabase, League, LeagueTeam, LeagueGame, LeagueGameAttendance } from '../../../lib/supabase'
+import { supabase, fetchAllCourts, League, LeagueTeam, LeagueGame, LeagueGameAttendance } from '../../../lib/supabase'
 import { CourtPicker } from '../../../components/CourtPicker'
 import { PortalNav } from './index'
 import { DISPLAY_DOW, DISPLAY_LABELS, generateMatchups, assignDates, AssignConfig, GameSlot, getPlayoffBracket, fmtPreviewRange } from '../../../lib/schedule-utils'
@@ -59,7 +59,7 @@ export default function SchedulePage() {
         supabase.from('league_teams').select('*').eq('league_id', leagueId).order('name'),
         supabase.from('league_games').select('*').eq('league_id', leagueId).order('scheduled_at'),
         Promise.resolve(supabase.from('league_standings').select('*').eq('league_id', leagueId).order('wins', { ascending: false })).catch(() => ({ data: [] })),
-        supabase.from('courts').select('id,name,city').order('name').limit(10000),
+        fetchAllCourts(),
       ])
 
       if (!leagueRes.data) { router.replace('/league-portal'); return }
@@ -67,7 +67,7 @@ export default function SchedulePage() {
       setLeague(lg)
       if (lg.games_per_team) setGamesPerTeam(lg.games_per_team)
       if (lg.default_game_location) setGenConfig(c => ({ ...c, location: lg.default_game_location! }))
-      setCourts(courtsRes.data ?? [])
+      setCourts(courtsRes ?? [])
       if (lg.default_court_id) setForm(f => ({ ...f, court_id: lg.default_court_id! }))
 
       const teamsList = teamsRes.data ?? []
