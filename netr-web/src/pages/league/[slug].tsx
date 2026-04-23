@@ -4,14 +4,16 @@ import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 
-type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null }
+type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null }
+type Sponsor = { id:string;name:string;logo_url:string|null;website_url:string|null }
+type GalleryPhoto = { id:string;photo_url:string;caption:string|null }
 type Team = { id:string;name:string;color:string;logo_url:string|null }
 type Player = { id:string;display_name:string;jersey_number:string|null;position:string|null;team_id:string }
 type Standing = { team_id:string;team_name:string;color:string;wins:number;losses:number;pts_for:number;pts_against:number }
 type Game = { id:string;home_team_id:string;away_team_id:string;scheduled_at:string;location:string|null;status:string;home_score:number|null;away_score:number|null;game_type:string|null }
 type RawStat = { game_id:string;player_id:string;team_id:string;points:number;rebounds:number;assists:number;steals:number;blocks:number;turnovers:number;field_goals_made:number;field_goals_attempted:number;three_pointers_made:number;three_pointers_attempted:number;free_throws_made:number;free_throws_attempted:number }
 type PStat = { player_id:string;display_name:string;team_id:string;team_name:string;team_color:string;gp:number;ppg:number;rpg:number;apg:number;spg:number;bpg:number }
-type Tab = 'overview'|'schedule'|'stats'|'teams'
+type Tab = 'overview'|'schedule'|'stats'|'teams'|'gallery'
 type SortKey = 'ppg'|'rpg'|'apg'|'spg'|'bpg'
 const ACC = '#39FF14'
 
@@ -33,7 +35,10 @@ export default function PublicLeaguePage() {
   const [myPlayerId,setMyPlayerId] = useState<string|null>(null)
   const [attendanceCounts,setAttendanceCounts] = useState<Record<string,number>>({})
   const [myAttendance,setMyAttendance] = useState<Record<string,'yes'|'no'|'maybe'>>({})
-  const activeTab:Tab = (['overview','schedule','stats','teams'].includes(tabParam as string)?tabParam:'overview') as Tab
+  const [sponsors,setSponsors] = useState<Sponsor[]>([])
+  const [galleryPhotos,setGalleryPhotos] = useState<GalleryPhoto[]>([])
+  const [lightboxIdx,setLightboxIdx] = useState<number|null>(null)
+  const activeTab:Tab = (['overview','schedule','stats','teams','gallery'].includes(tabParam as string)?tabParam:'overview') as Tab
   const setTab = (t:Tab) => router.replace({pathname:router.pathname,query:{slug,tab:t}},undefined,{shallow:true})
 
   useEffect(()=>{ if(slug) load() },[slug])
@@ -52,7 +57,7 @@ export default function PublicLeaguePage() {
   }
 
   async function load() {
-    const {data:lg} = await supabase.from('leagues').select('id,name,slug,sport,season,location,description,logo_url,banner_url,accent_color,is_active,announcement').eq('slug',slug).single()
+    const {data:lg} = await supabase.from('leagues').select('id,name,slug,sport,season,location,description,logo_url,banner_url,accent_color,is_active,announcement,contact_info,social_links').eq('slug',slug).single()
     if(!lg){setNotFound(true);setLoading(false);return}
     setLeague(lg)
     const [sr,tr,gr,pr] = await Promise.all([
@@ -62,6 +67,11 @@ export default function PublicLeaguePage() {
       supabase.from('league_players').select('id,display_name,jersey_number,position,team_id').eq('league_id',lg.id),
     ])
     setStandings(sr.data??[]);setTeams(tr.data??[]);setAllGames(gr.data??[]);setPlayers(pr.data??[])
+    const [sponsorsRes,galleryRes] = await Promise.all([
+      supabase.from('league_sponsors').select('id,name,logo_url,website_url').eq('league_id',lg.id).order('display_order'),
+      supabase.from('league_gallery_photos').select('id,photo_url,caption').eq('league_id',lg.id).order('created_at',{ascending:false}),
+    ])
+    setSponsors(sponsorsRes.data??[]);setGalleryPhotos(galleryRes.data??[])
     const pids=(pr.data??[]).map((p:Player)=>p.id)
     if(pids.length>0){
       const {data:sd}=await supabase.from('league_player_stats').select('game_id,player_id,team_id,points,rebounds,assists,steals,blocks,turnovers,field_goals_made,field_goals_attempted,three_pointers_made,three_pointers_attempted,free_throws_made,free_throws_attempted').in('player_id',pids)
@@ -125,6 +135,8 @@ export default function PublicLeaguePage() {
                 {league.season&&<Chip>{league.season}</Chip>}
                 {league.location&&<Chip>📍 {league.location}</Chip>}
                 <Chip style={{background:league.is_active?`${accent}20`:'rgba(106,106,130,0.12)',color:league.is_active?accent:'#6A6A82',border:`1px solid ${league.is_active?`${accent}40`:'transparent'}`}}>{league.is_active?'● Active':'○ Archived'}</Chip>
+                {league.contact_info&&<a href={league.contact_info.includes('@')?`mailto:${league.contact_info}`:league.contact_info.startsWith('http')?league.contact_info:`tel:${league.contact_info}`} style={{display:'inline-flex',alignItems:'center',gap:5,background:`${accent}18`,border:`1px solid ${accent}40`,borderRadius:99,padding:'4px 12px',color:accent,fontSize:12,fontFamily:"'DM Sans',sans-serif",textDecoration:'none',whiteSpace:'nowrap' as const}}>✉ Contact Us</a>}
+                {league.social_links&&<SocialIcons links={league.social_links} accent={accent}/>}
               </div>
             </div>
           </div>
@@ -153,9 +165,12 @@ export default function PublicLeaguePage() {
       {/* Tabs */}
       <div style={{background:'#0A0A0E',borderBottom:'1px solid #1C1C26',position:'sticky',top:0,zIndex:50}}>
         <div style={{maxWidth:900,margin:'0 auto',display:'flex',overflowX:'auto'}}>
-          {(['overview','schedule','stats','teams'] as Tab[]).map(t=>(
+          {([
+            ['overview','Overview'],['schedule','Schedule'],['stats','Stats'],['teams','Teams'],
+            ...(galleryPhotos.length>0?[['gallery','Gallery']]:[] as [Tab,string][]),
+          ] as [Tab,string][]).map(([t,label])=>(
             <button key={t} onClick={()=>setTab(t)} style={{background:'none',border:'none',borderBottom:activeTab===t?`3px solid ${accent}`:'3px solid transparent',color:activeTab===t?accent:'#EEEEF5',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase',letterSpacing:1,padding:'14px 20px',cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>
-              {{overview:'Overview',schedule:'Schedule',stats:'Stats',teams:'Teams'}[t]}
+              {label}
             </button>
           ))}
         </div>
@@ -202,6 +217,22 @@ export default function PublicLeaguePage() {
               {upcoming.length===0?<Empty>No games scheduled.</Empty>:<div style={{display:'flex',flexDirection:'column',gap:10}}>{upcoming.slice(0,8).map(g=><div key={g.id}><GCard g={g} tMap={tMap} accent={accent} rsvpCount={attendanceCounts[g.id]||0}/>{myPlayerId&&<RsvpRow gameId={g.id} myStatus={myAttendance[g.id]||null} accent={accent} onRsvp={rsvp}/>}</div>)}</div>}
             </section>
           </div>
+          {sponsors.length>0&&(
+            <section style={{marginTop:36}}>
+              <SecTitle accent={accent}>Our Sponsors</SecTitle>
+              <div style={{display:'flex',flexWrap:'wrap',gap:14,alignItems:'center'}}>
+                {sponsors.map(sp=>(
+                  <a key={sp.id} href={sp.website_url??undefined} target="_blank" rel="noopener noreferrer"
+                    style={{display:'flex',alignItems:'center',gap:10,background:'#0F0F14',border:'1px solid #1C1C26',borderRadius:12,padding:'12px 18px',textDecoration:'none',transition:'border-color 0.2s'}}
+                    onMouseEnter={e=>e.currentTarget.style.borderColor=accent+'66'}
+                    onMouseLeave={e=>e.currentTarget.style.borderColor='#1C1C26'}>
+                    {sp.logo_url&&<img src={sp.logo_url} alt={sp.name} style={{height:32,maxWidth:80,objectFit:'contain',borderRadius:4,background:'#fff',padding:'2px 6px'}}/>}
+                    <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,textTransform:'uppercase',color:'#EEEEF5'}}>{sp.name}</span>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
         </>}
 
         {/* SCHEDULE */}
@@ -271,10 +302,42 @@ export default function PublicLeaguePage() {
           </div>
         </section>}
 
+        {/* GALLERY */}
+        {activeTab==='gallery'&&<section>
+          <SecTitle accent={accent}>Gallery</SecTitle>
+          {galleryPhotos.length===0?<Empty>No photos yet.</Empty>:(
+            <div style={{columns:'3 180px',columnGap:12}}>
+              {galleryPhotos.map((p,i)=>(
+                <div key={p.id} onClick={()=>setLightboxIdx(i)} style={{breakInside:'avoid',marginBottom:12,borderRadius:10,overflow:'hidden',cursor:'pointer',position:'relative'}}>
+                  <img src={p.photo_url} alt={p.caption??''} style={{width:'100%',display:'block',borderRadius:10,transition:'transform 0.2s'}}
+                    onMouseEnter={e=>(e.currentTarget.style.transform='scale(1.02)')}
+                    onMouseLeave={e=>(e.currentTarget.style.transform='scale(1)')}/>
+                  {p.caption&&<div style={{position:'absolute',bottom:0,left:0,right:0,background:'linear-gradient(transparent,rgba(0,0,0,0.75))',padding:'24px 12px 10px',fontSize:12,color:'#EEEEF5',fontFamily:"'DM Sans',sans-serif"}}>{p.caption}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>}
+
       </main>
       <footer style={{borderTop:'1px solid #1C1C26',padding:'20px 24px',textAlign:'center',fontSize:11,color:'#3A3A4E',fontFamily:"'DM Mono',monospace"}}>
         Powered by <a href="https://www.netr.pro" style={{color:'#39FF14',textDecoration:'none',fontWeight:500}}>NETR</a>
       </footer>
+
+      {/* LIGHTBOX */}
+      {lightboxIdx!==null&&galleryPhotos[lightboxIdx]&&(
+        <div onClick={()=>setLightboxIdx(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.95)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+          <button onClick={e=>{e.stopPropagation();setLightboxIdx(i=>i!==null&&i>0?i-1:galleryPhotos.length-1)}}
+            style={{position:'absolute',left:20,top:'50%',transform:'translateY(-50%)',background:'rgba(255,255,255,0.1)',border:'none',color:'#fff',fontSize:28,width:48,height:48,borderRadius:'50%',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:12,maxWidth:'90vw'}}>
+            <img src={galleryPhotos[lightboxIdx].photo_url} alt={galleryPhotos[lightboxIdx].caption??''} onClick={e=>e.stopPropagation()} style={{maxHeight:'82vh',maxWidth:'90vw',objectFit:'contain',borderRadius:10,boxShadow:'0 0 60px rgba(0,0,0,0.8)'}}/>
+            {galleryPhotos[lightboxIdx].caption&&<div style={{fontSize:14,color:'#C8C8D4',fontFamily:"'DM Sans',sans-serif",textAlign:'center'}}>{galleryPhotos[lightboxIdx].caption}</div>}
+            <div style={{fontSize:12,color:'#4A4A5E',fontFamily:"'DM Mono',monospace"}}>{lightboxIdx+1} / {galleryPhotos.length}</div>
+          </div>
+          <button onClick={e=>{e.stopPropagation();setLightboxIdx(i=>i!==null&&i<galleryPhotos.length-1?i+1:0)}}
+            style={{position:'absolute',right:20,top:'50%',transform:'translateY(-50%)',background:'rgba(255,255,255,0.1)',border:'none',color:'#fff',fontSize:28,width:48,height:48,borderRadius:'50%',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>›</button>
+        </div>
+      )}
 
       {/* BOX SCORE MODAL */}
       {boxGame&&(
@@ -370,6 +433,30 @@ export default function PublicLeaguePage() {
       )}
     </div>
   </>)
+}
+
+function SocialIcons({links,accent}:{links:Record<string,string>;accent:string}) {
+  const defs:{[k:string]:{label:string;color:string;url:(h:string)=>string}} = {
+    instagram:{label:'IG',color:'#E1306C',url:h=>`https://instagram.com/${h}`},
+    twitter:  {label:'𝕏', color:'#1DA1F2',url:h=>`https://twitter.com/${h}`},
+    facebook: {label:'f', color:'#1877F2',url:h=>`https://facebook.com/${h}`},
+    tiktok:   {label:'TT',color:'#69C9D0',url:h=>`https://tiktok.com/@${h}`},
+    youtube:  {label:'▶', color:'#FF0000',url:h=>`https://youtube.com/@${h}`},
+    website:  {label:'🔗',color:accent,   url:h=>h},
+  }
+  return(
+    <>
+      {Object.entries(links).filter(([,v])=>v).map(([k,handle])=>{
+        const d=defs[k]; if(!d) return null
+        return(
+          <a key={k} href={d.url(handle)} target="_blank" rel="noopener noreferrer" title={d.label}
+            style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:28,height:28,borderRadius:'50%',background:`${d.color}22`,border:`1px solid ${d.color}55`,color:d.color,fontSize:11,fontFamily:"'DM Mono',monospace",fontWeight:700,textDecoration:'none',flexShrink:0}}>
+            {d.label}
+          </a>
+        )
+      })}
+    </>
+  )
 }
 
 function CalendarButtons({slug,teamId,size}:{slug:string;teamId?:string;size:'sm'|'lg'}) {

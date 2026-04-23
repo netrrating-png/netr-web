@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect, useRef } from 'react'
-import { supabase, League } from '../../../lib/supabase'
+import { supabase, League, LeagueSponsor, LeagueGalleryPhoto } from '../../../lib/supabase'
 import { PortalNav } from './index'
 import { STAT_DEFS, DEFAULT_ENABLED_STATS, StatKey } from '../../../lib/stat-config'
 
@@ -95,6 +95,26 @@ export default function SettingsPage() {
   const [cnameCopied, setCnameCopied]             = useState(false)
   const domainSave = useSaveState()
 
+  // Contact & social
+  const [contactInfo, setContactInfo]   = useState('')
+  const [socialLinks, setSocialLinks]   = useState<Record<string,string>>({})
+  const contactSave = useSaveState()
+
+  // Sponsors
+  const [sponsors, setSponsors]           = useState<LeagueSponsor[]>([])
+  const [newSponsorName, setNewSponsorName]     = useState('')
+  const [newSponsorLogo, setNewSponsorLogo]     = useState('')
+  const [newSponsorUrl, setNewSponsorUrl]       = useState('')
+  const [addingSponsor, setAddingSponsor]       = useState(false)
+
+  // Gallery
+  const [galleryPhotos, setGalleryPhotos]       = useState<LeagueGalleryPhoto[]>([])
+  const [newPhotoUrl, setNewPhotoUrl]           = useState('')
+  const [newPhotoCaption, setNewPhotoCaption]   = useState('')
+  const [addingPhoto, setAddingPhoto]           = useState(false)
+  const [photoUploading, setPhotoUploading]     = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     if (!leagueId) return
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -128,6 +148,15 @@ export default function SettingsPage() {
       setCustomDomain(data.custom_domain ?? '')
       setDomainInput(data.custom_domain ?? '')
       setCustomDomainStatus(data.custom_domain_status ?? null)
+      setContactInfo(data.contact_info ?? '')
+      setSocialLinks(data.social_links ?? {})
+
+      const [sponsorsRes, galleryRes] = await Promise.all([
+        supabase.from('league_sponsors').select('*').eq('league_id', leagueId).order('display_order'),
+        supabase.from('league_gallery_photos').select('*').eq('league_id', leagueId).order('created_at', { ascending: false }),
+      ])
+      setSponsors(sponsorsRes.data ?? [])
+      setGalleryPhotos(galleryRes.data ?? [])
       setLoading(false)
     })
   }, [leagueId])
@@ -228,6 +257,76 @@ export default function SettingsPage() {
     const next = !isActive
     setIsActive(next)
     statusSave.trigger(supabase.from('leagues').update({ is_active: next }).eq('id', leagueId))
+  }
+
+  function saveContact() {
+    contactSave.trigger(
+      supabase.from('leagues').update({ contact_info: contactInfo.trim() || null, social_links: Object.keys(socialLinks).length ? socialLinks : null }).eq('id', leagueId)
+    )
+  }
+
+  function setSocial(platform: string, value: string) {
+    setSocialLinks(prev => ({ ...prev, [platform]: value.trim() }))
+  }
+
+  async function addSponsor(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newSponsorName.trim()) return
+    setAddingSponsor(true)
+    const { data } = await supabase.from('league_sponsors').insert({
+      league_id: leagueId,
+      name: newSponsorName.trim(),
+      logo_url: newSponsorLogo.trim() || null,
+      website_url: newSponsorUrl.trim() || null,
+      display_order: sponsors.length,
+    }).select().single()
+    if (data) setSponsors(prev => [...prev, data])
+    setNewSponsorName(''); setNewSponsorLogo(''); setNewSponsorUrl('')
+    setAddingSponsor(false)
+  }
+
+  async function removeSponsor(id: string) {
+    await supabase.from('league_sponsors').delete().eq('id', id)
+    setSponsors(prev => prev.filter(s => s.id !== id))
+  }
+
+  async function uploadPhotoToCloudinary(file: File): Promise<string | null> {
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+    if (!cloudName) return null
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('upload_preset', 'league_gallery')
+    const r = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: fd })
+    const json = await r.json()
+    return json.secure_url ?? null
+  }
+
+  async function handlePhotoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhotoUploading(true)
+    const url = await uploadPhotoToCloudinary(file)
+    if (url) setNewPhotoUrl(url)
+    setPhotoUploading(false)
+  }
+
+  async function addPhoto(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newPhotoUrl.trim()) return
+    setAddingPhoto(true)
+    const { data } = await supabase.from('league_gallery_photos').insert({
+      league_id: leagueId,
+      photo_url: newPhotoUrl.trim(),
+      caption: newPhotoCaption.trim() || null,
+    }).select().single()
+    if (data) setGalleryPhotos(prev => [data, ...prev])
+    setNewPhotoUrl(''); setNewPhotoCaption('')
+    setAddingPhoto(false)
+  }
+
+  async function removePhoto(id: string) {
+    await supabase.from('league_gallery_photos').delete().eq('id', id)
+    setGalleryPhotos(prev => prev.filter(p => p.id !== id))
   }
 
   async function saveCustomDomainFn(e: React.FormEvent) {
@@ -663,6 +762,136 @@ export default function SettingsPage() {
                 Preview ↗
               </a>
             </div>
+          </div>
+
+          {/* ── Contact & Social ── */}
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>Contact & Social</div>
+                <div style={S.cardSub}>Contact info shows as a button on your public page. Social handles appear as icons in the header.</div>
+              </div>
+              <SaveIndicator state={contactSave.state} />
+            </div>
+            <label style={S.label}>Contact Info</label>
+            <input value={contactInfo} onChange={e => setContactInfo(e.target.value)} style={S.input} placeholder="e.g. mondayhoops@gmail.com or (212) 555-0100" />
+            <div style={{ marginTop: 20, marginBottom: 10 }}>
+              <label style={S.label}>Social Handles</label>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 10, marginBottom: 14 }}>
+              {[
+                { key: 'instagram', label: 'Instagram', prefix: '@', placeholder: 'yourleague' },
+                { key: 'twitter',   label: 'Twitter / X', prefix: '@', placeholder: 'yourleague' },
+                { key: 'facebook',  label: 'Facebook', prefix: '', placeholder: 'yourleaguepage' },
+                { key: 'tiktok',    label: 'TikTok', prefix: '@', placeholder: 'yourleague' },
+                { key: 'youtube',   label: 'YouTube', prefix: '@', placeholder: 'yourleague' },
+                { key: 'website',   label: 'Website', prefix: '', placeholder: 'https://yourleague.com' },
+              ].map(({ key, label, prefix, placeholder }) => (
+                <div key={key}>
+                  <div style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono',monospace", marginBottom: 5 }}>{label}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', background: '#0A0A0E', border: '1px solid #2E2E3A', borderRadius: 8 }}>
+                    {prefix && <span style={{ padding: '0 8px', color: '#4A4A5E', fontFamily: "'DM Mono',monospace", fontSize: 13 }}>{prefix}</span>}
+                    <input value={socialLinks[key] ?? ''} onChange={e => setSocial(key, e.target.value)} placeholder={placeholder}
+                      style={{ ...S.input, border: 'none', background: 'transparent', flex: 1, borderRadius: 0 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' as const }}>
+              <button type="button" onClick={saveContact} style={S.saveBtn} disabled={contactSave.state === 'saving'}>
+                {contactSave.state === 'saving' ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+
+          {/* ── Sponsors ── */}
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>Sponsors</div>
+                <div style={S.cardSub}>Sponsor logos and names shown on your public league page.</div>
+              </div>
+            </div>
+            {sponsors.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, marginBottom: 16 }}>
+                {sponsors.map(sp => (
+                  <div key={sp.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#0A0A0E', border: '1px solid #1C1C26', borderRadius: 10, padding: '10px 14px' }}>
+                    {sp.logo_url && <img src={sp.logo_url} alt={sp.name} style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 6, background: '#fff', padding: 3 }} />}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: 15, textTransform: 'uppercase' as const }}>{sp.name}</div>
+                      {sp.website_url && <div style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono',monospace" }}>{sp.website_url}</div>}
+                    </div>
+                    <button onClick={() => removeSponsor(sp.id)} style={{ background: 'none', border: 'none', color: '#FF4455', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <form onSubmit={addSponsor} style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={S.label}>Sponsor Name *</label>
+                  <input value={newSponsorName} onChange={e => setNewSponsorName(e.target.value)} style={S.input} placeholder="Acme Corp" />
+                </div>
+                <div>
+                  <label style={S.label}>Logo URL</label>
+                  <input value={newSponsorLogo} onChange={e => setNewSponsorLogo(e.target.value)} style={S.input} placeholder="https://acme.com/logo.png" />
+                </div>
+              </div>
+              <div>
+                <label style={S.label}>Website URL</label>
+                <input value={newSponsorUrl} onChange={e => setNewSponsorUrl(e.target.value)} style={S.input} placeholder="https://acme.com" />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' as const }}>
+                <button type="submit" style={S.saveBtn} disabled={addingSponsor || !newSponsorName.trim()}>
+                  {addingSponsor ? 'Adding…' : '+ Add Sponsor'}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* ── Gallery ── */}
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>Photo Gallery</div>
+                <div style={S.cardSub}>Photos shown in the Gallery tab on your public league page.{process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ? ' Upload directly or paste a URL.' : ' Paste a direct image URL (Cloudinary, Google Photos, Imgur, etc.).'}</div>
+              </div>
+            </div>
+            {galleryPhotos.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(100px,1fr))', gap: 8, marginBottom: 16 }}>
+                {galleryPhotos.map(p => (
+                  <div key={p.id} style={{ position: 'relative' as const, borderRadius: 8, overflow: 'hidden', aspectRatio: '1' }}>
+                    <img src={p.photo_url} alt={p.caption ?? ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <button onClick={() => removePhoto(p.id)} style={{ position: 'absolute' as const, top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: 14, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' as const }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <form onSubmit={addPhoto} style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+              <div>
+                <label style={S.label}>Photo URL</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input value={newPhotoUrl} onChange={e => setNewPhotoUrl(e.target.value)} style={{ ...S.input, flex: 1 }} placeholder="https://res.cloudinary.com/..." />
+                  {process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME && (
+                    <>
+                      <input ref={photoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoFileChange} />
+                      <button type="button" onClick={() => photoInputRef.current?.click()} style={{ ...S.cancelBtn, whiteSpace: 'nowrap' as const }} disabled={photoUploading}>
+                        {photoUploading ? 'Uploading…' : '↑ Upload'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label style={S.label}>Caption (optional)</label>
+                <input value={newPhotoCaption} onChange={e => setNewPhotoCaption(e.target.value)} style={S.input} placeholder="Finals night — May 2025" />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' as const }}>
+                <button type="submit" style={S.saveBtn} disabled={addingPhoto || !newPhotoUrl.trim()}>
+                  {addingPhoto ? 'Adding…' : '+ Add Photo'}
+                </button>
+              </div>
+            </form>
           </div>
 
           {/* ── Custom Domain ── */}

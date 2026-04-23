@@ -27,8 +27,28 @@ export type League = {
   banner_url: string | null
   accent_color: string | null
   announcement: string | null
+  contact_info: string | null
+  social_links: Record<string, string> | null
   custom_domain: string | null
   custom_domain_status: 'pending' | 'active' | 'error' | null
+  created_at: string
+}
+
+export type LeagueSponsor = {
+  id: string
+  league_id: string
+  name: string
+  logo_url: string | null
+  website_url: string | null
+  display_order: number
+  created_at: string
+}
+
+export type LeagueGalleryPhoto = {
+  id: string
+  league_id: string
+  photo_url: string
+  caption: string | null
   created_at: string
 }
 
