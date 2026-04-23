@@ -160,7 +160,7 @@ export default function SettingsPage() {
       const [sponsorsRes, galleryRes, courtsRes] = await Promise.all([
         supabase.from('league_sponsors').select('*').eq('league_id', leagueId).order('display_order'),
         supabase.from('league_gallery_photos').select('*').eq('league_id', leagueId).order('created_at', { ascending: false }),
-        supabase.from('courts').select('id,name,city').eq('verified', true).order('name'),
+        supabase.from('courts').select('id,name,city').order('name').limit(10000),
       ])
       setSponsors(sponsorsRes.data ?? [])
       setGalleryPhotos(galleryRes.data ?? [])

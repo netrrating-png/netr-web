@@ -59,7 +59,7 @@ export default function SchedulePage() {
         supabase.from('league_teams').select('*').eq('league_id', leagueId).order('name'),
         supabase.from('league_games').select('*').eq('league_id', leagueId).order('scheduled_at'),
         Promise.resolve(supabase.from('league_standings').select('*').eq('league_id', leagueId).order('wins', { ascending: false })).catch(() => ({ data: [] })),
-        supabase.from('courts').select('id,name,city').eq('verified', true).order('name'),
+        supabase.from('courts').select('id,name,city').order('name').limit(10000),
       ])
 
       if (!leagueRes.data) { router.replace('/league-portal'); return }
