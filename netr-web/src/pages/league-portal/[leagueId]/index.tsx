@@ -199,7 +199,7 @@ export function PortalNav({ leagueName, leagueId, active, logoUrl }: { leagueNam
         <a href="/league-portal" style={S.backLink}>← My Leagues</a>
         <span style={S.logo}>
           {logoUrl && <img src={logoUrl} alt="" style={{ width: 26, height: 26, borderRadius: 5, objectFit: 'cover', marginRight: 8, verticalAlign: 'middle' }} />}
-          NETR <span style={{ color: '#EEEEF5', opacity: 0.5 }}>LEAGUES</span>
+          NETR <span style={{ color: '#EEEEF5' }}>LEAGUES</span>
         </span>
       </div>
       <div style={S.tabRow}>
