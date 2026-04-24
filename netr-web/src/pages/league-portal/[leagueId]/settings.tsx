@@ -86,6 +86,9 @@ export default function SettingsPage() {
   const [courts, setCourts]               = useState<{ id: string; name: string; city: string }[]>([])
   const [defaultCourtId, setDefaultCourtId] = useState<string | null>(null)
 
+  // Settings tab
+  const [sTab, setSTab] = useState<'general'|'appearance'|'website'|'schedule'|'danger'>('general')
+
   // Font & signup CTA
   const [leagueFont, setLeagueFont]   = useState('barlow')
   const [signupUrl, setSignupUrl]     = useState('')
@@ -403,8 +406,36 @@ export default function SettingsPage() {
         <PortalNav leagueName={league.name} leagueId={leagueId} active="settings" logoUrl={logoUrl} />
 
         <main style={S.main}>
-          <h1 style={S.pageTitle}>Commissioner Settings</h1>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap' as const, gap: 12 }}>
+            <h1 style={{ ...S.pageTitle, marginBottom: 0 }}>Settings</h1>
+            <div style={{ display: 'flex', gap: 4, background: '#0A0A0E', border: '1px solid #1C1C26', borderRadius: 12, padding: 4, flexWrap: 'wrap' as const }}>
+              {([
+                ['general',   '⚙ General'],
+                ['appearance','🎨 Look & Feel'],
+                ['website',   '🌐 Website'],
+                ['schedule',  '📅 Stats & Schedule'],
+                ['danger',    '⚠'],
+              ] as const).map(([key, label]) => (
+                <button key={key} type="button" onClick={() => setSTab(key)} style={{
+                  background: sTab === key ? (key === 'danger' ? '#FF445520' : '#39FF1420') : 'none',
+                  border: `1px solid ${sTab === key ? (key === 'danger' ? '#FF4455' : '#39FF14') : 'transparent'}`,
+                  borderRadius: 8,
+                  color: sTab === key ? (key === 'danger' ? '#FF4455' : '#39FF14') : '#6A6A82',
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontWeight: 600,
+                  fontSize: 13,
+                  padding: '7px 14px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap' as const,
+                  transition: 'all 0.15s',
+                }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
 
+          {sTab === 'appearance' && <>
           {/* ── League Branding ── */}
           <div style={S.card}>
             <div style={S.cardHead}>
@@ -564,7 +595,9 @@ export default function SettingsPage() {
               </button>
             </div>
           </form>
+          </>}
 
+          {sTab === 'schedule' && <>
           {/* ── Schedule & Playoffs ── */}
           <form onSubmit={saveScheduleSettings} style={S.card}>
             <div style={S.cardHead}>
@@ -605,7 +638,9 @@ export default function SettingsPage() {
               </button>
             </div>
           </form>
+          </>}
 
+          {sTab === 'general' && <>
           {/* ── League Details ── */}
           <form onSubmit={saveDetails} style={S.card}>
             <div style={S.cardHead}>
@@ -702,7 +737,9 @@ export default function SettingsPage() {
               </button>
             </div>
           </form>
+          </>}
 
+          {sTab === 'schedule' && <>
           {/* ── Tracked Stats ── */}
           <div style={S.card}>
             <div style={S.cardHead}>
@@ -781,7 +818,9 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+          </>}
 
+          {sTab === 'general' && <>
           {/* ── Season Status ── */}
           <div style={S.card}>
             <div style={S.cardHead}>
@@ -834,7 +873,9 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
+          </>}
 
+          {sTab === 'website' && <>
           {/* ── League Page ── */}
           <div style={S.card}>
             <div style={S.cardHead}>
@@ -868,7 +909,9 @@ export default function SettingsPage() {
               </a>
             </div>
           </div>
+          </>}
 
+          {sTab === 'appearance' && <>
           {/* ── Contact & Social ── */}
           <div style={S.card}>
             <div style={S.cardHead}>
@@ -908,7 +951,9 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
+          </>}
 
+          {sTab === 'website' && <>
           {/* ── Sponsors ── */}
           <div style={S.card}>
             <div style={S.cardHead}>
@@ -1000,6 +1045,7 @@ export default function SettingsPage() {
           </div>
 
           {/* ── Custom Domain ── */}
+
           <div style={S.card}>
             <div style={S.cardHead}>
               <div>
@@ -1090,7 +1136,9 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
+          </>}
 
+          {sTab === 'danger' && <>
           {/* ── Danger Zone ── */}
           <div style={{ ...S.card, ...S.dangerCard }}>
             <div style={S.cardHead}>
@@ -1132,6 +1180,8 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
+          </>}
+
         </main>
       </div>
     </>
