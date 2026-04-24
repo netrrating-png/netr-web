@@ -177,6 +177,12 @@ export default function TeamsPage() {
     setTeams(prev => prev.map(t => t.id === teamId ? { ...t, players: t.players.filter(p => p.id !== playerId) } : t))
   }
 
+  async function deleteTeam(teamId: string) {
+    await supabase.from('league_teams').delete().eq('id', teamId)
+    setTeams(prev => prev.filter(t => t.id !== teamId))
+    setEditingTeam(null)
+  }
+
   async function toggleFeePaid(team: TeamWithPlayers) {
     const newVal = !team.fee_paid
     setTeams(prev => prev.map(t => t.id === team.id ? { ...t, fee_paid: newVal } : t))
@@ -366,9 +372,18 @@ export default function TeamsPage() {
                       onLogoClear={clearEditLogo}
                       fileRef={editFileInputRef}
                     />
-                    <div style={S.formActions}>
-                      <button type="button" onClick={cancelEdit} style={S.cancelBtn}>Cancel</button>
-                      <button type="submit" style={S.saveBtn} disabled={saving || !editName}>{saving ? 'Saving…' : 'Save Changes'}</button>
+                    <div style={{ ...S.formActions, justifyContent: 'space-between' as const }}>
+                      <button
+                        type="button"
+                        onClick={() => { if (confirm(`Delete "${team.name}"? This will remove all players and game history for this team.`) ) deleteTeam(team.id) }}
+                        style={{ background: 'none', border: '1px solid #FF445540', borderRadius: 8, color: '#FF4455', fontSize: 13, padding: '8px 16px', cursor: 'pointer' }}
+                      >
+                        Delete Team
+                      </button>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button type="button" onClick={cancelEdit} style={S.cancelBtn}>Cancel</button>
+                        <button type="submit" style={S.saveBtn} disabled={saving || !editName}>{saving ? 'Saving…' : 'Save Changes'}</button>
+                      </div>
                     </div>
                   </form>
                 ) : (
