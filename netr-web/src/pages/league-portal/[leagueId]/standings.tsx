@@ -38,11 +38,7 @@ export default function StandingsPage() {
       if (!leagueRes.data) { router.replace('/league-portal'); return }
       setLeague(leagueRes.data)
       setStandings(standingsRes.data ?? [])
-      const divs = divisionsRes.data ?? []
-      setDivisions(divs)
-      if (!(leagueRes.data.cross_division_play ?? true) && divs.length > 0) {
-        setDivFilter(divs[0].id)
-      }
+      setDivisions(divisionsRes.data ?? [])
       setLoading(false)
     })
   }, [leagueId])

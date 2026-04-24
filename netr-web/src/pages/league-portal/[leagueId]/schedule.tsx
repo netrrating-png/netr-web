@@ -101,9 +101,6 @@ export default function SchedulePage() {
       setStandings((standingsRes as { data: StandingRow[] | null }).data ?? [])
       const divs = divisionsRes.data ?? []
       setDivisions(divs)
-      if (!(lg.cross_division_play ?? true) && divs.length > 0) {
-        setDivFilter(divs[0].id)
-      }
 
       const gameIds = (gamesRes.data ?? []).map((g: LeagueGame) => g.id)
       if (gameIds.length > 0) {
@@ -159,7 +156,7 @@ export default function SchedulePage() {
   async function handleAvailTimeChange(teamId: string, slot: string, checked: boolean, allSlots: string[]) {
     const curr = teamTimeAvail[teamId] ?? []
     const expanded = curr.length === 0 ? [...allSlots] : [...curr]
-    const next = checked ? [...new Set([...expanded, slot])] : expanded.filter(s => s !== slot)
+    const next = checked ? Array.from(new Set([...expanded, slot])) : expanded.filter(s => s !== slot)
     const normalized = next.length === allSlots.length ? [] : next
     setTeamTimeAvail(prev => ({ ...prev, [teamId]: normalized }))
     await supabase.from('league_teams').update({ available_times: normalized.length ? normalized : null }).eq('id', teamId)
@@ -214,7 +211,7 @@ export default function SchedulePage() {
     setSaving(true)
     const { data } = await supabase
       .from('league_games')
-      .insert({ league_id: leagueId, ...form, location: form.location || null, court_id: form.court_id || null, division_id: divFilter !== 'all' ? divFilter : null })
+      .insert({ league_id: leagueId, ...form, location: form.location || null, court_id: form.court_id || null, division_id: divFilter !== 'all' ? divFilter : null, game_type: 'regular', status: 'scheduled' })
       .select()
       .single()
 
@@ -491,7 +488,7 @@ export default function SchedulePage() {
             <section style={S.section}>
               <div style={S.sectionLabel}>Results ({completed.length})</div>
               <div style={S.gameList}>
-                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} onDelete={() => deleteGame(g.id)} onEdit={editGame} leagueId={leagueId} rsvpYes={attendance.filter(a => a.game_id === g.id && a.status === 'yes').length} />)}
+                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} teams={divTeams} onDelete={() => deleteGame(g.id)} onEdit={editGame} leagueId={leagueId} rsvpYes={attendance.filter(a => a.game_id === g.id && a.status === 'yes').length} />)}
               </div>
             </section>
           )}
@@ -501,7 +498,7 @@ export default function SchedulePage() {
             <section style={S.section}>
               <div style={S.sectionLabel}>Upcoming ({upcoming.length})</div>
               <div style={S.gameList}>
-                {upcoming.map(g => <GameRow key={g.id} game={g} onCancel={() => cancelGame(g.id)} onEdit={editGame} leagueId={leagueId} rsvpYes={attendance.filter(a => a.game_id === g.id && a.status === 'yes').length} />)}
+                {upcoming.map(g => <GameRow key={g.id} game={g} teams={divTeams} onCancel={() => cancelGame(g.id)} onDelete={() => deleteGame(g.id)} onEdit={editGame} leagueId={leagueId} rsvpYes={attendance.filter(a => a.game_id === g.id && a.status === 'yes').length} />)}
               </div>
             </section>
           )}
@@ -620,20 +617,40 @@ function fmtSlot(t: string): string {
   return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`
 }
 
-function GameRow({ game, onCancel, onDelete, onEdit, leagueId, rsvpYes = 0 }: { game: GameWithTeams; onCancel?: () => void; onDelete?: () => void; onEdit?: (id: string, updates: Partial<LeagueGame>) => void; leagueId: string; rsvpYes?: number }) {
+function GameRow({ game, teams = [], onCancel, onDelete, onEdit, leagueId, rsvpYes = 0 }: {
+  game: GameWithTeams
+  teams?: LeagueTeam[]
+  onCancel?: () => void
+  onDelete?: () => void
+  onEdit?: (id: string, updates: Partial<LeagueGame>) => void
+  leagueId: string
+  rsvpYes?: number
+}) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [editing, setEditing] = useState(false)
-  const [editForm, setEditForm] = useState({ scheduled_at: game.scheduled_at.slice(0, 16), location: game.location ?? '' })
+  const [editForm, setEditForm] = useState({
+    scheduled_at: game.scheduled_at.slice(0, 16),
+    location: game.location ?? '',
+    home_team_id: game.home_team_id,
+    away_team_id: game.away_team_id,
+  })
   const [savingEdit, setSavingEdit] = useState(false)
 
   async function saveEdit() {
+    if (editForm.home_team_id === editForm.away_team_id) return
     setSavingEdit(true)
     const updates: Partial<LeagueGame> = {
       scheduled_at: new Date(editForm.scheduled_at).toISOString(),
       location: editForm.location || null,
+      home_team_id: editForm.home_team_id,
+      away_team_id: editForm.away_team_id,
     }
     await supabase.from('league_games').update(updates).eq('id', game.id)
-    onEdit?.(game.id, updates)
+    onEdit?.(game.id, {
+      ...updates,
+      home_team: teams.find(t => t.id === editForm.home_team_id),
+      away_team: teams.find(t => t.id === editForm.away_team_id),
+    } as Partial<LeagueGame>)
     setSavingEdit(false)
     setEditing(false)
   }
@@ -645,11 +662,20 @@ function GameRow({ game, onCancel, onDelete, onEdit, leagueId, rsvpYes = 0 }: { 
 
   if (editing) {
     return (
-      <div style={{ ...S.gameRow, flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15 }}>{game.home_team.name} vs {game.away_team.name}</span>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ ...S.gameRow, flexDirection: 'column' as const, alignItems: 'stretch', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+          <div>
+            <label style={S.label}>Home Team</label>
+            <select value={editForm.home_team_id} onChange={e => setEditForm(f => ({ ...f, home_team_id: e.target.value }))} style={S.select}>
+              {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={S.label}>Away Team</label>
+            <select value={editForm.away_team_id} onChange={e => setEditForm(f => ({ ...f, away_team_id: e.target.value }))} style={S.select}>
+              {teams.filter(t => t.id !== editForm.home_team_id).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
           <div>
             <label style={S.label}>Date & Time</label>
             <input type="datetime-local" value={editForm.scheduled_at} onChange={e => setEditForm(f => ({ ...f, scheduled_at: e.target.value }))} style={S.input} />
@@ -659,9 +685,14 @@ function GameRow({ game, onCancel, onDelete, onEdit, leagueId, rsvpYes = 0 }: { 
             <input type="text" value={editForm.location} onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} style={S.input} placeholder="Gym or court name" />
           </div>
         </div>
+        {editForm.home_team_id === editForm.away_team_id && (
+          <div style={{ fontSize: 12, color: '#FF453A' }}>Home and away team must be different.</div>
+        )}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={() => setEditing(false)} style={S.cancelBtn}>Cancel</button>
-          <button onClick={saveEdit} style={S.saveBtn} disabled={savingEdit}>{savingEdit ? 'Saving…' : 'Save Changes'}</button>
+          <button onClick={saveEdit} style={S.saveBtn} disabled={savingEdit || editForm.home_team_id === editForm.away_team_id}>
+            {savingEdit ? 'Saving…' : 'Save Changes'}
+          </button>
         </div>
       </div>
     )
@@ -688,24 +719,25 @@ function GameRow({ game, onCancel, onDelete, onEdit, leagueId, rsvpYes = 0 }: { 
           </span>
         )}
         {game.status === 'final' && <span style={S.finalBadge}>Final</span>}
+        {game.status === 'cancelled' && <span style={{ ...S.finalBadge, background: 'rgba(255,69,58,0.1)', color: '#FF453A' }}>Cancelled</span>}
         {game.status === 'scheduled' && (
-          <a href={`/league-portal/${leagueId}/score/${game.id}`} style={S.scoreBtn}>Enter Score + Stats</a>
+          <a href={`/league-portal/${leagueId}/score/${game.id}`} style={S.scoreBtn}>Enter Score</a>
         )}
         {game.status === 'final' && (
-          <a href={`/league-portal/${leagueId}/score/${game.id}`} style={S.editBtn}>Edit Score + Stats</a>
+          <a href={`/league-portal/${leagueId}/score/${game.id}`} style={S.editBtn}>Box Score</a>
         )}
         {game.status === 'scheduled' && onEdit && (
           <button onClick={() => setEditing(true)} style={S.cancelSmBtn}>Edit</button>
         )}
         {game.status === 'scheduled' && onCancel && (
-          <button onClick={onCancel} style={S.cancelSmBtn}>Cancel</button>
+          <button onClick={onCancel} style={S.cancelSmBtn}>Cancel Game</button>
         )}
         {onDelete && !confirmDelete && (
           <button onClick={() => setConfirmDelete(true)} style={S.deleteSmBtn}>Delete</button>
         )}
         {onDelete && confirmDelete && (
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 12, color: '#FF453A', fontFamily: "'DM Sans', sans-serif" }}>Delete?</span>
+            <span style={{ fontSize: 12, color: '#FF453A' }}>Delete?</span>
             <button onClick={onDelete} style={{ ...S.cancelSmBtn, color: '#FF453A', borderColor: '#FF453A' }}>Yes</button>
             <button onClick={() => setConfirmDelete(false)} style={S.cancelSmBtn}>No</button>
           </span>

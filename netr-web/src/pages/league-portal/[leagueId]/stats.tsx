@@ -63,11 +63,7 @@ export default function StatsPage() {
       setLeague(leagueRes.data)
       setEnabledStats(enabled)
       setActiveTab(enabled[0] ?? null)
-      const divs = divisionsRes.data ?? []
-      setDivisions(divs)
-      if (!(leagueRes.data.cross_division_play ?? true) && divs.length > 0) {
-        setDivFilter(divs[0].id)
-      }
+      setDivisions(divisionsRes.data ?? [])
 
       // Build game→division and team→division maps for filtering
       const gameDivMap: Record<string, string | null> = {}
