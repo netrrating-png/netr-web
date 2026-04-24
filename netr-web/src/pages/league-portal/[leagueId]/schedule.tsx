@@ -261,6 +261,7 @@ export default function SchedulePage() {
   const playoffGames = allPlayoffGames.filter(g => matchesDivFilter(g.division_id ?? null))
   const upcoming = regularGames.filter(g => g.status === 'scheduled')
   const completed = regularGames.filter(g => g.status === 'final')
+  const cancelled = regularGames.filter(g => g.status === 'cancelled')
   const divStandings = divFilter === 'all' ? standings : standings.filter((s: StandingRow & { division_id?: string }) => s.division_id === divFilter)
 
   const n = league.playoff_teams ?? 4
@@ -520,7 +521,17 @@ export default function SchedulePage() {
             </section>
           )}
 
-          {regularGames.length === 0 && !showGenerator && (
+          {/* Cancelled — always shown so commissioner can delete them */}
+          {cancelled.length > 0 && (
+            <section style={S.section}>
+              <div style={S.sectionLabel}>Cancelled ({cancelled.length})</div>
+              <div style={S.gameList}>
+                {cancelled.map(g => <GameRow key={g.id} game={g} teams={divTeams} onDelete={() => deleteGame(g.id)} leagueId={leagueId} />)}
+              </div>
+            </section>
+          )}
+
+          {upcoming.length === 0 && completed.length === 0 && cancelled.length === 0 && !showGenerator && (
             <div style={S.empty}>
               <div style={S.emptyIcon}>📅</div>
               <p style={S.emptyText}>No regular season games yet.</p>
@@ -588,6 +599,7 @@ export default function SchedulePage() {
                                 <span style={S.finalBadge}>Final</span>
                                 <a href={`/league-portal/${leagueId}/score/${dbg.id}`} style={S.boxBtn}>Box Score</a>
                               </>}
+                              {dbg && <button onClick={() => deleteGame(dbg.id)} style={S.deleteSmBtn}>Delete</button>}
                             </div>
                           </div>
                         )
