@@ -144,6 +144,12 @@ export default function PublicLeaguePage() {
             {league.logo_url&&<img src={league.logo_url} alt={league.name} style={{width:96,height:96,borderRadius:14,objectFit:'cover',border:`3px solid ${accent}`,flexShrink:0,boxShadow:`0 0 32px ${accent}50`,background:'#0A0A0E'}}/>}
             <h1 style={{fontFamily:displayFont,fontWeight:900,fontSize:'clamp(42px,9vw,96px)',textTransform:'uppercase',lineHeight:0.88,letterSpacing:'-1px',margin:0,wordBreak:'break-word' as const}}>{league.name}</h1>
           </div>
+          {/* Description — league mission statement */}
+          {league.description&&(
+            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:'clamp(15px,2.2vw,19px)',color:'rgba(238,238,245,0.82)',lineHeight:1.65,margin:'0 0 22px',maxWidth:620,fontWeight:400}}>
+              {league.description}
+            </p>
+          )}
           {/* Meta + CTA row */}
           <div style={{display:'flex',alignItems:'center',flexWrap:'wrap' as const,gap:10}}>
             {league.location&&<Chip>📍 {league.location}</Chip>}
@@ -172,13 +178,6 @@ export default function PublicLeaguePage() {
         </div>
       )}
 
-      {/* Description */}
-      {league.description&&(
-        <div style={{background:'#0A0A0E',borderBottom:'1px solid #14141C',padding:'14px 20px'}}>
-          <div style={{maxWidth:900,margin:'0 auto',fontSize:14,color:'#A0A0B8',lineHeight:1.6}}>{league.description}</div>
-        </div>
-      )}
-
       {/* Tabs */}
       <div style={{background:'#0A0A0E',borderBottom:'1px solid #1C1C26',position:'sticky',top:0,zIndex:50}}>
         <div style={{maxWidth:900,margin:'0 auto',display:'flex',overflowX:'auto'}}>
@@ -197,14 +196,6 @@ export default function PublicLeaguePage() {
 
         {/* OVERVIEW — homepage */}
         {activeTab==='overview'&&<>
-
-          {/* About / Mission */}
-          {league.description&&(
-            <section style={{marginBottom:60}}>
-              <SectionLabel accent={accent}>About Us</SectionLabel>
-              <p style={{fontFamily:displayFont,fontSize:'clamp(20px,3.5vw,30px)',lineHeight:1.55,color:'#C8C8D4',fontWeight:400,margin:0,maxWidth:700}}>{league.description}</p>
-            </section>
-          )}
 
           {/* Gallery strip */}
           {galleryPhotos.length>0&&(
