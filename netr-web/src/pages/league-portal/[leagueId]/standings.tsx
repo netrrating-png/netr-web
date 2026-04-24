@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
-import { supabase, League } from '../../../lib/supabase'
+import { supabase, League, LeagueDivision } from '../../../lib/supabase'
 import { PortalNav } from './index'
 
 type Standing = {
@@ -12,6 +12,7 @@ type Standing = {
   losses: number
   pts_for: number
   pts_against: number
+  division_id: string | null
 }
 
 export default function StandingsPage() {
@@ -19,6 +20,8 @@ export default function StandingsPage() {
   const { leagueId } = router.query as { leagueId: string }
   const [league, setLeague] = useState<League | null>(null)
   const [standings, setStandings] = useState<Standing[]>([])
+  const [divisions, setDivisions] = useState<LeagueDivision[]>([])
+  const [divFilter, setDivFilter] = useState<string>('all')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -26,21 +29,24 @@ export default function StandingsPage() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.replace('/league-portal/login'); return }
 
-      const [leagueRes, standingsRes] = await Promise.all([
+      const [leagueRes, standingsRes, divisionsRes] = await Promise.all([
         supabase.from('leagues').select('*').eq('id', leagueId).eq('owner_id', user.id).single(),
         supabase.from('league_standings').select('*').eq('league_id', leagueId),
+        supabase.from('league_divisions').select('*').eq('league_id', leagueId).order('display_order'),
       ])
 
       if (!leagueRes.data) { router.replace('/league-portal'); return }
       setLeague(leagueRes.data)
       setStandings(standingsRes.data ?? [])
+      setDivisions(divisionsRes.data ?? [])
       setLoading(false)
     })
   }, [leagueId])
 
   if (loading || !league) return <LoadingScreen />
 
-  const totalGames = standings.reduce((n, s) => n + s.wins + s.losses, 0) / 2
+  const visibleStandings = divFilter === 'all' ? standings : standings.filter(s => s.division_id === divFilter)
+  const totalGames = visibleStandings.reduce((n, s) => n + s.wins + s.losses, 0) / 2
 
   return (
     <>
@@ -58,12 +64,39 @@ export default function StandingsPage() {
             <div>
               <h1 style={S.title}>Standings</h1>
               <p style={S.sub}>
-                {standings.length} team{standings.length !== 1 ? 's' : ''} · {totalGames} game{totalGames !== 1 ? 's' : ''} played
+                {visibleStandings.length} team{visibleStandings.length !== 1 ? 's' : ''} · {totalGames} game{totalGames !== 1 ? 's' : ''} played
               </p>
             </div>
           </div>
 
-          {standings.length === 0 ? (
+          {/* Division filter tabs */}
+          {divisions.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 20 }}>
+              {[{ id: 'all', name: 'All Divisions' }, ...divisions].map(d => (
+                <button
+                  key={d.id}
+                  onClick={() => setDivFilter(d.id)}
+                  style={{
+                    background: divFilter === d.id ? 'rgba(57,255,20,0.12)' : '#0F0F14',
+                    border: `1.5px solid ${divFilter === d.id ? '#39FF14' : '#1C1C26'}`,
+                    borderRadius: 8,
+                    color: divFilter === d.id ? '#39FF14' : '#6A6A82',
+                    fontFamily: "'Barlow Condensed', sans-serif",
+                    fontWeight: 700,
+                    fontSize: 15,
+                    letterSpacing: 1,
+                    padding: '8px 18px',
+                    cursor: 'pointer',
+                    textTransform: 'uppercase' as const,
+                  }}
+                >
+                  {d.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {visibleStandings.length === 0 ? (
             <div style={S.empty}>
               <div style={S.emptyIcon}>🏆</div>
               <p style={S.emptyText}>No games played yet. Standings will appear once you enter your first score.</p>
@@ -85,7 +118,7 @@ export default function StandingsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {standings.map((s, i) => {
+                  {visibleStandings.map((s, i) => {
                     const gp = s.wins + s.losses
                     const pct = gp > 0 ? (s.wins / gp).toFixed(3).replace(/^0/, '') : '.000'
                     const diff = s.pts_for - s.pts_against

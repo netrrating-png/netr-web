@@ -66,6 +66,14 @@ export type League = {
   created_at: string
 }
 
+export type LeagueDivision = {
+  id: string
+  league_id: string
+  name: string
+  display_order: number
+  created_at: string
+}
+
 export type LeagueSponsor = {
   id: string
   league_id: string
@@ -94,6 +102,7 @@ export type LeagueTeam = {
   available_days: number[] | null
   fee_paid: boolean
   fee_note: string | null
+  division_id: string | null
   created_at: string
 }
 
@@ -123,6 +132,7 @@ export type LeagueGame = {
   playoff_round: number | null
   playoff_bracket_slot: number | null
   court_id: string | null
+  division_id: string | null
   created_at: string
 }
 

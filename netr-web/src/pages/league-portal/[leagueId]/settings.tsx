@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect, useRef } from 'react'
-import { supabase, fetchAllCourts, League, LeagueSponsor, LeagueGalleryPhoto } from '../../../lib/supabase'
+import { supabase, fetchAllCourts, League, LeagueSponsor, LeagueGalleryPhoto, LeagueDivision } from '../../../lib/supabase'
 import { LEAGUE_FONTS } from '../../../lib/league-fonts'
 import { CourtPicker } from '../../../components/CourtPicker'
 import { PortalNav } from './index'
@@ -96,6 +96,13 @@ export default function SettingsPage() {
   // Settings tab
   const [sTab, setSTab] = useState<'general'|'appearance'|'website'|'schedule'|'danger'>('general')
 
+  // Divisions
+  const [divisions, setDivisions]       = useState<LeagueDivision[]>([])
+  const [newDivName, setNewDivName]     = useState('')
+  const [editingDiv, setEditingDiv]     = useState<string | null>(null)
+  const [editDivName, setEditDivName]   = useState('')
+  const [savingDiv, setSavingDiv]       = useState(false)
+
   // Font & signup CTA
   const [leagueFont, setLeagueFont]   = useState('barlow')
   const [signupUrl, setSignupUrl]     = useState('')
@@ -178,14 +185,16 @@ export default function SettingsPage() {
       setContactInfo(data.contact_info ?? '')
       setSocialLinks(data.social_links ?? {})
 
-      const [sponsorsRes, galleryRes, courtsRes] = await Promise.all([
+      const [sponsorsRes, galleryRes, courtsRes, divisionsRes] = await Promise.all([
         supabase.from('league_sponsors').select('*').eq('league_id', leagueId).order('display_order'),
         supabase.from('league_gallery_photos').select('*').eq('league_id', leagueId).order('created_at', { ascending: false }),
         fetchAllCourts(),
+        supabase.from('league_divisions').select('*').eq('league_id', leagueId).order('display_order'),
       ])
       setSponsors(sponsorsRes.data ?? [])
       setGalleryPhotos(galleryRes.data ?? [])
       setCourts(courtsRes ?? [])
+      setDivisions(divisionsRes.data ?? [])
       setLoading(false)
     })
   }, [leagueId])
@@ -389,6 +398,43 @@ export default function SettingsPage() {
     } finally {
       setCheckingDomain(false)
     }
+  }
+
+  async function addDivision(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newDivName.trim()) return
+    setSavingDiv(true)
+    const { data } = await supabase.from('league_divisions').insert({
+      league_id: leagueId,
+      name: newDivName.trim(),
+      display_order: divisions.length,
+    }).select().single()
+    if (data) setDivisions(prev => [...prev, data])
+    setNewDivName('')
+    setSavingDiv(false)
+  }
+
+  async function deleteDiv(id: string) {
+    await supabase.from('league_divisions').delete().eq('id', id)
+    setDivisions(prev => prev.filter(d => d.id !== id))
+  }
+
+  async function saveDivName(id: string) {
+    if (!editDivName.trim()) return
+    await supabase.from('league_divisions').update({ name: editDivName.trim() }).eq('id', id)
+    setDivisions(prev => prev.map(d => d.id === id ? { ...d, name: editDivName.trim() } : d))
+    setEditingDiv(null)
+  }
+
+  async function moveDivision(id: string, dir: -1 | 1) {
+    const idx = divisions.findIndex(d => d.id === id)
+    const next = idx + dir
+    if (next < 0 || next >= divisions.length) return
+    const reordered = [...divisions]
+    ;[reordered[idx], reordered[next]] = [reordered[next], reordered[idx]]
+    const updated = reordered.map((d, i) => ({ ...d, display_order: i }))
+    setDivisions(updated)
+    await Promise.all(updated.map(d => supabase.from('league_divisions').update({ display_order: d.display_order }).eq('id', d.id)))
   }
 
   async function handleDelete() {
@@ -825,6 +871,68 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
+          </div>
+          </>}
+
+          {sTab === 'general' && <>
+          {/* ── Divisions ── */}
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>Divisions</div>
+                <div style={S.cardSub}>Split your league into separate divisions (A, B, C or any name). Each division gets its own schedule, standings, stats, and playoffs. Teams without a division assigned compete in the main league view.</div>
+              </div>
+            </div>
+
+            {divisions.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, marginBottom: 16 }}>
+                {divisions.map((div, i) => (
+                  <div key={div.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#0A0A0E', border: '1px solid #1C1C26', borderRadius: 8, padding: '10px 14px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 2, marginRight: 4 }}>
+                      <button type="button" onClick={() => moveDivision(div.id, -1)} disabled={i === 0} style={{ background: 'none', border: 'none', color: i === 0 ? '#2A2A38' : '#6A6A82', cursor: i === 0 ? 'default' : 'pointer', padding: '0 4px', fontSize: 12, lineHeight: 1 }}>▲</button>
+                      <button type="button" onClick={() => moveDivision(div.id, 1)} disabled={i === divisions.length - 1} style={{ background: 'none', border: 'none', color: i === divisions.length - 1 ? '#2A2A38' : '#6A6A82', cursor: i === divisions.length - 1 ? 'default' : 'pointer', padding: '0 4px', fontSize: 12, lineHeight: 1 }}>▼</button>
+                    </div>
+                    {editingDiv === div.id ? (
+                      <>
+                        <input
+                          value={editDivName}
+                          onChange={e => setEditDivName(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') saveDivName(div.id); if (e.key === 'Escape') setEditingDiv(null) }}
+                          autoFocus
+                          style={{ ...S.input, flex: 1, padding: '6px 10px', fontSize: 14 }}
+                        />
+                        <button type="button" onClick={() => saveDivName(div.id)} style={{ ...S.saveBtn, padding: '6px 14px', fontSize: 13 }}>Save</button>
+                        <button type="button" onClick={() => setEditingDiv(null)} style={{ ...S.cancelBtn, padding: '6px 14px', fontSize: 13 }}>Cancel</button>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 17, textTransform: 'uppercase' as const, letterSpacing: 0.5, flex: 1 }}>{div.name}</span>
+                        <button type="button" onClick={() => { setEditingDiv(div.id); setEditDivName(div.name) }} style={{ background: 'none', border: '1px solid #2A2A38', borderRadius: 6, color: '#6A6A82', fontSize: 12, padding: '5px 10px', cursor: 'pointer' }}>Rename</button>
+                        <button type="button" onClick={() => deleteDiv(div.id)} style={{ background: 'none', border: '1px solid #FF445530', borderRadius: 6, color: '#FF4455', fontSize: 12, padding: '5px 10px', cursor: 'pointer' }}>Delete</button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <form onSubmit={addDivision} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' as const }}>
+              <input
+                value={newDivName}
+                onChange={e => setNewDivName(e.target.value)}
+                placeholder={divisions.length === 0 ? 'e.g. A Division, Elite, Pro…' : 'New division name…'}
+                style={{ ...S.input, flex: 1, minWidth: 180 }}
+              />
+              <button type="submit" style={S.saveBtn} disabled={savingDiv || !newDivName.trim()}>
+                {savingDiv ? 'Adding…' : '+ Add Division'}
+              </button>
+            </form>
+
+            {divisions.length === 0 && (
+              <div style={{ marginTop: 12, fontSize: 13, color: '#6A6A82', lineHeight: 1.5 }}>
+                No divisions yet — your league runs as a single group. Add divisions to separate teams into tiers like A / B / C.
+              </div>
+            )}
           </div>
           </>}
 

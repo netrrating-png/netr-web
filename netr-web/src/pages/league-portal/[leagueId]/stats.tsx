@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
-import { supabase, League, LeaguePlayer, LeaguePlayerStat } from '../../../lib/supabase'
+import { supabase, League, LeaguePlayer, LeaguePlayerStat, LeagueDivision } from '../../../lib/supabase'
 import { PortalNav } from './index'
 import {
   STAT_DEFS, DEFAULT_ENABLED_STATS, StatKey,
@@ -27,9 +27,11 @@ export default function StatsPage() {
   const router = useRouter()
   const { leagueId } = router.query as { leagueId: string }
   const [league, setLeague] = useState<League | null>(null)
-  const [rows, setRows] = useState<PlayerRow[]>([])
+  const [allRows, setAllRows] = useState<PlayerRow[]>([])
   const [enabledStats, setEnabledStats] = useState<StatKey[]>([])
   const [activeTab, setActiveTab] = useState<StatKey | null>(null)
+  const [divisions, setDivisions] = useState<LeagueDivision[]>([])
+  const [divFilter, setDivFilter] = useState<string>('all')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -37,14 +39,17 @@ export default function StatsPage() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.replace('/league-portal/login'); return }
 
-      const [leagueRes, finalGamesRes] = await Promise.all([
+      const [leagueRes, finalGamesRes, divisionsRes, teamsRes] = await Promise.all([
         supabase.from('leagues').select('*').eq('id', leagueId).eq('owner_id', user.id).single(),
-        supabase.from('league_games').select('id').eq('league_id', leagueId).eq('status', 'final'),
+        supabase.from('league_games').select('id,division_id').eq('league_id', leagueId).eq('status', 'final'),
+        supabase.from('league_divisions').select('*').eq('league_id', leagueId).order('display_order'),
+        supabase.from('league_teams').select('id,division_id').eq('league_id', leagueId),
       ])
 
       if (!leagueRes.data) { router.replace('/league-portal'); return }
 
-      const finalGameIds = (finalGamesRes.data ?? []).map(g => g.id)
+      const finalGames = finalGamesRes.data ?? []
+      const finalGameIds = finalGames.map(g => g.id)
       const statsRes = await supabase
         .from('league_player_stats')
         .select(`
@@ -58,11 +63,20 @@ export default function StatsPage() {
       setLeague(leagueRes.data)
       setEnabledStats(enabled)
       setActiveTab(enabled[0] ?? null)
+      setDivisions(divisionsRes.data ?? [])
 
-      // Aggregate per player
-      const aggMap: Record<string, PlayerRow> = {}
+      // Build game→division and team→division maps for filtering
+      const gameDivMap: Record<string, string | null> = {}
+      for (const g of finalGames) gameDivMap[g.id] = (g as { id: string; division_id: string | null }).division_id
+      const teamDivMap: Record<string, string | null> = {}
+      for (const t of (teamsRes.data ?? [])) teamDivMap[t.id] = (t as { id: string; division_id: string | null }).division_id
+
+      // Aggregate per player — store division info per stat line
+      type AggRow = PlayerRow & { divisionId: string | null }
+      const aggMap: Record<string, AggRow> = {}
       for (const s of (statsRes.data ?? []) as RawRow[]) {
         const pid = s.player_id
+        const divId = gameDivMap[s.game_id] ?? teamDivMap[s.team_id] ?? null
         if (!aggMap[pid]) {
           aggMap[pid] = {
             playerId: pid,
@@ -72,6 +86,7 @@ export default function StatsPage() {
             teamColor: s.league_teams?.color ?? '#6A6A82',
             gp: 0,
             agg: emptyAgg(),
+            divisionId: divId,
           }
         }
         const r = aggMap[pid]
@@ -90,7 +105,7 @@ export default function StatsPage() {
         r.agg.free_throws_attempted    += s.free_throws_attempted ?? 0
       }
 
-      setRows(Object.values(aggMap))
+      setAllRows(Object.values(aggMap))
       setLoading(false)
     })
   }, [leagueId])
@@ -103,7 +118,11 @@ export default function StatsPage() {
   const tabDefs   = STAT_DEFS.filter(d => enabledStats.includes(d.key))
   const activeDef = STAT_DEFS.find(d => d.key === activeTab)
 
-  const qualified = rows.filter(r => r.gp >= minGames)
+  const filteredRows = divFilter === 'all'
+    ? allRows
+    : allRows.filter(r => (r as PlayerRow & { divisionId: string | null }).divisionId === divFilter)
+
+  const qualified = filteredRows.filter(r => r.gp >= minGames)
   const sorted = activeTab
     ? [...qualified].sort((a, b) => {
         const va = statDisplay === 'totals' ? getStatValue(a.agg, 1, activeTab) : getStatValue(a.agg, a.gp, activeTab)
@@ -128,6 +147,33 @@ export default function StatsPage() {
             <h1 style={S.pageTitle}>Stats Leaders</h1>
             <div style={S.pageSub}>{league.name} · Per-game averages</div>
           </div>
+
+          {/* Division filter tabs */}
+          {divisions.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 20 }}>
+              {[{ id: 'all', name: 'All Divisions' }, ...divisions].map(d => (
+                <button
+                  key={d.id}
+                  onClick={() => setDivFilter(d.id)}
+                  style={{
+                    background: divFilter === d.id ? 'rgba(57,255,20,0.12)' : '#0F0F14',
+                    border: `1.5px solid ${divFilter === d.id ? '#39FF14' : '#1C1C26'}`,
+                    borderRadius: 8,
+                    color: divFilter === d.id ? '#39FF14' : '#6A6A82',
+                    fontFamily: "'Barlow Condensed', sans-serif",
+                    fontWeight: 700,
+                    fontSize: 15,
+                    letterSpacing: 1,
+                    padding: '8px 18px',
+                    cursor: 'pointer',
+                    textTransform: 'uppercase' as const,
+                  }}
+                >
+                  {d.name}
+                </button>
+              ))}
+            </div>
+          )}
 
           {enabledStats.length === 0 ? (
             <div style={S.empty}>No stat categories enabled. <a href={`/league-portal/${leagueId}`} style={{ color: '#39FF14' }}>Configure stats →</a></div>

@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
-import { supabase, fetchAllCourts, League, LeagueTeam, LeagueGame, LeagueGameAttendance } from '../../../lib/supabase'
+import { supabase, fetchAllCourts, League, LeagueTeam, LeagueGame, LeagueGameAttendance, LeagueDivision } from '../../../lib/supabase'
 import { CourtPicker } from '../../../components/CourtPicker'
 import { PortalNav } from './index'
 import { DISPLAY_DOW, DISPLAY_LABELS, generateMatchups, assignDates, AssignConfig, GameSlot, getPlayoffBracket, fmtPreviewRange } from '../../../lib/schedule-utils'
@@ -49,17 +49,22 @@ export default function SchedulePage() {
   const [playoffDate, setPlayoffDate] = useState(new Date().toISOString().slice(0,10))
   const [generatingPlayoffs, setGeneratingPlayoffs] = useState(false)
 
+  // Divisions
+  const [divisions, setDivisions] = useState<LeagueDivision[]>([])
+  const [divFilter, setDivFilter] = useState<string>('all')
+
   useEffect(() => {
     if (!leagueId) return
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.replace('/league-portal/login'); return }
 
-      const [leagueRes, teamsRes, gamesRes, standingsRes, courtsRes] = await Promise.all([
+      const [leagueRes, teamsRes, gamesRes, standingsRes, courtsRes, divisionsRes] = await Promise.all([
         supabase.from('leagues').select('*').eq('id', leagueId).eq('owner_id', user.id).single(),
         supabase.from('league_teams').select('*').eq('league_id', leagueId).order('name'),
         supabase.from('league_games').select('*').eq('league_id', leagueId).order('scheduled_at'),
         Promise.resolve(supabase.from('league_standings').select('*').eq('league_id', leagueId).order('wins', { ascending: false })).catch(() => ({ data: [] })),
         fetchAllCourts(),
+        supabase.from('league_divisions').select('*').eq('league_id', leagueId).order('display_order'),
       ])
 
       if (!leagueRes.data) { router.replace('/league-portal'); return }
@@ -86,6 +91,7 @@ export default function SchedulePage() {
       }))
       setGames(enriched)
       setStandings((standingsRes as { data: StandingRow[] | null }).data ?? [])
+      setDivisions(divisionsRes.data ?? [])
 
       const gameIds = (gamesRes.data ?? []).map((g: LeagueGame) => g.id)
       if (gameIds.length > 0) {
@@ -101,10 +107,11 @@ export default function SchedulePage() {
   }, [leagueId])
 
   function handlePreview() {
-    if (teams.length < 2) return
-    const matchups = generateMatchups(teams.map(t => t.id), gamesPerTeam)
+    const scopedTeams = divFilter === 'all' ? teams : teams.filter(t => t.division_id === divFilter)
+    if (scopedTeams.length < 2) return
+    const matchups = generateMatchups(scopedTeams.map(t => t.id), gamesPerTeam)
     const avail: Record<string, number[]> = {}
-    for (const t of teams) avail[t.id] = availability[t.id] ?? [0,1,2,3,4,5,6]
+    for (const t of scopedTeams) avail[t.id] = availability[t.id] ?? [0,1,2,3,4,5,6]
     const { games: slots, conflicts } = assignDates(matchups, avail, genConfig)
     setPreview(slots)
     setPreviewConflicts(conflicts)
@@ -114,7 +121,8 @@ export default function SchedulePage() {
     if (!preview) return
     setSavingSchedule(true)
     const defaultCourtId = league?.default_court_id ?? null
-    const rows = preview.map(g => ({ league_id: leagueId, home_team_id: g.home_team_id, away_team_id: g.away_team_id, scheduled_at: g.scheduled_at, location: g.location || null, court_id: defaultCourtId, game_type: 'regular', status: 'scheduled' }))
+    const divisionId = divFilter !== 'all' ? divFilter : null
+    const rows = preview.map(g => ({ league_id: leagueId, home_team_id: g.home_team_id, away_team_id: g.away_team_id, scheduled_at: g.scheduled_at, location: g.location || null, court_id: defaultCourtId, division_id: divisionId, game_type: 'regular', status: 'scheduled' }))
     for (let i = 0; i < rows.length; i += 50) await supabase.from('league_games').insert(rows.slice(i, i+50))
     const { data } = await supabase.from('league_games').select('*').eq('league_id', leagueId).order('scheduled_at')
     const teamsById: Record<string, LeagueTeam> = {}
@@ -144,10 +152,11 @@ export default function SchedulePage() {
     const scheduledAt = new Date(playoffDate + 'T19:00:00').toISOString()
     const newRows: Record<string, unknown>[] = []
     for (const bg of nextRoundTemplate.games) {
-      const homeTeamId = bg.prevHomeSlot === null ? (standings[bg.homeSeed - 1]?.team_id ?? null) : getWinner(bg.prevHomeSlot, playoffGames)
-      const awayTeamId = bg.prevAwaySlot === null ? (standings[bg.awaySeed - 1]?.team_id ?? null) : getWinner(bg.prevAwaySlot, playoffGames)
+      const seedList = divFilter !== 'all' ? standings.filter((s: StandingRow & { division_id?: string }) => s.division_id === divFilter) : standings
+      const homeTeamId = bg.prevHomeSlot === null ? (seedList[bg.homeSeed - 1]?.team_id ?? null) : getWinner(bg.prevHomeSlot, playoffGames)
+      const awayTeamId = bg.prevAwaySlot === null ? (seedList[bg.awaySeed - 1]?.team_id ?? null) : getWinner(bg.prevAwaySlot, playoffGames)
       if (!homeTeamId || !awayTeamId) continue
-      newRows.push({ league_id: leagueId, home_team_id: homeTeamId, away_team_id: awayTeamId, scheduled_at: scheduledAt, location: league?.default_game_location ?? null, court_id: league?.default_court_id ?? null, game_type: 'playoff', playoff_round: nextRoundTemplate.roundNum, playoff_bracket_slot: bg.slot, status: 'scheduled' })
+      newRows.push({ league_id: leagueId, home_team_id: homeTeamId, away_team_id: awayTeamId, scheduled_at: scheduledAt, location: league?.default_game_location ?? null, court_id: league?.default_court_id ?? null, division_id: divFilter !== 'all' ? divFilter : null, game_type: 'playoff', playoff_round: nextRoundTemplate.roundNum, playoff_bracket_slot: bg.slot, status: 'scheduled' })
     }
     if (newRows.length > 0) {
       const { data } = await supabase.from('league_games').insert(newRows).select()
@@ -166,7 +175,7 @@ export default function SchedulePage() {
     setSaving(true)
     const { data } = await supabase
       .from('league_games')
-      .insert({ league_id: leagueId, ...form, location: form.location || null, court_id: form.court_id || null })
+      .insert({ league_id: leagueId, ...form, location: form.location || null, court_id: form.court_id || null, division_id: divFilter !== 'all' ? divFilter : null })
       .select()
       .single()
 
@@ -201,10 +210,14 @@ export default function SchedulePage() {
 
   if (loading || !league) return <LoadingScreen />
 
-  const regularGames = games.filter(g => !g.game_type || g.game_type === 'regular')
-  const playoffGames = games.filter(g => g.game_type === 'playoff')
+  const divTeams = divFilter === 'all' ? teams : teams.filter(t => t.division_id === divFilter)
+  const allRegularGames = games.filter(g => !g.game_type || g.game_type === 'regular')
+  const allPlayoffGames = games.filter(g => g.game_type === 'playoff')
+  const regularGames = divFilter === 'all' ? allRegularGames : allRegularGames.filter(g => g.division_id === divFilter)
+  const playoffGames = divFilter === 'all' ? allPlayoffGames : allPlayoffGames.filter(g => g.division_id === divFilter)
   const upcoming = regularGames.filter(g => g.status === 'scheduled')
   const completed = regularGames.filter(g => g.status === 'final')
+  const divStandings = divFilter === 'all' ? standings : standings.filter((s: StandingRow & { division_id?: string }) => s.division_id === divFilter)
 
   const n = league.playoff_teams ?? 4
   const bracketTemplate = n > 0 ? getPlayoffBracket(n) : null
@@ -239,9 +252,36 @@ export default function SchedulePage() {
             </div>
           </div>
 
+          {/* Division filter tabs */}
+          {divisions.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 20 }}>
+              {[{ id: 'all', name: 'All Divisions' }, ...divisions].map(d => (
+                <button
+                  key={d.id}
+                  onClick={() => { setDivFilter(d.id); setPreview(null) }}
+                  style={{
+                    background: divFilter === d.id ? 'rgba(57,255,20,0.12)' : '#0F0F14',
+                    border: `1.5px solid ${divFilter === d.id ? '#39FF14' : '#1C1C26'}`,
+                    borderRadius: 8,
+                    color: divFilter === d.id ? '#39FF14' : '#6A6A82',
+                    fontFamily: "'Barlow Condensed', sans-serif",
+                    fontWeight: 700,
+                    fontSize: 15,
+                    letterSpacing: 1,
+                    padding: '8px 18px',
+                    cursor: 'pointer',
+                    textTransform: 'uppercase' as const,
+                  }}
+                >
+                  {d.name}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* ── REGULAR SEASON TAB ── */}
           {tab === 'regular' && (<>
-          {teams.length < 2 && (
+          {divTeams.length < 2 && (
             <div style={S.notice}>
               Add at least 2 teams before scheduling.{' '}
               <a href={`/league-portal/${leagueId}/teams`} style={{ color: '#39FF14' }}>Add teams →</a>
@@ -249,7 +289,7 @@ export default function SchedulePage() {
           )}
 
           {/* Generator toggle row */}
-          {teams.length >= 2 && (
+          {divTeams.length >= 2 && (
             <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
               <button onClick={() => { setShowGenerator(v => !v); setPreview(null) }} style={S.addBtn}>
                 {showGenerator ? '▲ Hide Generator' : '⚙ Generate Schedule'}
@@ -284,7 +324,7 @@ export default function SchedulePage() {
                 <p style={{ fontSize: 12, color: '#6A6A82', margin: '4px 0 10px' }}>Uncheck days a team can&apos;t play. The scheduler avoids those days for that team.</p>
                 <div style={S.availGrid}>
                   <div style={S.availHeader}><div style={S.availTeamCol}/>{DISPLAY_LABELS.map(d => <div key={d} style={S.availDayCol}>{d}</div>)}</div>
-                  {teams.map(team => {
+                  {divTeams.map(team => {
                     const days = availability[team.id] ?? [0,1,2,3,4,5,6]
                     return (
                       <div key={team.id} style={S.availRow}>
@@ -388,7 +428,7 @@ export default function SchedulePage() {
             <div style={S.empty}>
               <div style={S.emptyIcon}>📅</div>
               <p style={S.emptyText}>No regular season games yet.</p>
-              {teams.length >= 2 ? <button onClick={() => setShowGenerator(true)} style={S.saveBtn}>Generate Schedule</button> : <a href={`/league-portal/${leagueId}/teams`} style={{ color:'#39FF14' }}>Add teams first →</a>}
+              {divTeams.length >= 2 ? <button onClick={() => setShowGenerator(true)} style={S.saveBtn}>Generate Schedule</button> : <a href={`/league-portal/${leagueId}/teams`} style={{ color:'#39FF14' }}>Add teams first →</a>}
             </div>
           )}
           </>)}
@@ -398,10 +438,10 @@ export default function SchedulePage() {
             {n === 0 ? (
               <div style={S.notice}>Playoffs not configured. Go to <a href={`/league-portal/${leagueId}/settings`} style={{ color:'#39FF14' }}>Settings</a> to set the number of playoff teams.</div>
             ) : (<>
-              {standings.length > 0 && (
+              {divStandings.length > 0 && (
                 <div style={{ ...S.inlineForm, marginBottom:24 }}>
                   <div style={S.sectionLabel}>Current Seedings (top {n})</div>
-                  {standings.slice(0, n).map((s, i) => (
+                  {divStandings.slice(0, n).map((s, i) => (
                     <div key={s.team_id} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 0', borderBottom:'1px solid #14141C' }}>
                       <span style={{ fontFamily:"'DM Mono',monospace", color:'#6A6A82', minWidth:24 }}>#{i+1}</span>
                       <span style={{ width:10, height:10, borderRadius:'50%', background:s.color, display:'inline-block' }}/>
@@ -468,7 +508,7 @@ export default function SchedulePage() {
                     <input type="date" value={playoffDate} onChange={e => setPlayoffDate(e.target.value)} style={{ ...S.input, maxWidth:200, marginTop:6 }} />
                   </div>
                   {maxPlayoffRound === 0 ? (
-                    <button onClick={handleGeneratePlayoffs} style={S.saveBtn} disabled={generatingPlayoffs || standings.length < n || !playoffDate}>
+                    <button onClick={handleGeneratePlayoffs} style={S.saveBtn} disabled={generatingPlayoffs || divStandings.length < n || !playoffDate}>
                       {generatingPlayoffs ? 'Generating…' : `Generate Round 1 Bracket (${n} teams)`}
                     </button>
                   ) : currentRoundComplete ? (
@@ -478,7 +518,7 @@ export default function SchedulePage() {
                   ) : (
                     <div style={{ color:'#6A6A82', fontSize:14 }}>⏳ Enter all Round {maxPlayoffRound} results before generating Round {maxPlayoffRound+1}.</div>
                   )}
-                  {maxPlayoffRound === 0 && standings.length < n && <p style={{ fontSize:12, color:'#F5C542', marginTop:8 }}>Need {n - standings.length} more team{n - standings.length !== 1 ? 's' : ''} in standings.</p>}
+                  {maxPlayoffRound === 0 && divStandings.length < n && <p style={{ fontSize:12, color:'#F5C542', marginTop:8 }}>Need {n - divStandings.length} more team{n - divStandings.length !== 1 ? 's' : ''} in standings.</p>}
                 </div>
               )}
               {allRoundsComplete && <div style={{ textAlign:'center' as const, padding:'32px', fontSize:24, fontFamily:"'Barlow Condensed',sans-serif", fontWeight:900, color:'#39FF14' }}>🏆 Playoffs Complete!</div>}

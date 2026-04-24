@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect, useRef } from 'react'
-import { supabase, League, LeagueTeam, LeaguePlayer } from '../../../lib/supabase'
+import { supabase, League, LeagueTeam, LeaguePlayer, LeagueDivision } from '../../../lib/supabase'
 import { PortalNav } from './index'
 
 type TeamWithPlayers = LeagueTeam & { players: LeaguePlayer[] }
@@ -43,6 +43,10 @@ export default function TeamsPage() {
 
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
+
+  // Divisions
+  const [divisions, setDivisions]   = useState<LeagueDivision[]>([])
+  const [divFilter, setDivFilter]   = useState<string>('all')
   const [showCsvModal, setShowCsvModal] = useState(false)
   const [csvInput, setCsvInput] = useState('')
   const [csvTab, setCsvTab] = useState<'paste' | 'file'>('paste')
@@ -57,10 +61,11 @@ export default function TeamsPage() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.replace('/league-portal/login'); return }
 
-      const [leagueRes, teamsRes, playersRes] = await Promise.all([
+      const [leagueRes, teamsRes, playersRes, divisionsRes] = await Promise.all([
         supabase.from('leagues').select('*').eq('id', leagueId).eq('owner_id', user.id).single(),
         supabase.from('league_teams').select('*').eq('league_id', leagueId).order('created_at'),
         supabase.from('league_players').select('*').eq('league_id', leagueId),
+        supabase.from('league_divisions').select('*').eq('league_id', leagueId).order('display_order'),
       ])
 
       if (!leagueRes.data) { router.replace('/league-portal'); return }
@@ -73,6 +78,7 @@ export default function TeamsPage() {
       }
 
       setTeams((teamsRes.data ?? []).map(t => ({ ...t, players: playersByTeam[t.id] ?? [] })))
+      setDivisions(divisionsRes.data ?? [])
       setLoading(false)
     })
   }, [leagueId])
@@ -259,6 +265,11 @@ export default function TeamsPage() {
     setTimeout(() => setCopied(null), 2000)
   }
 
+  async function assignTeamDivision(teamId: string, divisionId: string | null) {
+    await supabase.from('league_teams').update({ division_id: divisionId }).eq('id', teamId)
+    setTeams(prev => prev.map(t => t.id === teamId ? { ...t, division_id: divisionId } : t))
+  }
+
   if (loading || !league) return <LoadingScreen />
 
   return (
@@ -302,6 +313,33 @@ export default function TeamsPage() {
             </form>
           )}
 
+          {/* Division filter tabs */}
+          {divisions.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 20 }}>
+              {[{ id: 'all', name: 'All Teams' }, ...divisions].map(d => (
+                <button
+                  key={d.id}
+                  onClick={() => setDivFilter(d.id)}
+                  style={{
+                    background: divFilter === d.id ? 'rgba(57,255,20,0.12)' : '#0F0F14',
+                    border: `1.5px solid ${divFilter === d.id ? '#39FF14' : '#1C1C26'}`,
+                    borderRadius: 8,
+                    color: divFilter === d.id ? '#39FF14' : '#6A6A82',
+                    fontFamily: "'Barlow Condensed', sans-serif",
+                    fontWeight: 700,
+                    fontSize: 15,
+                    letterSpacing: 1,
+                    padding: '8px 18px',
+                    cursor: 'pointer',
+                    textTransform: 'uppercase' as const,
+                  }}
+                >
+                  {d.name}
+                </button>
+              ))}
+            </div>
+          )}
+
           {teams.length === 0 && !showTeamForm && (
             <div style={S.empty}>
               <div style={S.emptyIcon}>👥</div>
@@ -311,7 +349,7 @@ export default function TeamsPage() {
 
           {/* Team list */}
           <div style={S.teamList}>
-            {teams.map(team => (
+            {teams.filter(t => divFilter === 'all' || t.division_id === divFilter).map(team => (
               <div key={team.id} style={S.teamCard}>
 
                 {/* Edit form */}
@@ -343,7 +381,20 @@ export default function TeamsPage() {
                       }
                       <div>
                         <div style={S.teamName}>{team.name}</div>
-                        <div style={S.teamCount}>{team.players.length} player{team.players.length !== 1 ? 's' : ''}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
+                          <span style={S.teamCount}>{team.players.length} player{team.players.length !== 1 ? 's' : ''}</span>
+                          {divisions.length > 0 && (
+                            <select
+                              value={team.division_id ?? ''}
+                              onChange={e => { e.stopPropagation(); assignTeamDivision(team.id, e.target.value || null) }}
+                              onClick={e => e.stopPropagation()}
+                              style={{ background: '#0A0A0E', border: '1px solid #2A2A38', borderRadius: 6, color: team.division_id ? '#39FF14' : '#6A6A82', fontSize: 11, padding: '2px 6px', fontFamily: "'DM Mono', monospace", cursor: 'pointer' }}
+                            >
+                              <option value="">No Division</option>
+                              {divisions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            </select>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div style={S.teamRight}>
