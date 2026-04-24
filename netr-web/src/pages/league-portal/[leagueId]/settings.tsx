@@ -11,12 +11,19 @@ type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 
 function useSaveState() {
   const [state, setState] = useState<SaveState>('idle')
-  function trigger(thenable: PromiseLike<unknown>) {
+  function trigger(thenable: PromiseLike<{ error?: unknown } | null | undefined>) {
     setState('saving')
-    Promise.resolve(thenable).then(() => {
-      setState('saved')
-      setTimeout(() => setState('idle'), 2500)
-    }).catch(() => {
+    Promise.resolve(thenable).then((result) => {
+      if (result && (result as { error?: unknown }).error) {
+        console.error('Save error:', (result as { error?: unknown }).error)
+        setState('error')
+        setTimeout(() => setState('idle'), 3000)
+      } else {
+        setState('saved')
+        setTimeout(() => setState('idle'), 2500)
+      }
+    }).catch((err) => {
+      console.error('Save exception:', err)
       setState('error')
       setTimeout(() => setState('idle'), 3000)
     })
@@ -194,7 +201,6 @@ export default function SettingsPage() {
         default_game_location: defGameLoc.trim() || null,
         description: description.trim() || null,
         fee_amount: isNaN(parsedFee as number) ? null : parsedFee,
-        default_court_id: defaultCourtId || null,
       }).eq('id', leagueId)
     )
   }
@@ -687,9 +693,11 @@ export default function SettingsPage() {
                     <CourtPicker
                       courts={courts}
                       courtId={defaultCourtId ?? ''}
-                      onChange={(id, name) => {
-                        setDefaultCourtId(id || null)
-                        if (name) setDefGameLoc(name)
+                      onChange={(id, courtName) => {
+                        const newId = id || null
+                        setDefaultCourtId(newId)
+                        if (courtName) setDefGameLoc(courtName)
+                        supabase.from('leagues').update({ default_court_id: newId }).eq('id', leagueId).then()
                       }}
                     />
                   </div>
