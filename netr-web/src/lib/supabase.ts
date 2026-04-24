@@ -63,6 +63,7 @@ export type League = {
   league_font: string | null
   signup_url: string | null
   signup_label: string | null
+  cross_division_play: boolean
   created_at: string
 }
 

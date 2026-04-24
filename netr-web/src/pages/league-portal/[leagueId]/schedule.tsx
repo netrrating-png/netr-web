@@ -91,7 +91,11 @@ export default function SchedulePage() {
       }))
       setGames(enriched)
       setStandings((standingsRes as { data: StandingRow[] | null }).data ?? [])
-      setDivisions(divisionsRes.data ?? [])
+      const divs = divisionsRes.data ?? []
+      setDivisions(divs)
+      if (!(lg.cross_division_play ?? true) && divs.length > 0) {
+        setDivFilter(divs[0].id)
+      }
 
       const gameIds = (gamesRes.data ?? []).map((g: LeagueGame) => g.id)
       if (gameIds.length > 0) {
@@ -255,15 +259,15 @@ export default function SchedulePage() {
           {/* Division filter tabs */}
           {divisions.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 20 }}>
-              {[{ id: 'all', name: 'All Divisions' }, ...divisions].map(d => (
+              {[(league.cross_division_play ?? true) ? { id: 'all', name: 'All Divisions' } : null, ...divisions].filter(Boolean).map(d => (
                 <button
-                  key={d.id}
-                  onClick={() => { setDivFilter(d.id); setPreview(null) }}
+                  key={d!.id}
+                  onClick={() => { setDivFilter(d!.id); setPreview(null) }}
                   style={{
-                    background: divFilter === d.id ? 'rgba(57,255,20,0.12)' : '#0F0F14',
-                    border: `1.5px solid ${divFilter === d.id ? '#39FF14' : '#1C1C26'}`,
+                    background: divFilter === d!.id ? 'rgba(57,255,20,0.12)' : '#0F0F14',
+                    border: `1.5px solid ${divFilter === d!.id ? '#39FF14' : '#1C1C26'}`,
                     borderRadius: 8,
-                    color: divFilter === d.id ? '#39FF14' : '#6A6A82',
+                    color: divFilter === d!.id ? '#39FF14' : '#6A6A82',
                     fontFamily: "'Barlow Condensed', sans-serif",
                     fontWeight: 700,
                     fontSize: 15,
@@ -273,7 +277,7 @@ export default function SchedulePage() {
                     textTransform: 'uppercase' as const,
                   }}
                 >
-                  {d.name}
+                  {d!.name}
                 </button>
               ))}
             </div>
@@ -365,7 +369,7 @@ export default function SchedulePage() {
                   <label style={S.label}>Home Team *</label>
                   <select value={form.home_team_id} onChange={e => setForm(f => ({ ...f, home_team_id: e.target.value }))} style={S.select} required>
                     <option value="">Select team…</option>
-                    {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    {divTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
                 <div style={S.vsLabel}>VS</div>
@@ -373,7 +377,7 @@ export default function SchedulePage() {
                   <label style={S.label}>Away Team *</label>
                   <select value={form.away_team_id} onChange={e => setForm(f => ({ ...f, away_team_id: e.target.value }))} style={S.select} required>
                     <option value="">Select team…</option>
-                    {teams.filter(t => t.id !== form.home_team_id).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    {divTeams.filter(t => t.id !== form.home_team_id).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
                 <div>

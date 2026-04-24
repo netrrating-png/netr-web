@@ -97,11 +97,12 @@ export default function SettingsPage() {
   const [sTab, setSTab] = useState<'general'|'appearance'|'website'|'schedule'|'danger'>('general')
 
   // Divisions
-  const [divisions, setDivisions]       = useState<LeagueDivision[]>([])
-  const [newDivName, setNewDivName]     = useState('')
-  const [editingDiv, setEditingDiv]     = useState<string | null>(null)
-  const [editDivName, setEditDivName]   = useState('')
-  const [savingDiv, setSavingDiv]       = useState(false)
+  const [divisions, setDivisions]             = useState<LeagueDivision[]>([])
+  const [newDivName, setNewDivName]           = useState('')
+  const [editingDiv, setEditingDiv]           = useState<string | null>(null)
+  const [editDivName, setEditDivName]         = useState('')
+  const [savingDiv, setSavingDiv]             = useState(false)
+  const [crossDivisionPlay, setCrossDivisionPlay] = useState(true)
 
   // Font & signup CTA
   const [leagueFont, setLeagueFont]   = useState('barlow')
@@ -184,6 +185,7 @@ export default function SettingsPage() {
       setSignupLabel(data.signup_label ?? '')
       setContactInfo(data.contact_info ?? '')
       setSocialLinks(data.social_links ?? {})
+      setCrossDivisionPlay(data.cross_division_play ?? true)
 
       const [sponsorsRes, galleryRes, courtsRes, divisionsRes] = await Promise.all([
         supabase.from('league_sponsors').select('*').eq('league_id', leagueId).order('display_order'),
@@ -931,6 +933,45 @@ export default function SettingsPage() {
             {divisions.length === 0 && (
               <div style={{ marginTop: 12, fontSize: 13, color: '#6A6A82', lineHeight: 1.5 }}>
                 No divisions yet — your league runs as a single group. Add divisions to separate teams into tiers like A / B / C.
+              </div>
+            )}
+
+            {divisions.length > 0 && (
+              <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid #1C1C26' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' as const }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: '#EEEEF5', marginBottom: 4 }}>Cross-division play</div>
+                    <div style={{ fontSize: 13, color: '#6A6A82', lineHeight: 1.5, maxWidth: 440 }}>
+                      {crossDivisionPlay
+                        ? 'Divisions can play each other and share a combined standings view. Turn off for fully separate leagues like Men\'s vs Women\'s.'
+                        : 'Divisions never play each other. Each division has its own schedule, standings, and playoffs. "All Divisions" view is hidden.'}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !crossDivisionPlay
+                      setCrossDivisionPlay(next)
+                      supabase.from('leagues').update({ cross_division_play: next }).eq('id', leagueId).then()
+                    }}
+                    style={{
+                      flexShrink: 0,
+                      background: crossDivisionPlay ? 'rgba(57,255,20,0.12)' : '#0A0A0E',
+                      border: `1.5px solid ${crossDivisionPlay ? '#39FF14' : '#2A2A38'}`,
+                      borderRadius: 8,
+                      color: crossDivisionPlay ? '#39FF14' : '#6A6A82',
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontWeight: 600,
+                      fontSize: 13,
+                      padding: '8px 18px',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap' as const,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {crossDivisionPlay ? 'On — Divisions compete' : 'Off — Fully separate'}
+                  </button>
+                </div>
               </div>
             )}
           </div>
