@@ -100,24 +100,34 @@ export function assignDates(
       for (const slot of slots) {
         if (remaining.length === 0) break
         const [h, m] = slot.split(':').map(Number)
-        for (let i = 0; i < remaining.length; i++) {
-          const [home, away] = remaining[i]
-          if (playedToday.has(home) || playedToday.has(away)) continue
-          const homeOkDay = (teamDayAvail[home] ?? cfg.gameDays).includes(dow)
-          const awayOkDay = (teamDayAvail[away] ?? cfg.gameDays).includes(dow)
-          const homeTimes = teamTimeAvail[home]
-          const awayTimes = teamTimeAvail[away]
-          const homeOkTime = !homeTimes?.length || homeTimes.includes(slot)
-          const awayOkTime = !awayTimes?.length || awayTimes.includes(slot)
-          if (homeOkDay && awayOkDay && homeOkTime && awayOkTime) {
-            const dt = new Date(cur)
-            dt.setHours(h, m, 0, 0)
-            scheduled.push({ home_team_id: home, away_team_id: away, scheduled_at: dt.toISOString(), location: cfg.location })
-            remaining.splice(i, 1)
-            playedToday.add(home)
-            playedToday.add(away)
+        // Pass 1: respect day + time availability
+        // Pass 2: respect day only (relax time slot — gym is rented, slot must be filled)
+        let found = -1
+        for (let pass = 0; pass < 2 && found === -1; pass++) {
+          for (let i = 0; i < remaining.length; i++) {
+            const [home, away] = remaining[i]
+            if (playedToday.has(home) || playedToday.has(away)) continue
+            const homeOkDay = (teamDayAvail[home] ?? cfg.gameDays).includes(dow)
+            const awayOkDay = (teamDayAvail[away] ?? cfg.gameDays).includes(dow)
+            if (!homeOkDay || !awayOkDay) continue
+            if (pass === 0) {
+              const homeTimes = teamTimeAvail[home]
+              const awayTimes = teamTimeAvail[away]
+              if (homeTimes?.length && !homeTimes.includes(slot)) continue
+              if (awayTimes?.length && !awayTimes.includes(slot)) continue
+            }
+            found = i
             break
           }
+        }
+        if (found >= 0) {
+          const [home, away] = remaining[found]
+          const dt = new Date(cur)
+          dt.setHours(h, m, 0, 0)
+          scheduled.push({ home_team_id: home, away_team_id: away, scheduled_at: dt.toISOString(), location: cfg.location })
+          remaining.splice(found, 1)
+          playedToday.add(home)
+          playedToday.add(away)
         }
       }
     }
@@ -171,24 +181,29 @@ function assignDatesFlexible(
 
       for (const slot of slots) {
         const [h, m] = slot.split(':').map(Number)
-        const availSlot = availDay.filter(id => {
+        // Pass 1: teams available for this day AND this time slot
+        let pool = availDay.filter(id => {
           if (playedToday.has(id)) return false
           const times = teamTimeAvail[id]
           return !times?.length || times.includes(slot)
         })
-        if (availSlot.length < 2) continue
+        // Pass 2: relax time slot — gym is rented, fill the slot with any day-available team
+        if (pool.length < 2) {
+          pool = availDay.filter(id => !playedToday.has(id))
+        }
+        if (pool.length < 2) continue
 
         // Pick the pair with fewest previous matchups (break ties by fewest total games)
         let bestHome = '', bestAway = '', bestScore = Infinity
-        for (let i = 0; i < availSlot.length; i++) {
-          for (let j = i + 1; j < availSlot.length; j++) {
-            const [a, b] = [availSlot[i], availSlot[j]].sort()
+        for (let i = 0; i < pool.length; i++) {
+          for (let j = i + 1; j < pool.length; j++) {
+            const [a, b] = [pool[i], pool[j]].sort()
             const key = `${a}|${b}`
-            const score = (pairCount[key] ?? 0) * 1000 + gameCount[availSlot[i]] + gameCount[availSlot[j]]
+            const score = (pairCount[key] ?? 0) * 1000 + gameCount[pool[i]] + gameCount[pool[j]]
             if (score < bestScore) {
               bestScore = score
-              bestHome = availSlot[i]
-              bestAway = availSlot[j]
+              bestHome = pool[i]
+              bestAway = pool[j]
             }
           }
         }
