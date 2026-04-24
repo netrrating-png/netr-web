@@ -50,6 +50,9 @@ export default function SchedulePage() {
   const [standings, setStandings] = useState<StandingRow[]>([])
   const [playoffDate, setPlayoffDate] = useState(new Date().toISOString().slice(0,10))
   const [generatingPlayoffs, setGeneratingPlayoffs] = useState(false)
+  const [editingPlayoffSlot, setEditingPlayoffSlot] = useState<number | null>(null)
+  const [playoffEditForm, setPlayoffEditForm] = useState({ scheduled_at: '', location: '' })
+  const [savingPlayoffEdit, setSavingPlayoffEdit] = useState(false)
 
   // Divisions
   const [divisions, setDivisions] = useState<LeagueDivision[]>([])
@@ -210,6 +213,18 @@ export default function SchedulePage() {
       }
     }
     setGeneratingPlayoffs(false)
+  }
+
+  async function savePlayoffEdit(gameId: string) {
+    setSavingPlayoffEdit(true)
+    const updates = {
+      scheduled_at: new Date(playoffEditForm.scheduled_at).toISOString(),
+      location: playoffEditForm.location || null,
+    }
+    await supabase.from('league_games').update(updates).eq('id', gameId)
+    setGames(prev => prev.map(g => g.id === gameId ? { ...g, ...updates } : g))
+    setEditingPlayoffSlot(null)
+    setSavingPlayoffEdit(false)
   }
 
   async function addGame(e: React.FormEvent) {
@@ -591,30 +606,53 @@ export default function SchedulePage() {
                         const homeName = dbg?.home_team?.name ?? (bg.prevHomeSlot === null ? `#${bg.homeSeed} Seed` : `W Game ${bg.prevHomeSlot}`)
                         const awayName = dbg?.away_team?.name ?? (bg.prevAwaySlot === null ? `#${bg.awaySeed} Seed` : `W Game ${bg.prevAwaySlot}`)
                         return (
-                          <div key={bg.slot} style={S.bracketRow}>
-                            <div style={{ flex:1 }}>
-                              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
-                                {dbg?.home_team && <span style={{ width:8, height:8, borderRadius:'50%', background:dbg.home_team.color, display:'inline-block' }}/>}
-                                <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:17, color: dbg?.status==='final' && (dbg.home_score??0) > (dbg.away_score??0) ? '#39FF14' : '#EEEEF5' }}>{homeName}</span>
-                                {dbg?.status==='final' && <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:20, marginLeft:'auto', color:'#EEEEF5' }}>{dbg.home_score}</span>}
-                              </div>
-                              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                                {dbg?.away_team && <span style={{ width:8, height:8, borderRadius:'50%', background:dbg.away_team.color, display:'inline-block' }}/>}
-                                <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:17, color: dbg?.status==='final' && (dbg.away_score??0) > (dbg.home_score??0) ? '#39FF14' : '#EEEEF5' }}>{awayName}</span>
-                                {dbg?.status==='final' && <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:20, marginLeft:'auto', color:'#EEEEF5' }}>{dbg.away_score}</span>}
-                              </div>
-                            </div>
-                            <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
-                              {!dbg && <span style={{ fontSize:11, color:'#6A6A82', fontFamily:"'DM Mono',monospace" }}>TBD</span>}
-                              {dbg?.status==='scheduled' && <>
-                                <span style={{ fontSize:12, color:'#6A6A82' }}>{new Date(dbg.scheduled_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
-                                <a href={`/league-portal/${leagueId}/score/${dbg.id}`} style={S.scoreBtn}>Enter Score + Stats</a>
-                              </>}
-                              {dbg?.status==='final' && <>
-                                <span style={S.finalBadge}>Final</span>
-                                <a href={`/league-portal/${leagueId}/score/${dbg.id}`} style={S.boxBtn}>Box Score</a>
-                              </>}
-                            </div>
+                          <div key={bg.slot} style={{ ...S.bracketRow, flexDirection: editingPlayoffSlot === bg.slot ? 'column' as const : 'row' as const, alignItems: editingPlayoffSlot === bg.slot ? 'stretch' : 'center' }}>
+                            {editingPlayoffSlot === bg.slot && dbg ? (
+                              <>
+                                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
+                                  <div>
+                                    <label style={S.label}>Date &amp; Time</label>
+                                    <input type="datetime-local" value={playoffEditForm.scheduled_at} onChange={e => setPlayoffEditForm(f => ({ ...f, scheduled_at: e.target.value }))} style={S.input} />
+                                  </div>
+                                  <div>
+                                    <label style={S.label}>Location</label>
+                                    <input type="text" value={playoffEditForm.location} onChange={e => setPlayoffEditForm(f => ({ ...f, location: e.target.value }))} style={S.input} placeholder="Gym or court name" />
+                                  </div>
+                                </div>
+                                <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
+                                  <button onClick={() => setEditingPlayoffSlot(null)} style={S.cancelBtn}>Cancel</button>
+                                  <button onClick={() => savePlayoffEdit(dbg.id)} style={S.saveBtn} disabled={savingPlayoffEdit || !playoffEditForm.scheduled_at}>{savingPlayoffEdit ? 'Saving…' : 'Save Changes'}</button>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div style={{ flex:1 }}>
+                                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+                                    {dbg?.home_team && <span style={{ width:8, height:8, borderRadius:'50%', background:dbg.home_team.color, display:'inline-block' }}/>}
+                                    <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:17, color: dbg?.status==='final' && (dbg.home_score??0) > (dbg.away_score??0) ? '#39FF14' : '#EEEEF5' }}>{homeName}</span>
+                                    {dbg?.status==='final' && <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:20, marginLeft:'auto', color:'#EEEEF5' }}>{dbg.home_score}</span>}
+                                  </div>
+                                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                                    {dbg?.away_team && <span style={{ width:8, height:8, borderRadius:'50%', background:dbg.away_team.color, display:'inline-block' }}/>}
+                                    <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:17, color: dbg?.status==='final' && (dbg.away_score??0) > (dbg.home_score??0) ? '#39FF14' : '#EEEEF5' }}>{awayName}</span>
+                                    {dbg?.status==='final' && <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:20, marginLeft:'auto', color:'#EEEEF5' }}>{dbg.away_score}</span>}
+                                  </div>
+                                </div>
+                                <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                                  {!dbg && <span style={{ fontSize:11, color:'#6A6A82', fontFamily:"'DM Mono',monospace" }}>TBD</span>}
+                                  {dbg?.status==='scheduled' && <>
+                                    <span style={{ fontSize:12, color:'#6A6A82' }}>{new Date(dbg.scheduled_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+                                    <a href={`/league-portal/${leagueId}/score/${dbg.id}`} style={S.scoreBtn}>Enter Score + Stats</a>
+                                    <button onClick={() => { setEditingPlayoffSlot(bg.slot); setPlayoffEditForm({ scheduled_at: dbg.scheduled_at.slice(0,16), location: dbg.location ?? '' }) }} style={S.cancelSmBtn}>Edit</button>
+                                  </>}
+                                  {dbg?.status==='final' && <>
+                                    <span style={S.finalBadge}>Final</span>
+                                    <a href={`/league-portal/${leagueId}/score/${dbg.id}`} style={S.boxBtn}>Box Score</a>
+                                  </>}
+                                  {dbg && <button onClick={() => deleteGame(dbg.id)} style={S.deleteSmBtn}>Delete</button>}
+                                </div>
+                              </>
+                            )}
                           </div>
                         )
                       })}
