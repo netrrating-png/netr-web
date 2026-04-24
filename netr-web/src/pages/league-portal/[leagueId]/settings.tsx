@@ -118,6 +118,9 @@ export default function SettingsPage() {
   const fontSave   = useSaveState()
   const signupSave = useSaveState()
 
+  // Season end date
+  const [seasonEndDate, setSeasonEndDate] = useState('')
+
   // Schedule & playoff settings
   const [gamesPerTeam, setGamesPerTeam]   = useState(10)
   const [playoffTeams, setPlayoffTeams]   = useState(4)
@@ -193,6 +196,7 @@ export default function SettingsPage() {
       setContactInfo(data.contact_info ?? '')
       setSocialLinks(data.social_links ?? {})
       setCrossDivisionPlay(data.cross_division_play ?? true)
+      setSeasonEndDate(data.season_end_date ?? '')
 
       const [sponsorsRes, galleryRes, courtsRes, divisionsRes] = await Promise.all([
         supabase.from('league_sponsors').select('*').eq('league_id', leagueId).order('display_order'),
@@ -215,6 +219,7 @@ export default function SettingsPage() {
       supabase.from('leagues').update({
         name: name.trim(),
         season: season.trim() || null,
+        season_end_date: seasonEndDate || null,
         location: location.trim() || null,
         default_game_location: defGameLoc.trim() || null,
         description: description.trim() || null,
@@ -824,6 +829,16 @@ export default function SettingsPage() {
                   style={S.input}
                   placeholder="Spring 2026"
                 />
+              </div>
+              <div style={S.field}>
+                <label style={S.label}>Season End Date <span style={{ color: '#6A6A82', fontWeight: 400 }}>(optional)</span></label>
+                <input
+                  type="date"
+                  value={seasonEndDate}
+                  onChange={e => setSeasonEndDate(e.target.value)}
+                  style={S.input}
+                />
+                <div style={S.hint}>Used as a hard stop in the schedule generator — no games will be scheduled after this date.</div>
               </div>
               <div style={S.field}>
                 <label style={S.label}>League Location</label>

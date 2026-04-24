@@ -61,9 +61,16 @@ export type GameSlot = {
 
 export type AssignConfig = {
   startDate: string        // 'YYYY-MM-DD'
+  endDate?: string         // optional hard stop — no games scheduled after this date
   gameDays: number[]       // [1,3,6] = Mon,Wed,Sat
-  timeSlots: string[]      // ['19:30','20:30','21:30'] — one game scheduled per slot per day
+  timeSlots: string[]      // ['19:30','20:30','21:30'] — one game per slot per day
   location: string
+  // Flexible mode: fill available slots with any compatible pair (repeats allowed).
+  // When true, round-robin matchups are generated on the fly and some pairs may
+  // never meet if their availability is incompatible — that's intentional.
+  allowRematches?: boolean
+  allTeamIds?: string[]    // required when allowRematches=true
+  gamesPerTeam?: number    // target per team when allowRematches=true
 }
 
 export function assignDates(
@@ -73,12 +80,20 @@ export function assignDates(
   cfg: AssignConfig
 ): { games: GameSlot[]; conflicts: number } {
   const slots = cfg.timeSlots.length > 0 ? cfg.timeSlots : ['19:00']
+  const endDate = cfg.endDate ? new Date(cfg.endDate + 'T23:59:59') : null
+  const cur = new Date(cfg.startDate + 'T12:00:00')
+
+  if (cfg.allowRematches && cfg.allTeamIds && cfg.gamesPerTeam) {
+    return assignDatesFlexible(cfg.allTeamIds, cfg.gamesPerTeam, teamDayAvail, teamTimeAvail, slots, cfg.gameDays, cfg.location, cur, endDate)
+  }
+
+  // ── Round-robin mode ────────────────────────────────────────────
   const remaining = [...matchups]
   const scheduled: GameSlot[] = []
   let conflicts = 0
-  const cur = new Date(cfg.startDate + 'T12:00:00')
 
   for (let d = 0; d < 730 && remaining.length > 0; d++) {
+    if (endDate && cur > endDate) break
     const dow = cur.getDay()
     if (cfg.gameDays.includes(dow)) {
       const playedToday = new Set<string>()
@@ -109,10 +124,11 @@ export function assignDates(
     cur.setDate(cur.getDate() + 1)
   }
 
-  // Fallback: schedule remaining ignoring availability
+  // Fallback: force-schedule remaining games ignoring availability
   const [fh, fm] = slots[0].split(':').map(Number)
   for (const [home, away] of remaining) {
     while (!cfg.gameDays.includes(cur.getDay())) cur.setDate(cur.getDate() + 1)
+    if (endDate && cur > endDate) break
     const dt = new Date(cur)
     dt.setHours(fh, fm, 0, 0)
     scheduled.push({ home_team_id: home, away_team_id: away, scheduled_at: dt.toISOString(), location: cfg.location, hasConflict: true })
@@ -122,6 +138,76 @@ export function assignDates(
   }
 
   return { games: scheduled, conflicts }
+}
+
+function assignDatesFlexible(
+  teamIds: string[],
+  gamesPerTeam: number,
+  teamDayAvail: Record<string, number[]>,
+  teamTimeAvail: Record<string, string[]>,
+  slots: string[],
+  gameDays: number[],
+  location: string,
+  cur: Date,
+  endDate: Date | null
+): { games: GameSlot[]; conflicts: number } {
+  const scheduled: GameSlot[] = []
+  const gameCount: Record<string, number> = {}
+  const pairCount: Record<string, number> = {}
+  for (const id of teamIds) gameCount[id] = 0
+
+  const maxDays = endDate ? Infinity : 730
+  for (let d = 0; d < maxDays; d++) {
+    if (endDate && cur > endDate) break
+    if (teamIds.every(id => gameCount[id] >= gamesPerTeam)) break
+
+    const dow = cur.getDay()
+    if (gameDays.includes(dow)) {
+      const availDay = teamIds.filter(id =>
+        gameCount[id] < gamesPerTeam &&
+        (teamDayAvail[id] ?? gameDays).includes(dow)
+      )
+      const playedToday = new Set<string>()
+
+      for (const slot of slots) {
+        const [h, m] = slot.split(':').map(Number)
+        const availSlot = availDay.filter(id => {
+          if (playedToday.has(id)) return false
+          const times = teamTimeAvail[id]
+          return !times?.length || times.includes(slot)
+        })
+        if (availSlot.length < 2) continue
+
+        // Pick the pair with fewest previous matchups (break ties by fewest total games)
+        let bestHome = '', bestAway = '', bestScore = Infinity
+        for (let i = 0; i < availSlot.length; i++) {
+          for (let j = i + 1; j < availSlot.length; j++) {
+            const [a, b] = [availSlot[i], availSlot[j]].sort()
+            const key = `${a}|${b}`
+            const score = (pairCount[key] ?? 0) * 1000 + gameCount[availSlot[i]] + gameCount[availSlot[j]]
+            if (score < bestScore) {
+              bestScore = score
+              bestHome = availSlot[i]
+              bestAway = availSlot[j]
+            }
+          }
+        }
+
+        const dt = new Date(cur)
+        dt.setHours(h, m, 0, 0)
+        scheduled.push({ home_team_id: bestHome, away_team_id: bestAway, scheduled_at: dt.toISOString(), location })
+        gameCount[bestHome]++
+        gameCount[bestAway]++
+        const [a, b] = [bestHome, bestAway].sort()
+        pairCount[`${a}|${b}`] = (pairCount[`${a}|${b}`] ?? 0) + 1
+        playedToday.add(bestHome)
+        playedToday.add(bestAway)
+      }
+    }
+    cur.setDate(cur.getDate() + 1)
+  }
+
+  return { games: scheduled, conflicts: 0 }
 }
 
 // ── Playoff bracket definitions ──────────────────────────────────────

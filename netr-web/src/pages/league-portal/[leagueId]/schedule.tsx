@@ -33,7 +33,7 @@ export default function SchedulePage() {
   // generator
   const [showGenerator, setShowGenerator] = useState(false)
   const [gamesPerTeam, setGamesPerTeam] = useState(10)
-  const [genConfig, setGenConfig] = useState<AssignConfig>({ startDate: new Date().toISOString().slice(0,10), gameDays: [1,3], timeSlots: ['19:00'], location: '' })
+  const [genConfig, setGenConfig] = useState<AssignConfig>({ startDate: new Date().toISOString().slice(0,10), gameDays: [1,3], timeSlots: ['19:00'], location: '', allowRematches: false })
   const [preview, setPreview] = useState<GameSlot[] | null>(null)
   const [previewConflicts, setPreviewConflicts] = useState(0)
   const [savingSchedule, setSavingSchedule] = useState(false)
@@ -73,8 +73,12 @@ export default function SchedulePage() {
       const lg = leagueRes.data as League
       setLeague(lg)
       if (lg.games_per_team) setGamesPerTeam(lg.games_per_team)
-      if (lg.default_game_location) setGenConfig(c => ({ ...c, location: lg.default_game_location! }))
-      if (lg.game_time_slots?.length) setGenConfig(c => ({ ...c, timeSlots: lg.game_time_slots! }))
+      setGenConfig(c => ({
+        ...c,
+        ...(lg.default_game_location ? { location: lg.default_game_location } : {}),
+        ...(lg.game_time_slots?.length ? { timeSlots: lg.game_time_slots } : {}),
+        ...(lg.season_end_date ? { endDate: lg.season_end_date } : {}),
+      }))
       setCourts(courtsRes ?? [])
       if (lg.default_court_id) setForm(f => ({ ...f, court_id: lg.default_court_id! }))
 
@@ -118,14 +122,17 @@ export default function SchedulePage() {
   function handlePreview() {
     const scopedTeams = divFilter === 'all' ? teams : teams.filter(t => t.division_id === divFilter)
     if (scopedTeams.length < 2) return
-    const matchups = generateMatchups(scopedTeams.map(t => t.id), gamesPerTeam)
     const dayAvail: Record<string, number[]> = {}
     const timeAvail: Record<string, string[]> = {}
     for (const t of scopedTeams) {
       dayAvail[t.id] = availability[t.id] ?? [0,1,2,3,4,5,6]
       timeAvail[t.id] = teamTimeAvail[t.id] ?? []
     }
-    const { games: slots, conflicts } = assignDates(matchups, dayAvail, timeAvail, genConfig)
+    const cfg: AssignConfig = genConfig.allowRematches
+      ? { ...genConfig, allTeamIds: scopedTeams.map(t => t.id), gamesPerTeam }
+      : genConfig
+    const matchups = genConfig.allowRematches ? [] : generateMatchups(scopedTeams.map(t => t.id), gamesPerTeam)
+    const { games: slots, conflicts } = assignDates(matchups, dayAvail, timeAvail, cfg)
     setPreview(slots)
     setPreviewConflicts(conflicts)
   }
@@ -342,8 +349,44 @@ export default function SchedulePage() {
               <div style={S.genGrid}>
                 <div><label style={S.label}>Games Per Team</label><input type="number" min={1} max={82} value={gamesPerTeam} onChange={e => setGamesPerTeam(parseInt(e.target.value)||1)} style={S.input} /></div>
                 <div><label style={S.label}>Season Start Date</label><input type="date" value={genConfig.startDate} onChange={e => setGenConfig(c => ({ ...c, startDate: e.target.value }))} style={S.input} /></div>
+                <div>
+                  <label style={S.label}>Season End Date <span style={{ color: '#6A6A82', fontWeight: 400, textTransform: 'none' as const }}>(optional)</span></label>
+                  <input type="date" value={genConfig.endDate ?? ''} onChange={e => setGenConfig(c => ({ ...c, endDate: e.target.value || undefined }))} style={S.input} />
+                </div>
                 <div><label style={S.label}>Default Location</label><input type="text" value={genConfig.location} placeholder="Gym name" onChange={e => setGenConfig(c => ({ ...c, location: e.target.value }))} style={S.input} /></div>
               </div>
+
+              {/* Allow rematches toggle */}
+              <div style={{ marginBottom: 18, background: '#0A0A0E', border: '1px solid #1C1C26', borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <div>
+                    <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, textTransform: 'uppercase' as const, letterSpacing: 1, color: '#EEEEF5' }}>Allow Rematches</div>
+                    <div style={{ fontSize: 12, color: '#6A6A82', marginTop: 4 }}>Fill every available slot with any compatible pair. Teams that can&apos;t meet due to schedule conflicts simply won&apos;t play each other — that&apos;s OK.</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setGenConfig(c => ({ ...c, allowRematches: !c.allowRematches }))}
+                    style={{
+                      background: genConfig.allowRematches ? 'rgba(57,255,20,0.15)' : '#14141C',
+                      border: `1.5px solid ${genConfig.allowRematches ? '#39FF14' : '#2E2E3A'}`,
+                      borderRadius: 8,
+                      color: genConfig.allowRematches ? '#39FF14' : '#6A6A82',
+                      fontFamily: "'Barlow Condensed', sans-serif",
+                      fontWeight: 700,
+                      fontSize: 14,
+                      textTransform: 'uppercase' as const,
+                      letterSpacing: 1,
+                      padding: '8px 16px',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      minWidth: 80,
+                    }}
+                  >
+                    {genConfig.allowRematches ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+              </div>
+
               {/* Time slots */}
               <div style={{ marginBottom: 18 }}>
                 <label style={S.label}>Game Time Slots</label>
