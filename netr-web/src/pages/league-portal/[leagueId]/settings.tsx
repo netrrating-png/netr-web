@@ -104,6 +104,13 @@ export default function SettingsPage() {
   const [savingDiv, setSavingDiv]             = useState(false)
   const [crossDivisionPlay, setCrossDivisionPlay] = useState(true)
 
+  // New season
+  const [showNewSeason, setShowNewSeason]           = useState(false)
+  const [newSeasonName, setNewSeasonName]           = useState('')
+  const [newSeasonCopyTeams, setNewSeasonCopyTeams] = useState(true)
+  const [newSeasonCopyRosters, setNewSeasonCopyRosters] = useState(true)
+  const [cloning, setCloning]                       = useState(false)
+
   // Font & signup CTA
   const [leagueFont, setLeagueFont]   = useState('barlow')
   const [signupUrl, setSignupUrl]     = useState('')
@@ -400,6 +407,99 @@ export default function SettingsPage() {
     } finally {
       setCheckingDomain(false)
     }
+  }
+
+  async function handleStartNewSeason() {
+    if (!league) return
+    setCloning(true)
+    const baseSlug = league.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    const newSlug = baseSlug + '-' + Date.now().toString(36)
+
+    const { data: newLeague, error } = await supabase.from('leagues').insert({
+      owner_id: league.owner_id,
+      name: league.name,
+      slug: newSlug,
+      sport: league.sport,
+      season: newSeasonName.trim() || null,
+      location: league.location,
+      description: league.description,
+      logo_url: league.logo_url,
+      is_active: true,
+      enabled_stats: league.enabled_stats,
+      min_games_for_stats: league.min_games_for_stats,
+      default_game_location: league.default_game_location,
+      stat_display: league.stat_display,
+      games_per_team: league.games_per_team,
+      playoff_teams: league.playoff_teams,
+      playoff_format: league.playoff_format,
+      fee_amount: league.fee_amount,
+      banner_url: league.banner_url,
+      accent_color: league.accent_color,
+      contact_info: league.contact_info,
+      social_links: league.social_links,
+      default_court_id: league.default_court_id,
+      league_font: league.league_font,
+      signup_url: league.signup_url,
+      signup_label: league.signup_label,
+      cross_division_play: league.cross_division_play,
+    }).select().single()
+
+    if (error || !newLeague) { setCloning(false); return }
+
+    // Copy divisions, track old→new id map
+    const divMap: Record<string, string> = {}
+    if (divisions.length > 0) {
+      const { data: newDivs } = await supabase.from('league_divisions').insert(
+        divisions.map(d => ({ league_id: newLeague.id, name: d.name, display_order: d.display_order }))
+      ).select()
+      if (newDivs) {
+        divisions.forEach(old => {
+          const nd = newDivs.find(n => n.name === old.name && n.display_order === old.display_order)
+          if (nd) divMap[old.id] = nd.id
+        })
+      }
+    }
+
+    // Copy sponsors
+    if (sponsors.length > 0) {
+      await supabase.from('league_sponsors').insert(
+        sponsors.map(s => ({ league_id: newLeague.id, name: s.name, logo_url: s.logo_url, website_url: s.website_url, display_order: s.display_order }))
+      )
+    }
+
+    // Optionally copy teams (and rosters)
+    if (newSeasonCopyTeams) {
+      const { data: oldTeams } = await supabase.from('league_teams').select('*').eq('league_id', leagueId).order('created_at')
+      for (const team of (oldTeams ?? [])) {
+        const { data: newTeam } = await supabase.from('league_teams').insert({
+          league_id: newLeague.id,
+          name: team.name,
+          color: team.color,
+          logo_url: team.logo_url,
+          division_id: team.division_id ? (divMap[team.division_id] ?? null) : null,
+          fee_paid: false,
+        }).select().single()
+
+        if (newTeam && newSeasonCopyRosters) {
+          const { data: players } = await supabase.from('league_players').select('*').eq('team_id', team.id)
+          if (players && players.length > 0) {
+            await supabase.from('league_players').insert(
+              players.map(p => ({
+                team_id: newTeam.id,
+                league_id: newLeague.id,
+                profile_id: p.profile_id,
+                display_name: p.display_name,
+                jersey_number: p.jersey_number,
+                position: p.position,
+                is_claimed: p.is_claimed,
+              }))
+            )
+          }
+        }
+      }
+    }
+
+    router.push(`/league-portal/${newLeague.id}`)
   }
 
   async function addDivision(e: React.FormEvent) {
@@ -1001,6 +1101,95 @@ export default function SettingsPage() {
                 {isActive ? 'Archive Season' : 'Reactivate Season'}
               </button>
             </div>
+          </div>
+
+          {/* ── New Season ── */}
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>Start New Season</div>
+                <div style={S.cardSub}>Carry your league into the next season. All settings, branding, divisions, and optionally your teams and rosters are copied over. The new season starts with a fresh schedule and empty standings.</div>
+              </div>
+            </div>
+
+            {!showNewSeason ? (
+              <button
+                type="button"
+                onClick={() => { setShowNewSeason(true); setNewSeasonName(league.season ? '' : '') }}
+                style={S.saveBtn}
+              >
+                Start New Season →
+              </button>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
+                <div style={S.field}>
+                  <label style={S.label}>New Season Name</label>
+                  <input
+                    value={newSeasonName}
+                    onChange={e => setNewSeasonName(e.target.value)}
+                    placeholder={`e.g. ${new Date().getFullYear() + (new Date().getMonth() >= 8 ? 1 : 0)} Fall, Winter ${new Date().getFullYear()}…`}
+                    style={S.input}
+                    autoFocus
+                  />
+                  <div style={S.hint}>Appears as the season label on your league page and portal. You can change it later.</div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                  <label style={{ ...S.label, marginBottom: 0 }}>What to carry over</label>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0A0A0E', border: '1px solid #1C1C26', borderRadius: 8, padding: '12px 16px' }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: '#EEEEF5' }}>Copy teams</div>
+                      <div style={{ fontSize: 12, color: '#6A6A82', marginTop: 2 }}>Bring all teams (and their division assignments) into the new season</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setNewSeasonCopyTeams(v => !v); if (newSeasonCopyTeams) setNewSeasonCopyRosters(false) }}
+                      style={{ flexShrink: 0, background: newSeasonCopyTeams ? 'rgba(57,255,20,0.12)' : '#14141C', border: `1.5px solid ${newSeasonCopyTeams ? '#39FF14' : '#2A2A38'}`, borderRadius: 7, color: newSeasonCopyTeams ? '#39FF14' : '#6A6A82', fontSize: 12, fontWeight: 700, padding: '6px 14px', cursor: 'pointer', transition: 'all 0.15s' }}
+                    >
+                      {newSeasonCopyTeams ? 'Yes' : 'No'}
+                    </button>
+                  </div>
+
+                  {newSeasonCopyTeams && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0A0A0E', border: '1px solid #1C1C26', borderRadius: 8, padding: '12px 16px', marginLeft: 20 }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#EEEEF5' }}>Copy rosters</div>
+                        <div style={{ fontSize: 12, color: '#6A6A82', marginTop: 2 }}>Include all players on each team. Fee status is reset. Turn off if rosters change every season.</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setNewSeasonCopyRosters(v => !v)}
+                        style={{ flexShrink: 0, background: newSeasonCopyRosters ? 'rgba(57,255,20,0.12)' : '#14141C', border: `1.5px solid ${newSeasonCopyRosters ? '#39FF14' : '#2A2A38'}`, borderRadius: 7, color: newSeasonCopyRosters ? '#39FF14' : '#6A6A82', fontSize: 12, fontWeight: 700, padding: '6px 14px', cursor: 'pointer', transition: 'all 0.15s' }}
+                      >
+                        {newSeasonCopyRosters ? 'Yes' : 'No'}
+                      </button>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: '#0A0A0E', border: '1px solid #1C1C26', borderRadius: 8 }}>
+                    <span style={{ fontSize: 13, color: '#39FF14' }}>✓</span>
+                    <span style={{ fontSize: 13, color: '#6A6A82' }}>Settings, branding, divisions, sponsors — always copied</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: '#0A0A0E', border: '1px solid #1C1C26', borderRadius: 8 }}>
+                    <span style={{ fontSize: 13, color: '#6A6A82' }}>✕</span>
+                    <span style={{ fontSize: 13, color: '#6A6A82' }}>Schedule, scores, stats, standings — always start fresh</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' as const, paddingTop: 4 }}>
+                  <button type="button" onClick={() => setShowNewSeason(false)} style={S.cancelBtn} disabled={cloning}>Cancel</button>
+                  <button
+                    type="button"
+                    onClick={handleStartNewSeason}
+                    disabled={cloning || !newSeasonName.trim()}
+                    style={{ ...S.saveBtn, opacity: !newSeasonName.trim() ? 0.5 : 1 }}
+                  >
+                    {cloning ? 'Creating…' : `Create ${newSeasonName.trim() || 'New Season'} →`}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ── Announcement ── */}
