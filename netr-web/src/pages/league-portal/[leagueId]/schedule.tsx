@@ -433,12 +433,54 @@ export default function SchedulePage() {
               </div>
               {preview ? (
                 <div style={S.previewBox}>
-                  <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:16, marginBottom:8 }}>Preview</div>
+                  <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:16, marginBottom:10 }}>Preview</div>
                   <div style={{ display:'flex', gap:20, flexWrap:'wrap' as const, marginBottom:12, fontSize:14 }}>
                     <span><strong style={{ color:'#EEEEF5' }}>{preview.length}</strong> games</span>
-                    <span><strong style={{ color:'#EEEEF5' }}>{fmtPreviewRange(preview)}</strong></span>
-                    {previewConflicts > 0 && <span style={{ color:'#F5C542' }}>⚠ {previewConflicts} conflict{previewConflicts!==1?'s':''}</span>}
+                    <span style={{ color:'#6A6A82' }}>{fmtPreviewRange(preview)}</span>
                   </div>
+
+                  {/* Long-range warning */}
+                  {(() => {
+                    if (preview.length < 2) return null
+                    const dates = preview.map(g => new Date(g.scheduled_at))
+                    const spanDays = (Math.max(...dates.map(d => d.getTime())) - Math.min(...dates.map(d => d.getTime()))) / 86400000
+                    if (spanDays > 180) return (
+                      <div style={{ background:'rgba(245,197,66,0.08)', border:'1px solid rgba(245,197,66,0.25)', borderRadius:8, padding:'10px 14px', marginBottom:12, fontSize:13, color:'#F5C542' }}>
+                        ⚠ Schedule spans {Math.round(spanDays / 30)} months — your availability settings may be too restrictive. Try opening up more game days or time slots.
+                      </div>
+                    )
+                    return null
+                  })()}
+
+                  {/* Conflict detail */}
+                  {previewConflicts > 0 && (() => {
+                    const teamsById: Record<string, LeagueTeam> = {}
+                    for (const t of divTeams) teamsById[t.id] = t
+                    const conflictGames = preview.filter(g => g.hasConflict)
+                    return (
+                      <div style={{ background:'rgba(245,197,66,0.06)', border:'1px solid rgba(245,197,66,0.2)', borderRadius:8, padding:'10px 14px', marginBottom:12 }}>
+                        <div style={{ fontSize:13, color:'#F5C542', fontWeight:600, marginBottom:8 }}>
+                          ⚠ {previewConflicts} conflict{previewConflicts!==1?'s':''} — scheduled ignoring availability:
+                        </div>
+                        {conflictGames.map((g, i) => {
+                          const home = teamsById[g.home_team_id]?.name ?? g.home_team_id
+                          const away = teamsById[g.away_team_id]?.name ?? g.away_team_id
+                          const d = new Date(g.scheduled_at)
+                          const dateStr = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
+                          return (
+                            <div key={i} style={{ fontSize:13, color:'#EEEEF5', padding:'4px 0', borderTop: i > 0 ? '1px solid rgba(245,197,66,0.1)' : 'none' }}>
+                              <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700 }}>{home} vs {away}</span>
+                              <span style={{ color:'#6A6A82', marginLeft:10, fontFamily:"'DM Mono',monospace", fontSize:11 }}>{dateStr}</span>
+                            </div>
+                          )
+                        })}
+                        <div style={{ fontSize:12, color:'#6A6A82', marginTop:8 }}>
+                          Fix: open up more availability for these teams, then re-preview.
+                        </div>
+                      </div>
+                    )
+                  })()}
+
                   <div style={{ display:'flex', gap:10 }}>
                     <button onClick={() => setPreview(null)} style={S.cancelBtn}>Clear</button>
                     <button onClick={handleSaveSchedule} style={S.saveBtn} disabled={savingSchedule}>{savingSchedule ? 'Saving…' : `Save ${preview.length} Games`}</button>
