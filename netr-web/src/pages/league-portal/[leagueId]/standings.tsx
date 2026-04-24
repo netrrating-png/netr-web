@@ -38,7 +38,11 @@ export default function StandingsPage() {
       if (!leagueRes.data) { router.replace('/league-portal'); return }
       setLeague(leagueRes.data)
       setStandings(standingsRes.data ?? [])
-      setDivisions(divisionsRes.data ?? [])
+      const divs = divisionsRes.data ?? []
+      setDivisions(divs)
+      if (!(leagueRes.data.cross_division_play ?? true) && divs.length > 0) {
+        setDivFilter(divs[0].id)
+      }
       setLoading(false)
     })
   }, [leagueId])
@@ -72,7 +76,7 @@ export default function StandingsPage() {
           {/* Division filter tabs */}
           {divisions.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 20 }}>
-              {[{ id: 'all', name: 'All' }, ...divisions].map(d => (
+              {[(league.cross_division_play ?? true) ? { id: 'all', name: 'All' } : null, ...divisions].filter(Boolean).map(d => (
                 <button
                   key={d.id}
                   onClick={() => setDivFilter(d.id)}

@@ -63,7 +63,11 @@ export default function StatsPage() {
       setLeague(leagueRes.data)
       setEnabledStats(enabled)
       setActiveTab(enabled[0] ?? null)
-      setDivisions(divisionsRes.data ?? [])
+      const divs = divisionsRes.data ?? []
+      setDivisions(divs)
+      if (!(leagueRes.data.cross_division_play ?? true) && divs.length > 0) {
+        setDivFilter(divs[0].id)
+      }
 
       // Build game→division and team→division maps for filtering
       const gameDivMap: Record<string, string | null> = {}
@@ -151,7 +155,7 @@ export default function StatsPage() {
           {/* Division filter tabs */}
           {divisions.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 20 }}>
-              {[{ id: 'all', name: 'All' }, ...divisions].map(d => (
+              {[(league.cross_division_play ?? true) ? { id: 'all', name: 'All' } : null, ...divisions].filter(Boolean).map(d => (
                 <button
                   key={d.id}
                   onClick={() => setDivFilter(d.id)}

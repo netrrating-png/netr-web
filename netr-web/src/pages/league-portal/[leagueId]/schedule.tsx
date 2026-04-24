@@ -101,6 +101,9 @@ export default function SchedulePage() {
       setStandings((standingsRes as { data: StandingRow[] | null }).data ?? [])
       const divs = divisionsRes.data ?? []
       setDivisions(divs)
+      if (!(lg.cross_division_play ?? true) && divs.length > 0) {
+        setDivFilter(divs[0].id)
+      }
 
       const gameIds = (gamesRes.data ?? []).map((g: LeagueGame) => g.id)
       if (gameIds.length > 0) {
@@ -246,11 +249,16 @@ export default function SchedulePage() {
 
   if (loading || !league) return <LoadingScreen />
 
-  const divTeams = divFilter === 'all' ? teams : teams.filter(t => t.division_id === divFilter)
+  const crossPlay = league.cross_division_play ?? true
+  // When cross_division_play=false, null-division games (created before divisions existed)
+  // show under every division tab so existing data isn't invisible.
+  const matchesDivFilter = (divId: string | null) =>
+    divFilter === 'all' || divId === divFilter || (!crossPlay && divId === null)
+  const divTeams = divFilter === 'all' ? teams : teams.filter(t => t.division_id === divFilter || (!crossPlay && t.division_id === null))
   const allRegularGames = games.filter(g => !g.game_type || g.game_type === 'regular')
   const allPlayoffGames = games.filter(g => g.game_type === 'playoff')
-  const regularGames = divFilter === 'all' ? allRegularGames : allRegularGames.filter(g => g.division_id === divFilter)
-  const playoffGames = divFilter === 'all' ? allPlayoffGames : allPlayoffGames.filter(g => g.division_id === divFilter)
+  const regularGames = allRegularGames.filter(g => matchesDivFilter(g.division_id ?? null))
+  const playoffGames = allPlayoffGames.filter(g => matchesDivFilter(g.division_id ?? null))
   const upcoming = regularGames.filter(g => g.status === 'scheduled')
   const completed = regularGames.filter(g => g.status === 'final')
   const divStandings = divFilter === 'all' ? standings : standings.filter((s: StandingRow & { division_id?: string }) => s.division_id === divFilter)
@@ -291,7 +299,7 @@ export default function SchedulePage() {
           {/* Division filter tabs */}
           {divisions.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 20 }}>
-              {[{ id: 'all', name: 'All' }, ...divisions].map(d => (
+              {[crossPlay ? { id: 'all', name: 'All' } : null, ...divisions].filter(Boolean).map(d => (
                 <button
                   key={d!.id}
                   onClick={() => { setDivFilter(d!.id); setPreview(null) }}
