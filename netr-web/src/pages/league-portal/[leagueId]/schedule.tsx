@@ -338,7 +338,15 @@ export default function SchedulePage() {
           {showGenerator && (
             <div style={S.genPanel}>
               <div style={S.genTitle}>Schedule Generator</div>
-              {regularGames.length > 0 && <div style={S.genWarn}>⚠ You already have {regularGames.length} regular season game{regularGames.length !== 1 ? 's' : ''}. Generating will ADD new games, not replace them.</div>}
+              {/* When divisions don't compete, require a division to be selected first */}
+              {!(league.cross_division_play ?? true) && divFilter === 'all' ? (
+                <div style={{ textAlign: 'center' as const, padding: '24px 16px' }}>
+                  <div style={{ fontSize: 28, marginBottom: 12 }}>☝️</div>
+                  <p style={{ color: '#EEEEF5', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 18, textTransform: 'uppercase' as const, marginBottom: 8 }}>Select a Division First</p>
+                  <p style={{ color: '#6A6A82', fontSize: 14 }}>Your divisions don&apos;t compete against each other. Click a division tab above to generate that division&apos;s schedule.</p>
+                </div>
+              ) : (<>
+              {regularGames.length > 0 && <div style={S.genWarn}>⚠ You already have {regularGames.length} regular season game{regularGames.length !== 1 ? 's' : ''}{divFilter !== 'all' ? ' in this division' : ''}. Generating will ADD new games, not replace them.</div>}
               <div style={S.genGrid}>
                 <div><label style={S.label}>Games Per Team</label><input type="number" min={1} max={82} value={gamesPerTeam} onChange={e => setGamesPerTeam(parseInt(e.target.value)||1)} style={S.input} /></div>
                 <div><label style={S.label}>Season Start Date</label><input type="date" value={genConfig.startDate} onChange={e => setGenConfig(c => ({ ...c, startDate: e.target.value }))} style={S.input} /></div>
@@ -429,9 +437,10 @@ export default function SchedulePage() {
                 </div>
               ) : (
                 <div style={{ display:'flex', justifyContent:'flex-end' }}>
-                  <button onClick={handlePreview} style={S.saveBtn} disabled={genConfig.gameDays.length===0}>Preview Schedule</button>
+                  <button onClick={handlePreview} style={S.saveBtn} disabled={genConfig.gameDays.length===0 || genConfig.timeSlots.length===0}>Preview Schedule</button>
                 </div>
               )}
+              </>)}
             </div>
           )}
 
