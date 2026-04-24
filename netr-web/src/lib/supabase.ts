@@ -49,6 +49,9 @@ export type League = {
   custom_domain: string | null
   custom_domain_status: 'pending' | 'active' | 'error' | null
   default_court_id: string | null
+  league_font: string | null
+  signup_url: string | null
+  signup_label: string | null
   created_at: string
 }
 

@@ -3,8 +3,9 @@ import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { getFontFamily, getFontGF } from '../../lib/league-fonts'
 
-type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null }
+type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null;league_font:string|null;signup_url:string|null;signup_label:string|null }
 type Sponsor = { id:string;name:string;logo_url:string|null;website_url:string|null }
 type GalleryPhoto = { id:string;photo_url:string;caption:string|null }
 type Team = { id:string;name:string;color:string;logo_url:string|null }
@@ -57,7 +58,7 @@ export default function PublicLeaguePage() {
   }
 
   async function load() {
-    const {data:lg} = await supabase.from('leagues').select('id,name,slug,sport,season,location,description,logo_url,banner_url,accent_color,is_active,announcement,contact_info,social_links').eq('slug',slug).single()
+    const {data:lg} = await supabase.from('leagues').select('id,name,slug,sport,season,location,description,logo_url,banner_url,accent_color,is_active,announcement,contact_info,social_links,league_font,signup_url,signup_label').eq('slug',slug).single()
     if(!lg){setNotFound(true);setLoading(false);return}
     setLeague(lg)
     const [sr,tr,gr,pr] = await Promise.all([
@@ -101,6 +102,8 @@ export default function PublicLeaguePage() {
   if(loading) return <Spinner/>
   if(notFound||!league) return <NotFound/>
   const accent=league.accent_color||ACC
+  const displayFont=getFontFamily(league.league_font)
+  const fontGF=getFontGF(league.league_font)
   const tMap=Object.fromEntries(teams.map(t=>[t.id,t]))
   const pMap=Object.fromEntries(players.map(p=>[p.id,p]))
   const sMap=Object.fromEntries(standings.map(s=>[s.team_id,s]))
@@ -119,29 +122,43 @@ export default function PublicLeaguePage() {
       <title>{league.name}</title>
       <meta name="robots" content="noindex"/>
       <meta name="viewport" content="width=device-width,initial-scale=1"/>
-      <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+      <link href={`https://fonts.googleapis.com/css2?family=${fontGF}&family=Barlow+Condensed:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap`} rel="stylesheet"/>
     </Head>
     <div style={{minHeight:'100vh',background:'#040406',fontFamily:"'DM Sans',sans-serif",color:'#EEEEF5'}}>
 
       {/* Hero */}
-      <div style={{position:'relative',background:league.banner_url?'transparent':'#0A0A0E'}}>
-        {league.banner_url&&<><img src={league.banner_url} alt="" style={{width:'100%',height:220,objectFit:'cover',display:'block'}}/><div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,rgba(4,4,6,0.3),rgba(4,4,6,0.88))'}}/></>}
-        <div style={{position:league.banner_url?'absolute':'relative',bottom:0,left:0,right:0,padding:'24px 20px 20px'}}>
-          <div style={{maxWidth:900,margin:'0 auto',display:'flex',alignItems:'flex-end',gap:18}}>
-            {league.logo_url&&<img src={league.logo_url} alt={league.name} style={{width:80,height:80,borderRadius:12,objectFit:'cover',border:`3px solid ${accent}`,flexShrink:0,background:'#0A0A0E'}}/>}
-            <div style={{flex:1,minWidth:0}}>
-              <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:'clamp(26px,6vw,48px)',textTransform:'uppercase',lineHeight:1,marginBottom:8}}>{league.name}</h1>
-              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-                {league.season&&<Chip>{league.season}</Chip>}
-                {league.location&&<Chip>📍 {league.location}</Chip>}
-                <Chip style={{background:league.is_active?`${accent}20`:'rgba(106,106,130,0.12)',color:league.is_active?accent:'#6A6A82',border:`1px solid ${league.is_active?`${accent}40`:'transparent'}`}}>{league.is_active?'● Active':'○ Archived'}</Chip>
-                {league.contact_info&&<a href={league.contact_info.includes('@')?`mailto:${league.contact_info}`:league.contact_info.startsWith('http')?league.contact_info:`tel:${league.contact_info}`} style={{display:'inline-flex',alignItems:'center',gap:5,background:`${accent}18`,border:`1px solid ${accent}40`,borderRadius:99,padding:'4px 12px',color:accent,fontSize:12,fontFamily:"'DM Sans',sans-serif",textDecoration:'none',whiteSpace:'nowrap' as const}}>✉ Contact Us</a>}
-                {league.social_links&&<SocialIcons links={league.social_links} accent={accent}/>}
-              </div>
-            </div>
+      <div style={{position:'relative',minHeight:460,background:'#040406',overflow:'hidden',display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+        {league.banner_url&&<img src={league.banner_url} alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>}
+        {/* Overlays */}
+        <div style={{position:'absolute',inset:0,background:`linear-gradient(to bottom,rgba(4,4,6,0.1) 0%,rgba(4,4,6,0.65) 50%,rgba(4,4,6,1) 100%)`}}/>
+        <div style={{position:'absolute',inset:0,background:`radial-gradient(ellipse at 0% 100%,${accent}12 0%,transparent 55%)`}}/>
+        {/* Content */}
+        <div style={{position:'relative',zIndex:1,maxWidth:940,margin:'0 auto',width:'100%',padding:'0 20px 44px'}}>
+          {/* Eyebrow */}
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:18}}>
+            <div style={{height:3,width:36,background:accent,borderRadius:2,flexShrink:0}}/>
+            <span style={{fontSize:11,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase'}}>{league.season||league.sport||'League'}</span>
+          </div>
+          {/* Name + logo */}
+          <div style={{display:'flex',alignItems:'flex-end',gap:22,marginBottom:24,flexWrap:'wrap' as const}}>
+            {league.logo_url&&<img src={league.logo_url} alt={league.name} style={{width:96,height:96,borderRadius:14,objectFit:'cover',border:`3px solid ${accent}`,flexShrink:0,boxShadow:`0 0 32px ${accent}50`,background:'#0A0A0E'}}/>}
+            <h1 style={{fontFamily:displayFont,fontWeight:900,fontSize:'clamp(42px,9vw,96px)',textTransform:'uppercase',lineHeight:0.88,letterSpacing:'-1px',margin:0,wordBreak:'break-word' as const}}>{league.name}</h1>
+          </div>
+          {/* Meta + CTA row */}
+          <div style={{display:'flex',alignItems:'center',flexWrap:'wrap' as const,gap:10}}>
+            {league.location&&<Chip>📍 {league.location}</Chip>}
+            <Chip style={{background:league.is_active?`${accent}20`:'rgba(106,106,130,0.12)',color:league.is_active?accent:'#6A6A82',border:`1px solid ${league.is_active?`${accent}40`:'transparent'}`}}>{league.is_active?'● Active':'○ Archived'}</Chip>
+            {league.contact_info&&<a href={league.contact_info.includes('@')?`mailto:${league.contact_info}`:league.contact_info.startsWith('http')?league.contact_info:`tel:${league.contact_info}`} style={{display:'inline-flex',alignItems:'center',gap:5,background:`${accent}18`,border:`1px solid ${accent}40`,borderRadius:99,padding:'5px 13px',color:accent,fontSize:12,fontFamily:"'DM Sans',sans-serif",textDecoration:'none',whiteSpace:'nowrap' as const}}>✉ Contact Us</a>}
+            {league.social_links&&<SocialIcons links={league.social_links} accent={accent}/>}
+            {league.signup_url&&(
+              <a href={league.signup_url} target="_blank" rel="noopener noreferrer"
+                style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:8,background:accent,color:'#040406',fontFamily:displayFont,fontWeight:900,fontSize:17,textTransform:'uppercase',letterSpacing:'1px',padding:'13px 28px',borderRadius:10,textDecoration:'none',flexShrink:0,boxShadow:`0 0 28px ${accent}60`,whiteSpace:'nowrap' as const}}>
+                {league.signup_label||'Join the League'} →
+              </a>
+            )}
           </div>
         </div>
-        <div style={{height:3,background:`linear-gradient(90deg,${accent},transparent)`}}/>
+        <div style={{position:'relative',height:3,background:`linear-gradient(90deg,${accent},transparent)`}}/>
       </div>
 
       {/* Announcement */}
@@ -178,11 +195,84 @@ export default function PublicLeaguePage() {
 
       <main style={{maxWidth:900,margin:'0 auto',padding:'28px 16px 64px'}}>
 
-        {/* OVERVIEW */}
+        {/* OVERVIEW — homepage */}
         {activeTab==='overview'&&<>
-          <section style={{marginBottom:36}}>
-            <SecTitle accent={accent}>Standings</SecTitle>
-            {standings.length===0?<Empty>No games played yet.</Empty>:(
+
+          {/* About / Mission */}
+          {league.description&&(
+            <section style={{marginBottom:60}}>
+              <SectionLabel accent={accent}>About Us</SectionLabel>
+              <p style={{fontFamily:displayFont,fontSize:'clamp(20px,3.5vw,30px)',lineHeight:1.55,color:'#C8C8D4',fontWeight:400,margin:0,maxWidth:700}}>{league.description}</p>
+            </section>
+          )}
+
+          {/* Gallery strip */}
+          {galleryPhotos.length>0&&(
+            <section style={{marginBottom:60}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,flexWrap:'wrap' as const,gap:8}}>
+                <SectionLabel accent={accent} noMargin>Gallery</SectionLabel>
+                <button onClick={()=>setTab('gallery')} style={{background:'none',border:'none',color:accent,fontSize:12,fontFamily:"'DM Mono',monospace",cursor:'pointer',letterSpacing:1,textTransform:'uppercase' as const,padding:0}}>View all {galleryPhotos.length} →</button>
+              </div>
+              <div style={{display:'flex',gap:10,overflowX:'auto',scrollSnapType:'x mandatory',paddingBottom:4,WebkitOverflowScrolling:'touch'} as React.CSSProperties}>
+                {galleryPhotos.slice(0,8).map((p,i)=>(
+                  <div key={p.id} onClick={()=>{setTab('gallery');setTimeout(()=>setLightboxIdx(i),50)}}
+                    style={{width:260,height:190,flexShrink:0,borderRadius:12,overflow:'hidden',cursor:'pointer',scrollSnapAlign:'start',border:'1px solid #1C1C26'}}>
+                    <img src={p.photo_url} alt={p.caption??''} style={{width:'100%',height:'100%',objectFit:'cover',transition:'transform 0.3s'}}
+                      onMouseEnter={e=>e.currentTarget.style.transform='scale(1.05)'}
+                      onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}/>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Upcoming games */}
+          <section style={{marginBottom:60}}>
+            <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',flexWrap:'wrap' as const,gap:12,marginBottom:20}}>
+              <SectionLabel accent={accent} noMargin>Upcoming Games</SectionLabel>
+              {myTeamId&&<CalendarButtons slug={league.slug} teamId={myTeamId} size="sm"/>}
+            </div>
+            {upcoming.length===0?<Empty>No games scheduled yet.</Empty>:(
+              <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                {upcoming.slice(0,5).map(g=>(
+                  <div key={g.id}>
+                    <GCard g={g} tMap={tMap} accent={accent} rsvpCount={attendanceCounts[g.id]||0}/>
+                    {myPlayerId&&<RsvpRow gameId={g.id} myStatus={myAttendance[g.id]||null} accent={accent} onRsvp={rsvp}/>}
+                  </div>
+                ))}
+                {upcoming.length>5&&(
+                  <button onClick={()=>setTab('schedule')} style={{background:'none',border:'1px solid #1C1C26',borderRadius:10,padding:'14px',color:'#6A6A82',fontSize:13,fontFamily:"'DM Mono',monospace",cursor:'pointer',textAlign:'center' as const,letterSpacing:1}}>
+                    VIEW FULL SCHEDULE ({upcoming.length} GAMES) →
+                  </button>
+                )}
+              </div>
+            )}
+          </section>
+
+          {/* Sponsors */}
+          {sponsors.length>0&&(
+            <section style={{marginBottom:60}}>
+              <SectionLabel accent={accent}>Our Sponsors</SectionLabel>
+              <div style={{display:'flex',flexWrap:'wrap' as const,gap:12,alignItems:'center'}}>
+                {sponsors.map(sp=>(
+                  <a key={sp.id} href={sp.website_url??undefined} target="_blank" rel="noopener noreferrer"
+                    style={{display:'flex',alignItems:'center',gap:10,background:'#0F0F14',border:'1px solid #1C1C26',borderRadius:12,padding:'12px 18px',textDecoration:'none'}}
+                    onMouseEnter={e=>e.currentTarget.style.borderColor=accent+'66'}
+                    onMouseLeave={e=>e.currentTarget.style.borderColor='#1C1C26'}>
+                    {sp.logo_url&&<img src={sp.logo_url} alt={sp.name} style={{height:32,maxWidth:80,objectFit:'contain',borderRadius:4,background:'#fff',padding:'2px 6px'}}/>}
+                    <span style={{fontFamily:displayFont,fontWeight:700,fontSize:16,textTransform:'uppercase' as const,color:'#EEEEF5'}}>{sp.name}</span>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+        </>}
+
+        {/* SCHEDULE */}
+        {activeTab==='schedule'&&<>
+          {standings.length>0&&(
+            <section style={{marginBottom:40}}>
+              <SecTitle accent={accent}>Standings</SecTitle>
               <div style={{background:'#0F0F14',border:'1px solid #1C1C26',borderRadius:12,overflow:'hidden'}}>
                 <table style={{width:'100%',borderCollapse:'collapse'}}>
                   <thead><tr style={{background:'#0A0A0E',borderBottom:'1px solid #1C1C26'}}>
@@ -193,9 +283,9 @@ export default function PublicLeaguePage() {
                     const gp=s.wins+s.losses,pct=gp>0?(s.wins/gp).toFixed(3).replace(/^0/,''):'.000',diff=s.pts_for-s.pts_against,top=i===0&&s.wins>0
                     return(<tr key={s.team_id} onClick={()=>setTeamModalId(s.team_id)} style={{borderBottom:'1px solid #14141C',background:top?`${accent}08`:'transparent',cursor:'pointer'}}>
                       <td style={{...TD,color:'#6A6A82',fontFamily:"'DM Mono',monospace",fontSize:13}}>{top?'🏆':i+1}</td>
-                      <td style={TD}><div style={{display:'flex',alignItems:'center',gap:8}}><div style={{width:10,height:10,borderRadius:'50%',background:s.color,flexShrink:0}}/><span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,textTransform:'uppercase',color:top?'#EEEEF5':'#C8C8D4'}}>{s.team_name}</span></div></td>
-                      <td style={{...TD,color:accent,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18}}>{s.wins}</td>
-                      <td style={{...TD,color:'#6A6A82',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18}}>{s.losses}</td>
+                      <td style={TD}><div style={{display:'flex',alignItems:'center',gap:8}}><div style={{width:10,height:10,borderRadius:'50%',background:s.color,flexShrink:0}}/><span style={{fontFamily:displayFont,fontWeight:700,fontSize:16,textTransform:'uppercase' as const,color:top?'#EEEEF5':'#C8C8D4'}}>{s.team_name}</span></div></td>
+                      <td style={{...TD,color:accent,fontFamily:displayFont,fontWeight:700,fontSize:18}}>{s.wins}</td>
+                      <td style={{...TD,color:'#6A6A82',fontFamily:displayFont,fontWeight:700,fontSize:18}}>{s.losses}</td>
                       <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:13}}>{pct}</td>
                       <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:13}}>{s.pts_for}</td>
                       <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:13}}>{s.pts_against}</td>
@@ -204,53 +294,19 @@ export default function PublicLeaguePage() {
                   })}</tbody>
                 </table>
               </div>
-            )}
-          </section>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(290px,1fr))',gap:28}}>
-            <section>
-              <SecTitle accent={accent}>Recent Results</SecTitle>
-              {finals.length===0?<Empty>No results yet.</Empty>:<div style={{display:'flex',flexDirection:'column',gap:10}}>{finals.slice(0,8).map(g=><GCard key={g.id} g={g} tMap={tMap} accent={accent} onClick={()=>setBoxGameId(g.id)}/>)}</div>}
-            </section>
-            <section>
-              <SecTitle accent={accent}>Upcoming Games</SecTitle>
-              {myTeamId&&<CalendarButtons slug={league.slug} teamId={myTeamId} size="sm"/>}
-              {upcoming.length===0?<Empty>No games scheduled.</Empty>:<div style={{display:'flex',flexDirection:'column',gap:10}}>{upcoming.slice(0,8).map(g=><div key={g.id}><GCard g={g} tMap={tMap} accent={accent} rsvpCount={attendanceCounts[g.id]||0}/>{myPlayerId&&<RsvpRow gameId={g.id} myStatus={myAttendance[g.id]||null} accent={accent} onRsvp={rsvp}/>}</div>)}</div>}
-            </section>
-          </div>
-          {sponsors.length>0&&(
-            <section style={{marginTop:36}}>
-              <SecTitle accent={accent}>Our Sponsors</SecTitle>
-              <div style={{display:'flex',flexWrap:'wrap',gap:14,alignItems:'center'}}>
-                {sponsors.map(sp=>(
-                  <a key={sp.id} href={sp.website_url??undefined} target="_blank" rel="noopener noreferrer"
-                    style={{display:'flex',alignItems:'center',gap:10,background:'#0F0F14',border:'1px solid #1C1C26',borderRadius:12,padding:'12px 18px',textDecoration:'none',transition:'border-color 0.2s'}}
-                    onMouseEnter={e=>e.currentTarget.style.borderColor=accent+'66'}
-                    onMouseLeave={e=>e.currentTarget.style.borderColor='#1C1C26'}>
-                    {sp.logo_url&&<img src={sp.logo_url} alt={sp.name} style={{height:32,maxWidth:80,objectFit:'contain',borderRadius:4,background:'#fff',padding:'2px 6px'}}/>}
-                    <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,textTransform:'uppercase',color:'#EEEEF5'}}>{sp.name}</span>
-                  </a>
-                ))}
-              </div>
             </section>
           )}
-        </>}
-
-        {/* SCHEDULE */}
-        {activeTab==='schedule'&&<section>
-          <div style={{marginBottom:16}}>
-            <SecTitle accent={accent}>Full Schedule</SecTitle>
-            <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:10,padding:'14px 16px',marginBottom:16}}>
-              <div style={{fontSize:12,color:'#6A6A82',fontFamily:"'DM Mono',monospace",marginBottom:10,textTransform:'uppercase',letterSpacing:1}}>
-                {myTeamId?`Subscribe to ${teams.find(t=>t.id===myTeamId)?.name??'Your Team'}'s games`:'Subscribe — games auto-update when schedule changes'}
-              </div>
-              <CalendarButtons slug={league.slug} teamId={myTeamId??undefined} size="lg"/>
-              {myTeamId&&<div style={{marginTop:8,fontSize:11,color:'#3A3A4E',fontFamily:"'DM Mono',monospace"}}>
-                <a href={`/league/${league.slug}?tab=teams`} onClick={()=>setTab('teams')} style={{color:'#4A4A5E',textDecoration:'underline',cursor:'pointer'}}>Find another team</a>
-              </div>}
+          <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:10,padding:'14px 16px',marginBottom:20}}>
+            <div style={{fontSize:12,color:'#6A6A82',fontFamily:"'DM Mono',monospace",marginBottom:10,textTransform:'uppercase' as const,letterSpacing:1}}>
+              {myTeamId?`Subscribe to ${teams.find(t=>t.id===myTeamId)?.name??'Your Team'}'s games`:'Subscribe — auto-updates when schedule changes'}
             </div>
+            <CalendarButtons slug={league.slug} teamId={myTeamId??undefined} size="lg"/>
           </div>
-          {allGames.length===0?<Empty>No games yet.</Empty>:<div style={{display:'flex',flexDirection:'column',gap:8}}>{allGames.map(g=><GCard key={g.id} g={g} tMap={tMap} accent={accent} showLoc onClick={g.status==='final'?()=>setBoxGameId(g.id):undefined}/>)}</div>}
-        </section>}
+          <section>
+            <SecTitle accent={accent}>Full Schedule</SecTitle>
+            {allGames.length===0?<Empty>No games yet.</Empty>:<div style={{display:'flex',flexDirection:'column',gap:8}}>{allGames.map(g=><GCard key={g.id} g={g} tMap={tMap} accent={accent} showLoc onClick={g.status==='final'?()=>setBoxGameId(g.id):undefined}/>)}</div>}
+          </section>
+        </>}
 
         {/* STATS */}
         {activeTab==='stats'&&<section>
@@ -526,6 +582,14 @@ function SecTitle({children,accent,noMargin}:{children:React.ReactNode;accent:st
   return(<h2 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,textTransform:'uppercase',letterSpacing:0.5,marginBottom:noMargin?0:14,color:'#EEEEF5',display:'flex',alignItems:'center',gap:10}}>
     <span style={{display:'inline-block',width:4,height:20,background:accent,borderRadius:2,flexShrink:0}}/>{children}
   </h2>)
+}
+function SectionLabel({children,accent,noMargin}:{children:string;accent:string;noMargin?:boolean}) {
+  return(
+    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:noMargin?0:20}}>
+      <div style={{height:3,width:36,background:accent,borderRadius:2,flexShrink:0}}/>
+      <span style={{fontSize:11,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const}}>{children}</span>
+    </div>
+  )
 }
 function Chip({children,style}:{children:React.ReactNode;style?:React.CSSProperties}) {
   return<span style={{background:'rgba(255,255,255,0.08)',color:'#EEEEF5',fontSize:12,padding:'4px 10px',borderRadius:99,fontFamily:"'DM Mono',monospace",...style}}>{children}</span>

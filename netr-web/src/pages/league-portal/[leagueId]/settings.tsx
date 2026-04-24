@@ -2,6 +2,7 @@ import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect, useRef } from 'react'
 import { supabase, fetchAllCourts, League, LeagueSponsor, LeagueGalleryPhoto } from '../../../lib/supabase'
+import { LEAGUE_FONTS } from '../../../lib/league-fonts'
 import { CourtPicker } from '../../../components/CourtPicker'
 import { PortalNav } from './index'
 import { STAT_DEFS, DEFAULT_ENABLED_STATS, StatKey } from '../../../lib/stat-config'
@@ -85,6 +86,13 @@ export default function SettingsPage() {
   const [courts, setCourts]               = useState<{ id: string; name: string; city: string }[]>([])
   const [defaultCourtId, setDefaultCourtId] = useState<string | null>(null)
 
+  // Font & signup CTA
+  const [leagueFont, setLeagueFont]   = useState('barlow')
+  const [signupUrl, setSignupUrl]     = useState('')
+  const [signupLabel, setSignupLabel] = useState('')
+  const fontSave   = useSaveState()
+  const signupSave = useSaveState()
+
   // Schedule & playoff settings
   const [gamesPerTeam, setGamesPerTeam]   = useState(10)
   const [playoffTeams, setPlayoffTeams]   = useState(4)
@@ -154,6 +162,9 @@ export default function SettingsPage() {
       setDomainInput(data.custom_domain ?? '')
       setCustomDomainStatus(data.custom_domain_status ?? null)
       setDefaultCourtId(data.default_court_id ?? null)
+      setLeagueFont(data.league_font ?? 'barlow')
+      setSignupUrl(data.signup_url ?? '')
+      setSignupLabel(data.signup_label ?? '')
       setContactInfo(data.contact_info ?? '')
       setSocialLinks(data.social_links ?? {})
 
@@ -484,6 +495,75 @@ export default function SettingsPage() {
 
             <div style={S.hint}>⚠ Requires the <code style={{ fontFamily: "'DM Mono', monospace", fontSize: 11 }}>league-logos</code> storage bucket in Supabase.</div>
           </div>
+
+          {/* ── League Font ── */}
+          <div style={S.card}>
+            <Head>
+              <link href={`https://fonts.googleapis.com/css2?${Object.values(LEAGUE_FONTS).map(f=>`family=${f.gf}`).join('&')}&display=swap`} rel="stylesheet"/>
+            </Head>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>Display Font</div>
+                <div style={S.cardSub}>Applied to headings on your public league page. Body text is always clean and readable.</div>
+              </div>
+              <SaveIndicator state={fontSave.state} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginTop: 4 }}>
+              {Object.entries(LEAGUE_FONTS).map(([key, f]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => {
+                    setLeagueFont(key)
+                    fontSave.trigger(supabase.from('leagues').update({ league_font: key }).eq('id', leagueId))
+                  }}
+                  style={{
+                    background: leagueFont === key ? '#1A2A1A' : '#10101A',
+                    border: `2px solid ${leagueFont === key ? '#39FF14' : '#2A2A38'}`,
+                    borderRadius: 10,
+                    padding: '14px 12px',
+                    cursor: 'pointer',
+                    textAlign: 'left' as const,
+                  }}
+                >
+                  <div style={{ fontFamily: f.family, fontWeight: 700, fontSize: 20, color: '#EEEEF5', lineHeight: 1.1, marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {f.preview}
+                  </div>
+                  <div style={{ fontSize: 11, color: leagueFont === key ? '#39FF14' : '#6A6A82', fontFamily: "'DM Mono', monospace" }}>
+                    {f.label}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Sign Up CTA ── */}
+          <form onSubmit={e => { e.preventDefault(); signupSave.trigger(supabase.from('leagues').update({ signup_url: signupUrl.trim() || null, signup_label: signupLabel.trim() || null }).eq('id', leagueId)) }} style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>Sign Up Button</div>
+                <div style={S.cardSub}>A prominent call-to-action button on your public homepage. Link to a Google Form, payment page, Eventbrite, or any URL.</div>
+              </div>
+              <SaveIndicator state={signupSave.state} />
+            </div>
+            <div style={S.fieldGrid}>
+              <div style={S.field}>
+                <label style={S.label}>Destination URL</label>
+                <input value={signupUrl} onChange={e => setSignupUrl(e.target.value)} style={S.input} placeholder="https://forms.google.com/…" type="url"/>
+                <div style={S.hint}>Google Form, payment link, Jotform, Stripe, PayPal — anything with a URL works.</div>
+              </div>
+              <div style={S.field}>
+                <label style={S.label}>Button Label (optional)</label>
+                <input value={signupLabel} onChange={e => setSignupLabel(e.target.value)} style={S.input} placeholder="Join the League"/>
+                <div style={S.hint}>Defaults to "Join the League" if left blank.</div>
+              </div>
+            </div>
+            <div style={S.cardFoot}>
+              <button type="submit" style={S.saveBtn} disabled={signupSave.state === 'saving'}>
+                {signupSave.state === 'saving' ? 'Saving…' : 'Save CTA'}
+              </button>
+            </div>
+          </form>
 
           {/* ── Schedule & Playoffs ── */}
           <form onSubmit={saveScheduleSettings} style={S.card}>
