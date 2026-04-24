@@ -65,6 +65,7 @@ export type League = {
   signup_label: string | null
   cross_division_play: boolean
   game_time_slots: string[] | null
+  season_end_date: string | null
   created_at: string
 }
 

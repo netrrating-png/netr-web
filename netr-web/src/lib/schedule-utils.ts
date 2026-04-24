@@ -61,9 +61,16 @@ export type GameSlot = {
 
 export type AssignConfig = {
   startDate: string        // 'YYYY-MM-DD'
+  endDate?: string         // optional hard stop — no games scheduled after this date
   gameDays: number[]       // [1,3,6] = Mon,Wed,Sat
-  timeSlots: string[]      // ['19:30','20:30','21:30'] — one game scheduled per slot per day
+  timeSlots: string[]      // ['19:30','20:30','21:30'] — one game per slot per day
   location: string
+  // Flexible mode: fill available slots with any compatible pair (repeats allowed).
+  // When true, round-robin matchups are generated on the fly and some pairs may
+  // never meet if their availability is incompatible — that's intentional.
+  allowRematches?: boolean
+  allTeamIds?: string[]    // required when allowRematches=true
+  gamesPerTeam?: number    // target per team when allowRematches=true
 }
 
 export function assignDates(
@@ -73,12 +80,20 @@ export function assignDates(
   cfg: AssignConfig
 ): { games: GameSlot[]; conflicts: number } {
   const slots = cfg.timeSlots.length > 0 ? cfg.timeSlots : ['19:00']
+  const endDate = cfg.endDate ? new Date(cfg.endDate + 'T23:59:59') : null
+  const cur = new Date(cfg.startDate + 'T12:00:00')
+
+  if (cfg.allowRematches && cfg.allTeamIds && cfg.gamesPerTeam) {
+    return assignDatesFlexible(cfg.allTeamIds, cfg.gamesPerTeam, teamDayAvail, teamTimeAvail, slots, cfg.gameDays, cfg.location, cur, endDate)
+  }
+
+  // ── Round-robin mode ────────────────────────────────────────────
   const remaining = [...matchups]
   const scheduled: GameSlot[] = []
   let conflicts = 0
-  const cur = new Date(cfg.startDate + 'T12:00:00')
 
   for (let d = 0; d < 730 && remaining.length > 0; d++) {
+    if (endDate && cur > endDate) break
     const dow = cur.getDay()
     if (cfg.gameDays.includes(dow)) {
       const playedToday = new Set<string>()
@@ -109,10 +124,11 @@ export function assignDates(
     cur.setDate(cur.getDate() + 1)
   }
 
-  // Fallback: schedule remaining ignoring availability
+  // Fallback: force-schedule remaining games ignoring availability
   const [fh, fm] = slots[0].split(':').map(Number)
   for (const [home, away] of remaining) {
     while (!cfg.gameDays.includes(cur.getDay())) cur.setDate(cur.getDate() + 1)
+    if (endDate && cur > endDate) break
     const dt = new Date(cur)
     dt.setHours(fh, fm, 0, 0)
     scheduled.push({ home_team_id: home, away_team_id: away, scheduled_at: dt.toISOString(), location: cfg.location, hasConflict: true })
@@ -122,6 +138,76 @@ export function assignDates(
   }
 
   return { games: scheduled, conflicts }
+}
+
+function assignDatesFlexible(
+  teamIds: string[],
+  gamesPerTeam: number,
+  teamDayAvail: Record<string, number[]>,
+  teamTimeAvail: Record<string, string[]>,
+  slots: string[],
+  gameDays: number[],
+  location: string,
+  cur: Date,
+  endDate: Date | null
+): { games: GameSlot[]; conflicts: number } {
+  const scheduled: GameSlot[] = []
+  const gameCount: Record<string, number> = {}
+  const pairCount: Record<string, number> = {}
+  for (const id of teamIds) gameCount[id] = 0
+
+  const maxDays = endDate ? Infinity : 730
+  for (let d = 0; d < maxDays; d++) {
+    if (endDate && cur > endDate) break
+    if (teamIds.every(id => gameCount[id] >= gamesPerTeam)) break
+
+    const dow = cur.getDay()
+    if (gameDays.includes(dow)) {
+      const availDay = teamIds.filter(id =>
+        gameCount[id] < gamesPerTeam &&
+        (teamDayAvail[id] ?? gameDays).includes(dow)
+      )
+      const playedToday = new Set<string>()
+
+      for (const slot of slots) {
+        const [h, m] = slot.split(':').map(Number)
+        const availSlot = availDay.filter(id => {
+          if (playedToday.has(id)) return false
+          const times = teamTimeAvail[id]
+          return !times?.length || times.includes(slot)
+        })
+        if (availSlot.length < 2) continue
+
+        // Pick the pair with fewest previous matchups (break ties by fewest total games)
+        let bestHome = '', bestAway = '', bestScore = Infinity
+        for (let i = 0; i < availSlot.length; i++) {
+          for (let j = i + 1; j < availSlot.length; j++) {
+            const [a, b] = [availSlot[i], availSlot[j]].sort()
+            const key = `${a}|${b}`
+            const score = (pairCount[key] ?? 0) * 1000 + gameCount[availSlot[i]] + gameCount[availSlot[j]]
+            if (score < bestScore) {
+              bestScore = score
+              bestHome = availSlot[i]
+              bestAway = availSlot[j]
+            }
+          }
+        }
+
+        const dt = new Date(cur)
+        dt.setHours(h, m, 0, 0)
+        scheduled.push({ home_team_id: bestHome, away_team_id: bestAway, scheduled_at: dt.toISOString(), location })
+        gameCount[bestHome]++
+        gameCount[bestAway]++
+        const [a, b] = [bestHome, bestAway].sort()
+        pairCount[`${a}|${b}`] = (pairCount[`${a}|${b}`] ?? 0) + 1
+        playedToday.add(bestHome)
+        playedToday.add(bestAway)
+      }
+    }
+    cur.setDate(cur.getDate() + 1)
+  }
+
+  return { games: scheduled, conflicts: 0 }
 }
 
 // ── Playoff bracket definitions ──────────────────────────────────────
@@ -141,6 +227,8 @@ export type PlayoffRound = {
 }
 
 export function getPlayoffBracket(n: number): PlayoffRound[] | null {
+  if (n < 2) return null
+  // Preserve exact slot numbers for already-deployed bracket sizes
   if (n === 2) return [
     { roundNum: 1, name: 'Championship', games: [
       { slot: 1, homeSeed: 1, awaySeed: 2, prevHomeSlot: null, prevAwaySlot: null },
@@ -183,7 +271,68 @@ export function getPlayoffBracket(n: number): PlayoffRound[] | null {
       { slot: 7, homeSeed: 0, awaySeed: 0, prevHomeSlot: 5, prevAwaySlot: 6 },
     ]},
   ]
-  return null
+  return buildGeneralBracket(n)
+}
+
+function buildGeneralBracket(n: number): PlayoffRound[] {
+  // Smallest power-of-2 bracket size that fits n teams
+  let size = 1
+  while (size < n) size *= 2
+
+  // Standard fold seeding: places 1 and 2 on opposite sides so they only meet in the final
+  function foldSeeds(sz: number): number[] {
+    if (sz === 2) return [1, 2]
+    const half = foldSeeds(sz / 2)
+    const result: number[] = []
+    for (const s of half) result.push(s, sz + 1 - s)
+    return result
+  }
+
+  type Entity = { type: 'seed'; seed: number } | { type: 'winner'; slot: number }
+  let positions: (Entity | null)[] = foldSeeds(size).map(s =>
+    s <= n ? { type: 'seed', seed: s } as Entity : null
+  )
+
+  const totalRounds = Math.ceil(Math.log2(n))
+  let slotNum = 1
+  let roundNum = 1
+  const rounds: PlayoffRound[] = []
+
+  while (positions.filter(Boolean).length > 1) {
+    const games: BracketGame[] = []
+    const next: (Entity | null)[] = []
+
+    for (let i = 0; i < positions.length; i += 2) {
+      const a = positions[i]
+      const b = positions[i + 1] ?? null
+      if (!a && !b) { next.push(null); continue }
+      if (!a) { next.push(b); continue }
+      if (!b) { next.push(a); continue }
+      const game: BracketGame = {
+        slot: slotNum,
+        homeSeed: a.type === 'seed' ? a.seed : 0,
+        awaySeed: b.type === 'seed' ? b.seed : 0,
+        prevHomeSlot: a.type === 'winner' ? a.slot : null,
+        prevAwaySlot: b.type === 'winner' ? b.slot : null,
+      }
+      games.push(game)
+      next.push({ type: 'winner', slot: slotNum })
+      slotNum++
+    }
+
+    if (games.length > 0) {
+      const fromEnd = totalRounds - roundNum
+      const name = fromEnd === 0 ? 'Championship'
+        : fromEnd === 1 ? 'Semifinals'
+        : fromEnd === 2 ? 'Quarterfinals'
+        : `Round ${roundNum}`
+      rounds.push({ roundNum, name, games })
+      roundNum++
+    }
+    positions = next
+  }
+
+  return rounds
 }
 
 export function fmtPreviewRange(games: GameSlot[]): string {
