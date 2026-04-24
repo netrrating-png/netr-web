@@ -62,48 +62,59 @@ export type GameSlot = {
 export type AssignConfig = {
   startDate: string        // 'YYYY-MM-DD'
   gameDays: number[]       // [1,3,6] = Mon,Wed,Sat
-  gameTime: string         // '19:00'
-  gamesPerDay: number
-  minsBetweenGames: number
+  timeSlots: string[]      // ['19:30','20:30','21:30'] — one game scheduled per slot per day
   location: string
 }
 
 export function assignDates(
   matchups: [string, string][],
-  teamAvailability: Record<string, number[]>,
+  teamDayAvail: Record<string, number[]>,
+  teamTimeAvail: Record<string, string[]>,
   cfg: AssignConfig
 ): { games: GameSlot[]; conflicts: number } {
+  const slots = cfg.timeSlots.length > 0 ? cfg.timeSlots : ['19:00']
   const remaining = [...matchups]
   const scheduled: GameSlot[] = []
   let conflicts = 0
-  const [h, m] = cfg.gameTime.split(':').map(Number)
   const cur = new Date(cfg.startDate + 'T12:00:00')
 
   for (let d = 0; d < 730 && remaining.length > 0; d++) {
     const dow = cur.getDay()
     if (cfg.gameDays.includes(dow)) {
-      let slot = 0
-      for (let i = 0; i < remaining.length && slot < cfg.gamesPerDay; i++) {
-        const [home, away] = remaining[i]
-        const homeOk = (teamAvailability[home] ?? cfg.gameDays).includes(dow)
-        const awayOk = (teamAvailability[away] ?? cfg.gameDays).includes(dow)
-        if (homeOk && awayOk) {
-          const dt = new Date(cur)
-          dt.setHours(h, m + slot * cfg.minsBetweenGames, 0, 0)
-          scheduled.push({ home_team_id: home, away_team_id: away, scheduled_at: dt.toISOString(), location: cfg.location })
-          remaining.splice(i--, 1)
-          slot++
+      const playedToday = new Set<string>()
+      for (const slot of slots) {
+        if (remaining.length === 0) break
+        const [h, m] = slot.split(':').map(Number)
+        for (let i = 0; i < remaining.length; i++) {
+          const [home, away] = remaining[i]
+          if (playedToday.has(home) || playedToday.has(away)) continue
+          const homeOkDay = (teamDayAvail[home] ?? cfg.gameDays).includes(dow)
+          const awayOkDay = (teamDayAvail[away] ?? cfg.gameDays).includes(dow)
+          const homeTimes = teamTimeAvail[home]
+          const awayTimes = teamTimeAvail[away]
+          const homeOkTime = !homeTimes?.length || homeTimes.includes(slot)
+          const awayOkTime = !awayTimes?.length || awayTimes.includes(slot)
+          if (homeOkDay && awayOkDay && homeOkTime && awayOkTime) {
+            const dt = new Date(cur)
+            dt.setHours(h, m, 0, 0)
+            scheduled.push({ home_team_id: home, away_team_id: away, scheduled_at: dt.toISOString(), location: cfg.location })
+            remaining.splice(i, 1)
+            playedToday.add(home)
+            playedToday.add(away)
+            break
+          }
         }
       }
     }
     cur.setDate(cur.getDate() + 1)
   }
 
-  // Fallback: schedule remaining games ignoring team-specific availability
+  // Fallback: schedule remaining ignoring availability
+  const [fh, fm] = slots[0].split(':').map(Number)
   for (const [home, away] of remaining) {
     while (!cfg.gameDays.includes(cur.getDay())) cur.setDate(cur.getDate() + 1)
     const dt = new Date(cur)
-    dt.setHours(h, m, 0, 0)
+    dt.setHours(fh, fm, 0, 0)
     scheduled.push({ home_team_id: home, away_team_id: away, scheduled_at: dt.toISOString(), location: cfg.location, hasConflict: true })
     conflicts++
     cur.setDate(cur.getDate() + 1)

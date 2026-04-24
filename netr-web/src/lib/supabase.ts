@@ -64,6 +64,7 @@ export type League = {
   signup_url: string | null
   signup_label: string | null
   cross_division_play: boolean
+  game_time_slots: string[] | null
   created_at: string
 }
 
@@ -104,6 +105,7 @@ export type LeagueTeam = {
   fee_paid: boolean
   fee_note: string | null
   division_id: string | null
+  available_times: string[] | null
   created_at: string
 }
 
