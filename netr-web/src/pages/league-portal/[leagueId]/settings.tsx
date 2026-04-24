@@ -124,6 +124,7 @@ export default function SettingsPage() {
   // Schedule & playoff settings
   const [gamesPerTeam, setGamesPerTeam]   = useState(10)
   const [playoffTeams, setPlayoffTeams]   = useState(4)
+  const [teamCount, setTeamCount]         = useState(0)
   const [playoffFormat, setPlayoffFormat] = useState('single_elimination')
   const scheduleSave = useSaveState()
 
@@ -198,16 +199,18 @@ export default function SettingsPage() {
       setCrossDivisionPlay(data.cross_division_play ?? true)
       setSeasonEndDate(data.season_end_date ?? '')
 
-      const [sponsorsRes, galleryRes, courtsRes, divisionsRes] = await Promise.all([
+      const [sponsorsRes, galleryRes, courtsRes, divisionsRes, teamsCountRes] = await Promise.all([
         supabase.from('league_sponsors').select('*').eq('league_id', leagueId).order('display_order'),
         supabase.from('league_gallery_photos').select('*').eq('league_id', leagueId).order('created_at', { ascending: false }),
         fetchAllCourts(),
         supabase.from('league_divisions').select('*').eq('league_id', leagueId).order('display_order'),
+        supabase.from('league_teams').select('id', { count: 'exact', head: true }).eq('league_id', leagueId),
       ])
       setSponsors(sponsorsRes.data ?? [])
       setGalleryPhotos(galleryRes.data ?? [])
       setCourts(courtsRes ?? [])
       setDivisions(divisionsRes.data ?? [])
+      setTeamCount(teamsCountRes.count ?? 0)
       setLoading(false)
     })
   }, [leagueId])
@@ -774,14 +777,41 @@ export default function SettingsPage() {
               </div>
               <div style={S.field}>
                 <label style={S.label}>Playoff Teams</label>
-                <select value={playoffTeams} onChange={e => setPlayoffTeams(parseInt(e.target.value))} style={S.input}>
-                  <option value={0}>No playoffs</option>
-                  <option value={2}>2 teams</option>
-                  <option value={4}>4 teams</option>
-                  <option value={6}>6 teams</option>
-                  <option value={8}>8 teams</option>
-                </select>
-                <div style={S.hint}>How many teams advance to the postseason.</div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                  <input
+                    type="number"
+                    min={0}
+                    max={teamCount || undefined}
+                    value={playoffTeams}
+                    onChange={e => setPlayoffTeams(Math.max(0, parseInt(e.target.value) || 0))}
+                    style={{ ...S.input, width: 90 }}
+                    placeholder="0"
+                    disabled={teamCount > 0 && playoffTeams === teamCount}
+                  />
+                  {teamCount >= 2 && (
+                    <button
+                      type="button"
+                      onClick={() => setPlayoffTeams(playoffTeams === teamCount ? 4 : teamCount)}
+                      style={{
+                        background: playoffTeams === teamCount ? 'rgba(57,255,20,0.12)' : '#0A0A0E',
+                        border: `1.5px solid ${playoffTeams === teamCount ? '#39FF14' : '#2E2E3A'}`,
+                        borderRadius: 8,
+                        color: playoffTeams === teamCount ? '#39FF14' : '#6A6A82',
+                        fontFamily: "'DM Sans', sans-serif",
+                        fontSize: 12,
+                        padding: '6px 12px',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap' as const,
+                      }}
+                    >
+                      All {teamCount} teams
+                    </button>
+                  )}
+                </div>
+                <div style={S.hint}>
+                  {playoffTeams === 0 ? 'Set to 0 to disable playoffs.' : `${playoffTeams} team${playoffTeams !== 1 ? 's' : ''} advance to the postseason.`}
+                  {teamCount > 0 && playoffTeams > 0 && playoffTeams > teamCount && <span style={{ color: '#F5C542' }}> ⚠ More than your current {teamCount} teams.</span>}
+                </div>
               </div>
               <div style={S.field}>
                 <label style={S.label}>Playoff Format</label>

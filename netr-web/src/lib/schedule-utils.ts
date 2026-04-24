@@ -227,6 +227,8 @@ export type PlayoffRound = {
 }
 
 export function getPlayoffBracket(n: number): PlayoffRound[] | null {
+  if (n < 2) return null
+  // Preserve exact slot numbers for already-deployed bracket sizes
   if (n === 2) return [
     { roundNum: 1, name: 'Championship', games: [
       { slot: 1, homeSeed: 1, awaySeed: 2, prevHomeSlot: null, prevAwaySlot: null },
@@ -269,7 +271,68 @@ export function getPlayoffBracket(n: number): PlayoffRound[] | null {
       { slot: 7, homeSeed: 0, awaySeed: 0, prevHomeSlot: 5, prevAwaySlot: 6 },
     ]},
   ]
-  return null
+  return buildGeneralBracket(n)
+}
+
+function buildGeneralBracket(n: number): PlayoffRound[] {
+  // Smallest power-of-2 bracket size that fits n teams
+  let size = 1
+  while (size < n) size *= 2
+
+  // Standard fold seeding: places 1 and 2 on opposite sides so they only meet in the final
+  function foldSeeds(sz: number): number[] {
+    if (sz === 2) return [1, 2]
+    const half = foldSeeds(sz / 2)
+    const result: number[] = []
+    for (const s of half) result.push(s, sz + 1 - s)
+    return result
+  }
+
+  type Entity = { type: 'seed'; seed: number } | { type: 'winner'; slot: number }
+  let positions: (Entity | null)[] = foldSeeds(size).map(s =>
+    s <= n ? { type: 'seed', seed: s } as Entity : null
+  )
+
+  const totalRounds = Math.ceil(Math.log2(n))
+  let slotNum = 1
+  let roundNum = 1
+  const rounds: PlayoffRound[] = []
+
+  while (positions.filter(Boolean).length > 1) {
+    const games: BracketGame[] = []
+    const next: (Entity | null)[] = []
+
+    for (let i = 0; i < positions.length; i += 2) {
+      const a = positions[i]
+      const b = positions[i + 1] ?? null
+      if (!a && !b) { next.push(null); continue }
+      if (!a) { next.push(b); continue }
+      if (!b) { next.push(a); continue }
+      const game: BracketGame = {
+        slot: slotNum,
+        homeSeed: a.type === 'seed' ? a.seed : 0,
+        awaySeed: b.type === 'seed' ? b.seed : 0,
+        prevHomeSlot: a.type === 'winner' ? a.slot : null,
+        prevAwaySlot: b.type === 'winner' ? b.slot : null,
+      }
+      games.push(game)
+      next.push({ type: 'winner', slot: slotNum })
+      slotNum++
+    }
+
+    if (games.length > 0) {
+      const fromEnd = totalRounds - roundNum
+      const name = fromEnd === 0 ? 'Championship'
+        : fromEnd === 1 ? 'Semifinals'
+        : fromEnd === 2 ? 'Quarterfinals'
+        : `Round ${roundNum}`
+      rounds.push({ roundNum, name, games })
+      roundNum++
+    }
+    positions = next
+  }
+
+  return rounds
 }
 
 export function fmtPreviewRange(games: GameSlot[]): string {
