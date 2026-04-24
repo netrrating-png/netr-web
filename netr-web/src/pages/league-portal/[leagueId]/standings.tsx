@@ -72,7 +72,7 @@ export default function StandingsPage() {
           {/* Division filter tabs */}
           {divisions.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 20 }}>
-              {[(league.cross_division_play ?? true) ? { id: 'all', name: 'All Divisions' } : null, ...divisions].filter(Boolean).map(d => (
+              {[{ id: 'all', name: 'All' }, ...divisions].map(d => (
                 <button
                   key={d.id}
                   onClick={() => setDivFilter(d.id)}
