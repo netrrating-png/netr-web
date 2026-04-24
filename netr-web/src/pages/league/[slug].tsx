@@ -58,7 +58,7 @@ export default function PublicLeaguePage() {
   }
 
   async function load() {
-    const {data:lg} = await supabase.from('leagues').select('id,name,slug,sport,season,location,description,logo_url,banner_url,accent_color,is_active,announcement,contact_info,social_links,league_font,signup_url,signup_label').eq('slug',slug).single()
+    const {data:lg} = await supabase.from('leagues').select('*').eq('slug',slug).single()
     if(!lg){setNotFound(true);setLoading(false);return}
     setLeague(lg)
     const [sr,tr,gr,pr] = await Promise.all([
