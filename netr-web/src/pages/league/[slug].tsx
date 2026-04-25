@@ -204,8 +204,21 @@ export default function PublicLeaguePage() {
         {/* Hero content */}
         <div className="hero-content" style={{position:'relative',zIndex:1,maxWidth:980,margin:'0 auto',width:'100%',padding:'90px 24px 52px',display:'flex',flexDirection:'column',gap:0}}>
 
-          {/* Top row: logo + league name + active pill */}
-          <div style={{display:'flex',alignItems:'center',gap:20,marginBottom:league.description?28:20,flexWrap:'wrap' as const}}>
+          {/* Badge row: active pill + season pill */}
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16,flexWrap:'wrap' as const}}>
+            <span style={{display:'inline-flex',alignItems:'center',gap:7,background:`${accent}14`,border:`1px solid ${accent}35`,borderRadius:99,padding:'4px 12px 4px 9px'}}>
+              <span style={{width:6,height:6,borderRadius:'50%',background:accent,display:'inline-block',boxShadow:`0 0 8px ${accent}`,flexShrink:0}}/>
+              <span style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const}}>{league.is_active?'Active Season':league.sport||'League'}</span>
+            </span>
+            {league.season&&(
+              <span style={{display:'inline-flex',alignItems:'center',background:'rgba(0,0,0,0.55)',backdropFilter:'blur(8px)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:99,padding:'4px 12px',fontSize:10,color:'rgba(238,238,245,0.9)',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,fontWeight:600}}>
+                {league.season}
+              </span>
+            )}
+          </div>
+
+          {/* Logo + Name */}
+          <div style={{display:'flex',alignItems:'center',gap:20,marginBottom:20,flexWrap:'wrap' as const}}>
             {league.logo_url&&(
               <div style={{position:'relative',flexShrink:0}}>
                 <div style={{position:'absolute',inset:-8,borderRadius:22,background:`radial-gradient(circle, ${accent}35 0%, transparent 70%)`,filter:'blur(10px)'}}/>
@@ -218,25 +231,20 @@ export default function PublicLeaguePage() {
                 />
               </div>
             )}
-            <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:8}}>
-              <span style={{display:'inline-flex',alignSelf:'flex-start',alignItems:'center',gap:7,background:`${accent}14`,border:`1px solid ${accent}35`,borderRadius:99,padding:'4px 12px 4px 9px'}}>
-                <span style={{width:6,height:6,borderRadius:'50%',background:accent,display:'inline-block',boxShadow:`0 0 8px ${accent}`,flexShrink:0}}/>
-                <span style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const}}>{league.is_active?'Active Season':league.season||league.sport||'League'}</span>
-              </span>
-              <h1 style={{
-                fontFamily:displayFont,fontWeight:900,
-                fontSize:'clamp(38px,7vw,84px)',
-                textTransform:'uppercase' as const,
-                lineHeight:0.92,letterSpacing:'-1.5px',
-                margin:0,wordBreak:'break-word' as const,
-                textShadow:`0 2px 40px ${accent}30`,
-              }}>{league.name}</h1>
-            </div>
+            <h1 style={{
+              flex:1,minWidth:0,
+              fontFamily:displayFont,fontWeight:900,
+              fontSize:'clamp(38px,7vw,84px)',
+              textTransform:'uppercase' as const,
+              lineHeight:0.92,letterSpacing:'-1.5px',
+              margin:0,wordBreak:'break-word' as const,
+              textShadow:`0 2px 40px ${accent}30`,
+            }}>{league.name}</h1>
           </div>
 
           {/* Description — center stage */}
           {league.description&&(
-            <div style={{borderLeft:`3px solid ${accent}`,paddingLeft:20,marginBottom:28}}>
+            <div style={{borderLeft:`3px solid ${accent}`,paddingLeft:20,marginBottom:22}}>
               <p style={{
                 fontFamily:"'DM Sans',sans-serif",
                 fontSize:'clamp(16px,2.2vw,21px)',
@@ -248,14 +256,18 @@ export default function PublicLeaguePage() {
               }}>
                 {league.description}
               </p>
-              {league.season&&(
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:`${accent}70`,marginTop:10,letterSpacing:3,textTransform:'uppercase' as const}}>{league.season}</div>
-              )}
             </div>
           )}
 
-          {/* Meta + social + CTA */}
-          <div style={{display:'flex',alignItems:'center',flexWrap:'wrap' as const,gap:10}}>
+          {/* Social icons — their own row, grouped */}
+          {league.social_links&&Object.values(league.social_links).some(Boolean)&&(
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16}}>
+              <SocialIcons links={league.social_links} accent={accent}/>
+            </div>
+          )}
+
+          {/* Meta + CTA */}
+          <div style={{display:'flex',alignItems:'center',flexWrap:'wrap' as const,gap:8}}>
             {league.location&&(
               <span style={{display:'inline-flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:99,padding:'6px 14px',fontSize:12,color:'#9090A8',fontFamily:"'DM Sans',sans-serif"}}>
                 <MapPin size={12} strokeWidth={2}/>{league.location}
@@ -267,7 +279,6 @@ export default function PublicLeaguePage() {
                 <Mail size={12} strokeWidth={2}/>Contact
               </a>
             )}
-            {league.social_links&&<SocialIcons links={league.social_links} accent={accent}/>}
             {league.signup_url&&(
               <a href={league.signup_url} target="_blank" rel="noopener noreferrer"
                 style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:8,background:accent,color:'#040406',fontFamily:displayFont,fontWeight:900,fontSize:15,textTransform:'uppercase' as const,letterSpacing:'1px',padding:'11px 28px',borderRadius:12,textDecoration:'none',flexShrink:0,boxShadow:`0 4px 28px ${accent}50,0 0 0 1px ${accent}`,whiteSpace:'nowrap' as const}}>
