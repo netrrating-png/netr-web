@@ -325,9 +325,9 @@ export default function PublicLeaguePage() {
         <div style={{maxWidth:960,margin:'0 auto',display:'flex',overflowX:'auto',padding:'0 8px',scrollbarWidth:'none' as const}}>
           {([
             ['overview','Overview'],['schedule','Schedule'],['stats','Stats'],['teams','Teams'],
-            ...(galleryPhotos.length>0?[['gallery','Gallery']]:[] as [Tab,string][]),
             ...(league.rules_sections&&league.rules_sections.length>0?[['rules','Rules']]:[] as [Tab,string][]),
             ...(seasons.length>0?[['history','History']]:[] as [Tab,string][]),
+            ...(galleryPhotos.length>0?[['gallery','Gallery']]:[] as [Tab,string][]),
           ] as [Tab,string][]).map(([t,label])=>(
             <button key={t} onClick={()=>setTab(t)} style={{background:'none',border:'none',borderBottom:activeTab===t?`3px solid ${accent}`:'3px solid transparent',color:activeTab===t?accent:'#6A6A82',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase',letterSpacing:1.5,padding:'16px 18px',cursor:'pointer',whiteSpace:'nowrap',flexShrink:0,transition:'color 0.15s'}}>
               {label}
