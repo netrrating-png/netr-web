@@ -65,12 +65,21 @@ export type AssignConfig = {
   gameDays: number[]       // [1,3,6] = Mon,Wed,Sat
   timeSlots: string[]      // ['19:30','20:30','21:30'] — one game per slot per day
   location: string
+  oneGamePerWeek?: boolean // when true, each team plays at most once per calendar week
   // Flexible mode: fill available slots with any compatible pair (repeats allowed).
   // When true, round-robin matchups are generated on the fly and some pairs may
   // never meet if their availability is incompatible — that's intentional.
   allowRematches?: boolean
   allTeamIds?: string[]    // required when allowRematches=true
   gamesPerTeam?: number    // target per team when allowRematches=true
+}
+
+// Returns the Monday of the week containing `date` as YYYY-MM-DD
+function weekKey(date: Date): string {
+  const d = new Date(date)
+  const day = d.getDay()
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
+  return d.toISOString().slice(0, 10)
 }
 
 export function assignDates(
@@ -84,18 +93,20 @@ export function assignDates(
   const cur = new Date(cfg.startDate + 'T12:00:00')
 
   if (cfg.allowRematches && cfg.allTeamIds && cfg.gamesPerTeam) {
-    return assignDatesFlexible(cfg.allTeamIds, cfg.gamesPerTeam, teamDayAvail, teamTimeAvail, slots, cfg.gameDays, cfg.location, cur, endDate)
+    return assignDatesFlexible(cfg.allTeamIds, cfg.gamesPerTeam, teamDayAvail, teamTimeAvail, slots, cfg.gameDays, cfg.location, cur, endDate, !!cfg.oneGamePerWeek)
   }
 
   // ── Round-robin mode ────────────────────────────────────────────
   const remaining = [...matchups]
   const scheduled: GameSlot[] = []
   let conflicts = 0
+  const weeklyPlayed = new Set<string>() // `${weekKey}|${teamId}`
 
   for (let d = 0; d < 730 && remaining.length > 0; d++) {
     if (endDate && cur > endDate) break
     const dow = cur.getDay()
     if (cfg.gameDays.includes(dow)) {
+      const wk = weekKey(cur)
       const playedToday = new Set<string>()
       for (const slot of slots) {
         if (remaining.length === 0) break
@@ -107,6 +118,7 @@ export function assignDates(
           for (let i = 0; i < remaining.length; i++) {
             const [home, away] = remaining[i]
             if (playedToday.has(home) || playedToday.has(away)) continue
+            if (cfg.oneGamePerWeek && (weeklyPlayed.has(`${wk}|${home}`) || weeklyPlayed.has(`${wk}|${away}`))) continue
             const homeOkDay = (teamDayAvail[home] ?? cfg.gameDays).includes(dow)
             const awayOkDay = (teamDayAvail[away] ?? cfg.gameDays).includes(dow)
             if (!homeOkDay || !awayOkDay) continue
@@ -128,6 +140,10 @@ export function assignDates(
           remaining.splice(found, 1)
           playedToday.add(home)
           playedToday.add(away)
+          if (cfg.oneGamePerWeek) {
+            weeklyPlayed.add(`${wk}|${home}`)
+            weeklyPlayed.add(`${wk}|${away}`)
+          }
         }
       }
     }
@@ -159,11 +175,13 @@ function assignDatesFlexible(
   gameDays: number[],
   location: string,
   cur: Date,
-  endDate: Date | null
+  endDate: Date | null,
+  oneGamePerWeek: boolean
 ): { games: GameSlot[]; conflicts: number } {
   const scheduled: GameSlot[] = []
   const gameCount: Record<string, number> = {}
   const pairCount: Record<string, number> = {}
+  const weeklyPlayed = new Set<string>()
   for (const id of teamIds) gameCount[id] = 0
 
   const maxDays = endDate ? Infinity : 730
@@ -173,9 +191,11 @@ function assignDatesFlexible(
 
     const dow = cur.getDay()
     if (gameDays.includes(dow)) {
+      const wk = weekKey(cur)
       const availDay = teamIds.filter(id =>
         gameCount[id] < gamesPerTeam &&
-        (teamDayAvail[id] ?? gameDays).includes(dow)
+        (teamDayAvail[id] ?? gameDays).includes(dow) &&
+        (!oneGamePerWeek || !weeklyPlayed.has(`${wk}|${id}`))
       )
       const playedToday = new Set<string>()
 
@@ -217,6 +237,10 @@ function assignDatesFlexible(
         pairCount[`${a}|${b}`] = (pairCount[`${a}|${b}`] ?? 0) + 1
         playedToday.add(bestHome)
         playedToday.add(bestAway)
+        if (oneGamePerWeek) {
+          weeklyPlayed.add(`${wk}|${bestHome}`)
+          weeklyPlayed.add(`${wk}|${bestAway}`)
+        }
       }
     }
     cur.setDate(cur.getDate() + 1)

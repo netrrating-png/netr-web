@@ -33,7 +33,7 @@ export default function SchedulePage() {
   // generator
   const [showGenerator, setShowGenerator] = useState(false)
   const [gamesPerTeam, setGamesPerTeam] = useState(10)
-  const [genConfig, setGenConfig] = useState<AssignConfig>({ startDate: new Date().toISOString().slice(0,10), gameDays: [1,3], timeSlots: ['19:00'], location: '', allowRematches: false })
+  const [genConfig, setGenConfig] = useState<AssignConfig>({ startDate: new Date().toISOString().slice(0,10), gameDays: [1,3], timeSlots: ['19:00'], location: '', oneGamePerWeek: true, allowRematches: false })
   const [preview, setPreview] = useState<GameSlot[] | null>(null)
   const [previewConflicts, setPreviewConflicts] = useState(0)
   const [savingSchedule, setSavingSchedule] = useState(false)
@@ -386,6 +386,37 @@ export default function SchedulePage() {
                   <input type="date" value={genConfig.endDate ?? ''} onChange={e => setGenConfig(c => ({ ...c, endDate: e.target.value || undefined }))} style={S.input} />
                 </div>
                 <div><label style={S.label}>Default Location</label><input type="text" value={genConfig.location} placeholder="Gym name" onChange={e => setGenConfig(c => ({ ...c, location: e.target.value }))} style={S.input} /></div>
+              </div>
+
+              {/* One game per week toggle */}
+              <div style={{ marginBottom: 10, background: '#0A0A0E', border: '1px solid #1C1C26', borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <div>
+                    <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, textTransform: 'uppercase' as const, letterSpacing: 1, color: '#EEEEF5' }}>One Game Per Week</div>
+                    <div style={{ fontSize: 12, color: '#6A6A82', marginTop: 4 }}>Each team plays at most once per calendar week. Even if you have Mon/Wed/Fri, a team only gets one of those slots.</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setGenConfig(c => ({ ...c, oneGamePerWeek: !c.oneGamePerWeek }))}
+                    style={{
+                      background: genConfig.oneGamePerWeek ? 'rgba(57,255,20,0.15)' : '#14141C',
+                      border: `1.5px solid ${genConfig.oneGamePerWeek ? '#39FF14' : '#2E2E3A'}`,
+                      borderRadius: 8,
+                      color: genConfig.oneGamePerWeek ? '#39FF14' : '#6A6A82',
+                      fontFamily: "'Barlow Condensed', sans-serif",
+                      fontWeight: 700,
+                      fontSize: 14,
+                      textTransform: 'uppercase' as const,
+                      letterSpacing: 1,
+                      padding: '8px 16px',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      minWidth: 80,
+                    }}
+                  >
+                    {genConfig.oneGamePerWeek ? 'ON' : 'OFF'}
+                  </button>
+                </div>
               </div>
 
               {/* Allow rematches toggle */}
