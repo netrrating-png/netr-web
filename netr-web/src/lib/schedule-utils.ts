@@ -63,7 +63,8 @@ export type AssignConfig = {
   startDate: string        // 'YYYY-MM-DD'
   endDate?: string         // optional hard stop — no games scheduled after this date
   gameDays: number[]       // [1,3,6] = Mon,Wed,Sat
-  timeSlots: string[]      // ['19:30','20:30','21:30'] — one game per slot per day
+  timeSlots: string[]      // fallback slots when dayTimeSlots has no entry for a day
+  dayTimeSlots?: Record<number, string[]>  // per-day slots — key is DOW (0=Sun…6=Sat)
   location: string
   oneGamePerWeek?: boolean // when true, each team plays at most once per calendar week
   // Flexible mode: fill available slots with any compatible pair (repeats allowed).
@@ -88,12 +89,12 @@ export function assignDates(
   teamTimeAvail: Record<string, string[]>,
   cfg: AssignConfig
 ): { games: GameSlot[]; conflicts: number } {
-  const slots = cfg.timeSlots.length > 0 ? cfg.timeSlots : ['19:00']
+  const defaultSlots = cfg.timeSlots.length > 0 ? cfg.timeSlots : ['19:00']
   const endDate = cfg.endDate ? new Date(cfg.endDate + 'T23:59:59') : null
   const cur = new Date(cfg.startDate + 'T12:00:00')
 
   if (cfg.allowRematches && cfg.allTeamIds && cfg.gamesPerTeam) {
-    return assignDatesFlexible(cfg.allTeamIds, cfg.gamesPerTeam, teamDayAvail, teamTimeAvail, slots, cfg.gameDays, cfg.location, cur, endDate, !!cfg.oneGamePerWeek)
+    return assignDatesFlexible(cfg.allTeamIds, cfg.gamesPerTeam, teamDayAvail, teamTimeAvail, defaultSlots, cfg.dayTimeSlots ?? {}, cfg.gameDays, cfg.location, cur, endDate, !!cfg.oneGamePerWeek)
   }
 
   // ── Round-robin mode ────────────────────────────────────────────
@@ -108,6 +109,7 @@ export function assignDates(
     if (cfg.gameDays.includes(dow)) {
       const wk = weekKey(cur)
       const playedToday = new Set<string>()
+      const slots = cfg.dayTimeSlots?.[dow]?.length ? cfg.dayTimeSlots[dow] : defaultSlots
       for (const slot of slots) {
         if (remaining.length === 0) break
         const [h, m] = slot.split(':').map(Number)
@@ -151,7 +153,7 @@ export function assignDates(
   }
 
   // Fallback: force-schedule remaining games ignoring availability
-  const [fh, fm] = slots[0].split(':').map(Number)
+  const [fh, fm] = defaultSlots[0].split(':').map(Number)
   for (const [home, away] of remaining) {
     while (!cfg.gameDays.includes(cur.getDay())) cur.setDate(cur.getDate() + 1)
     if (endDate && cur > endDate) break
@@ -171,7 +173,8 @@ function assignDatesFlexible(
   gamesPerTeam: number,
   teamDayAvail: Record<string, number[]>,
   teamTimeAvail: Record<string, string[]>,
-  slots: string[],
+  defaultSlots: string[],
+  dayTimeSlots: Record<number, string[]>,
   gameDays: number[],
   location: string,
   cur: Date,
@@ -192,6 +195,7 @@ function assignDatesFlexible(
     const dow = cur.getDay()
     if (gameDays.includes(dow)) {
       const wk = weekKey(cur)
+      const slots = dayTimeSlots[dow]?.length ? dayTimeSlots[dow] : defaultSlots
       const availDay = teamIds.filter(id =>
         gameCount[id] < gamesPerTeam &&
         (teamDayAvail[id] ?? gameDays).includes(dow) &&
