@@ -33,11 +33,11 @@ export default function SchedulePage() {
   // generator
   const [showGenerator, setShowGenerator] = useState(false)
   const [gamesPerTeam, setGamesPerTeam] = useState(10)
-  const [genConfig, setGenConfig] = useState<AssignConfig>({ startDate: new Date().toISOString().slice(0,10), gameDays: [1,3], timeSlots: ['19:00'], location: '', oneGamePerWeek: true, allowRematches: false })
+  const [genConfig, setGenConfig] = useState<AssignConfig>({ startDate: new Date().toISOString().slice(0,10), gameDays: [1,3], timeSlots: [], dayTimeSlots: { 1: ['19:00'], 3: ['19:00'] }, location: '', oneGamePerWeek: true, allowRematches: false })
   const [preview, setPreview] = useState<GameSlot[] | null>(null)
   const [previewConflicts, setPreviewConflicts] = useState(0)
   const [savingSchedule, setSavingSchedule] = useState(false)
-  const [newSlotTime, setNewSlotTime] = useState('')
+  const [newSlotTimes, setNewSlotTimes] = useState<Record<number, string>>({})
 
   // team availability
   const [availability, setAvailability] = useState<Record<string, number[]>>({})
@@ -76,12 +76,24 @@ export default function SchedulePage() {
       const lg = leagueRes.data as League
       setLeague(lg)
       if (lg.games_per_team) setGamesPerTeam(lg.games_per_team)
-      setGenConfig(c => ({
-        ...c,
-        ...(lg.default_game_location ? { location: lg.default_game_location } : {}),
-        ...(lg.game_time_slots?.length ? { timeSlots: lg.game_time_slots } : {}),
-        ...(lg.season_end_date ? { endDate: lg.season_end_date } : {}),
-      }))
+      setGenConfig(c => {
+        // Per-day slots take priority; fall back to old flat list spread across all game days
+        let dayTimeSlots = c.dayTimeSlots ?? {}
+        if (lg.game_day_time_slots) {
+          dayTimeSlots = Object.fromEntries(
+            Object.entries(lg.game_day_time_slots).map(([k, v]) => [Number(k), v])
+          )
+        } else if (lg.game_time_slots?.length) {
+          dayTimeSlots = Object.fromEntries(c.gameDays.map(d => [d, lg.game_time_slots!]))
+        }
+        return {
+          ...c,
+          ...(lg.default_game_location ? { location: lg.default_game_location } : {}),
+          ...(lg.season_end_date ? { endDate: lg.season_end_date } : {}),
+          timeSlots: [],
+          dayTimeSlots,
+        }
+      })
       setCourts(courtsRes ?? [])
       if (lg.default_court_id) setForm(f => ({ ...f, court_id: lg.default_court_id! }))
 
@@ -175,18 +187,19 @@ export default function SchedulePage() {
     await supabase.from('league_teams').update({ available_times: normalized.length ? normalized : null }).eq('id', teamId)
   }
 
-  async function handleTimeSlotAdd() {
-    if (!newSlotTime || genConfig.timeSlots.includes(newSlotTime)) return
-    const next = [...genConfig.timeSlots, newSlotTime].sort()
-    setGenConfig(c => ({ ...c, timeSlots: next }))
-    setNewSlotTime('')
-    await supabase.from('leagues').update({ game_time_slots: next }).eq('id', leagueId)
+  async function handleDaySlotAdd(day: number) {
+    const t = newSlotTimes[day]
+    if (!t || (genConfig.dayTimeSlots?.[day] ?? []).includes(t)) return
+    const next = { ...genConfig.dayTimeSlots, [day]: [...(genConfig.dayTimeSlots?.[day] ?? []), t].sort() }
+    setGenConfig(c => ({ ...c, dayTimeSlots: next }))
+    setNewSlotTimes(p => ({ ...p, [day]: '' }))
+    await supabase.from('leagues').update({ game_day_time_slots: next }).eq('id', leagueId)
   }
 
-  async function handleTimeSlotRemove(slot: string) {
-    const next = genConfig.timeSlots.filter(s => s !== slot)
-    setGenConfig(c => ({ ...c, timeSlots: next }))
-    await supabase.from('leagues').update({ game_time_slots: next.length ? next : null }).eq('id', leagueId)
+  async function handleDaySlotRemove(day: number, slot: string) {
+    const next = { ...genConfig.dayTimeSlots, [day]: (genConfig.dayTimeSlots?.[day] ?? []).filter(s => s !== slot) }
+    setGenConfig(c => ({ ...c, dayTimeSlots: next }))
+    await supabase.from('leagues').update({ game_day_time_slots: next }).eq('id', leagueId)
   }
 
   async function handleGeneratePlayoffs() {
@@ -450,29 +463,45 @@ export default function SchedulePage() {
                 </div>
               </div>
 
-              {/* Time slots */}
+              {/* Per-day time slots */}
               <div style={{ marginBottom: 18 }}>
-                <label style={S.label}>Game Time Slots</label>
-                <p style={{ fontSize: 12, color: '#6A6A82', margin: '4px 0 10px' }}>Each slot is one game on a game day. Teams can opt out of specific slots.</p>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 10 }}>
-                  {genConfig.timeSlots.map(slot => (
-                    <div key={slot} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#0A0A0E', border: '1.5px solid #39FF1444', borderRadius: 8, padding: '5px 10px' }}>
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: '#EEEEF5' }}>{fmtSlot(slot)}</span>
-                      <button type="button" onClick={() => handleTimeSlotRemove(slot)} style={{ background: 'none', border: 'none', color: '#6A6A82', cursor: 'pointer', padding: '0 2px', fontSize: 16, lineHeight: '1', fontFamily: 'sans-serif' }}>×</button>
+                <label style={S.label}>Game Time Slots (per day)</label>
+                <p style={{ fontSize: 12, color: '#6A6A82', margin: '4px 0 10px' }}>Each slot is one game on that day. All slots will be filled — add as many as the gym has hours.</p>
+                {genConfig.gameDays.length === 0 && <p style={{ fontSize: 13, color: '#6A6A82' }}>Select game days above first.</p>}
+                {genConfig.gameDays.slice().sort((a, b) => a - b).map(day => {
+                  const dayLabel = DISPLAY_LABELS[DISPLAY_DOW.indexOf(day)] ?? `Day ${day}`
+                  const slots = genConfig.dayTimeSlots?.[day] ?? []
+                  const inputVal = newSlotTimes[day] ?? ''
+                  return (
+                    <div key={day} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid #1A1A2E' }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#EEEEF5', marginBottom: 8, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>{dayLabel}</div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 8 }}>
+                        {slots.map(slot => (
+                          <div key={slot} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#0A0A0E', border: '1.5px solid #39FF1444', borderRadius: 8, padding: '5px 10px' }}>
+                            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: '#EEEEF5' }}>{fmtSlot(slot)}</span>
+                            <button type="button" onClick={() => handleDaySlotRemove(day, slot)} style={{ background: 'none', border: 'none', color: '#6A6A82', cursor: 'pointer', padding: '0 2px', fontSize: 16, lineHeight: '1', fontFamily: 'sans-serif' }}>×</button>
+                          </div>
+                        ))}
+                        {slots.length === 0 && <span style={{ fontSize: 13, color: '#6A6A82' }}>No slots — add at least one.</span>}
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <input type="time" value={inputVal} onChange={e => setNewSlotTimes(p => ({ ...p, [day]: e.target.value }))} style={{ ...S.input, width: 'auto', flex: '0 0 auto' }} />
+                        <button type="button" onClick={() => handleDaySlotAdd(day)} style={S.outlineBtn} disabled={!inputVal || slots.includes(inputVal)}>+ Add Slot</button>
+                      </div>
                     </div>
-                  ))}
-                  {genConfig.timeSlots.length === 0 && <span style={{ fontSize: 13, color: '#6A6A82' }}>No slots — add at least one.</span>}
-                </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <input type="time" value={newSlotTime} onChange={e => setNewSlotTime(e.target.value)} style={{ ...S.input, width: 'auto', flex: '0 0 auto' }} />
-                  <button type="button" onClick={handleTimeSlotAdd} style={S.outlineBtn} disabled={!newSlotTime || genConfig.timeSlots.includes(newSlotTime)}>+ Add Slot</button>
-                </div>
+                  )
+                })}
               </div>
               <div style={{ marginBottom: 16 }}>
                 <label style={S.label}>Game Days</label>
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                   {DISPLAY_LABELS.map((lbl, i) => { const day = DISPLAY_DOW[i]; const on = genConfig.gameDays.includes(day); return (
-                    <button key={day} type="button" onClick={() => setGenConfig(c => ({ ...c, gameDays: on ? c.gameDays.filter(d => d !== day) : [...c.gameDays, day] }))} style={{ ...S.dayChip, ...(on ? S.dayChipOn : {}) }}>{lbl}</button>
+                    <button key={day} type="button" onClick={() => setGenConfig(c => {
+                      const gameDays = on ? c.gameDays.filter(d => d !== day) : [...c.gameDays, day]
+                      // Initialize empty slot list for a newly added day
+                      const dayTimeSlots = on ? c.dayTimeSlots : { ...c.dayTimeSlots, [day]: c.dayTimeSlots?.[day] ?? ['19:00'] }
+                      return { ...c, gameDays, dayTimeSlots }
+                    })} style={{ ...S.dayChip, ...(on ? S.dayChipOn : {}) }}>{lbl}</button>
                   )})}
                 </div>
               </div>
@@ -491,34 +520,38 @@ export default function SchedulePage() {
                     )
                   })}
                 </div>
-                {genConfig.timeSlots.length > 0 && (
-                  <div style={{ marginTop: 16 }}>
-                    <label style={S.label}>Time Slot Availability</label>
-                    <p style={{ fontSize: 12, color: '#6A6A82', margin: '4px 0 10px' }}>Uncheck slots a team can&apos;t play. By default teams are available for all slots.</p>
-                    <div style={S.availGrid}>
-                      <div style={S.availHeader}>
-                        <div style={S.availTeamCol} />
-                        {genConfig.timeSlots.map(s => <div key={s} style={{ ...S.availDayCol, width: 56, fontSize: 10 }}>{fmtSlot(s)}</div>)}
+                {(() => {
+                  const allSlots = Array.from(new Set(Object.values(genConfig.dayTimeSlots ?? {}).flat())).sort()
+                  if (allSlots.length === 0) return null
+                  return (
+                    <div style={{ marginTop: 16 }}>
+                      <label style={S.label}>Time Slot Availability</label>
+                      <p style={{ fontSize: 12, color: '#6A6A82', margin: '4px 0 10px' }}>Uncheck slots a team can&apos;t play. By default teams are available for all slots.</p>
+                      <div style={S.availGrid}>
+                        <div style={S.availHeader}>
+                          <div style={S.availTeamCol} />
+                          {allSlots.map(s => <div key={s} style={{ ...S.availDayCol, width: 56, fontSize: 10 }}>{fmtSlot(s)}</div>)}
+                        </div>
+                        {divTeams.map(team => {
+                          const times = teamTimeAvail[team.id] ?? []
+                          return (
+                            <div key={team.id} style={S.availRow}>
+                              <div style={S.availTeamName}><span style={{ width:10, height:10, borderRadius:'50%', background: team.color, display:'inline-block', marginRight:8 }}/>{team.name}</div>
+                              {allSlots.map(slot => (
+                                <div key={slot} style={{ ...S.availCell, width: 56 }}>
+                                  <input type="checkbox"
+                                    checked={times.length === 0 || times.includes(slot)}
+                                    onChange={e => handleAvailTimeChange(team.id, slot, e.target.checked, allSlots)}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        })}
                       </div>
-                      {divTeams.map(team => {
-                        const times = teamTimeAvail[team.id] ?? []
-                        return (
-                          <div key={team.id} style={S.availRow}>
-                            <div style={S.availTeamName}><span style={{ width:10, height:10, borderRadius:'50%', background: team.color, display:'inline-block', marginRight:8 }}/>{team.name}</div>
-                            {genConfig.timeSlots.map(slot => (
-                              <div key={slot} style={{ ...S.availCell, width: 56 }}>
-                                <input type="checkbox"
-                                  checked={times.length === 0 || times.includes(slot)}
-                                  onChange={e => handleAvailTimeChange(team.id, slot, e.target.checked, genConfig.timeSlots)}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        )
-                      })}
                     </div>
-                  </div>
-                )}
+                  )
+                })()}
               </div>
               {preview ? (
                 <div style={S.previewBox}>
