@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect, useRef } from 'react'
-import { supabase, fetchAllCourts, League, LeagueSponsor, LeagueGalleryPhoto, LeagueDivision } from '../../../lib/supabase'
+import { supabase, fetchAllCourts, League, LeagueSponsor, LeagueGalleryPhoto, LeagueDivision, LeagueSeason } from '../../../lib/supabase'
 import { LEAGUE_FONTS } from '../../../lib/league-fonts'
 import { CourtPicker } from '../../../components/CourtPicker'
 import { PortalNav } from './index'
@@ -157,6 +157,21 @@ export default function SettingsPage() {
   const [photoUploading, setPhotoUploading]     = useState(false)
   const photoInputRef = useRef<HTMLInputElement>(null)
 
+  // Rules sections
+  const [rulesSections, setRulesSections] = useState<{ title: string; content: string }[]>([])
+  const rulesSave = useSaveState()
+
+  // Season archive
+  const [seasons, setSeasons] = useState<LeagueSeason[]>([])
+  const [archiveName, setArchiveName] = useState('')
+  const [archiveStartDate, setArchiveStartDate] = useState('')
+  const [archiveEndDate, setArchiveEndDate] = useState('')
+  const [archiveChampionId, setArchiveChampionId] = useState('')
+  const [archiveNotes, setArchiveNotes] = useState('')
+  const [archiving, setArchiving] = useState(false)
+  const [showArchiveForm, setShowArchiveForm] = useState(false)
+  const [teams, setTeams] = useState<{ id: string; name: string }[]>([])
+
   useEffect(() => {
     if (!leagueId) return
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -198,19 +213,24 @@ export default function SettingsPage() {
       setSocialLinks(data.social_links ?? {})
       setCrossDivisionPlay(data.cross_division_play ?? true)
       setSeasonEndDate(data.season_end_date ?? '')
+      setRulesSections(data.rules_sections ?? [])
 
-      const [sponsorsRes, galleryRes, courtsRes, divisionsRes, teamsCountRes] = await Promise.all([
+      const [sponsorsRes, galleryRes, courtsRes, divisionsRes, teamsCountRes, seasonsRes, teamsRes] = await Promise.all([
         supabase.from('league_sponsors').select('*').eq('league_id', leagueId).order('display_order'),
         supabase.from('league_gallery_photos').select('*').eq('league_id', leagueId).order('created_at', { ascending: false }),
         fetchAllCourts(),
         supabase.from('league_divisions').select('*').eq('league_id', leagueId).order('display_order'),
         supabase.from('league_teams').select('id', { count: 'exact', head: true }).eq('league_id', leagueId),
+        supabase.from('league_seasons').select('*').eq('league_id', leagueId).order('display_order', { ascending: false }),
+        supabase.from('league_teams').select('id,name').eq('league_id', leagueId).order('name'),
       ])
       setSponsors(sponsorsRes.data ?? [])
       setGalleryPhotos(galleryRes.data ?? [])
       setCourts(courtsRes ?? [])
       setDivisions(divisionsRes.data ?? [])
       setTeamCount(teamsCountRes.count ?? 0)
+      setSeasons(seasonsRes.data ?? [])
+      setTeams(teamsRes.data ?? [])
       setLoading(false)
     })
   }, [leagueId])
@@ -229,6 +249,49 @@ export default function SettingsPage() {
         fee_amount: isNaN(parsedFee as number) ? null : parsedFee,
       }).eq('id', leagueId)
     )
+  }
+
+  async function saveRules(sections: { title: string; content: string }[]) {
+    setRulesSections(sections)
+    rulesSave.trigger(supabase.from('leagues').update({ rules_sections: sections.length ? sections : null }).eq('id', leagueId))
+  }
+
+  async function archiveSeason() {
+    if (!archiveName.trim()) return
+    setArchiving(true)
+    const nextOrder = seasons.length > 0 ? Math.max(...seasons.map(s => s.display_order)) + 1 : 0
+    const { data: newSeason, error } = await supabase
+      .from('league_seasons')
+      .insert({
+        league_id: leagueId,
+        name: archiveName.trim(),
+        start_date: archiveStartDate || null,
+        end_date: archiveEndDate || null,
+        champion_team_id: archiveChampionId || null,
+        notes: archiveNotes.trim() || null,
+        display_order: nextOrder,
+      })
+      .select()
+      .single()
+    if (!error && newSeason) {
+      // Tag all unarchived regular-season games with this season_id
+      await supabase
+        .from('league_games')
+        .update({ season_id: newSeason.id })
+        .eq('league_id', leagueId)
+        .is('season_id', null)
+        .eq('game_type', 'regular')
+      setSeasons(prev => [newSeason as LeagueSeason, ...prev])
+      setArchiveName(''); setArchiveStartDate(''); setArchiveEndDate(''); setArchiveChampionId(''); setArchiveNotes('')
+      setShowArchiveForm(false)
+    }
+    setArchiving(false)
+  }
+
+  async function deleteSeason(seasonId: string) {
+    await supabase.from('league_games').update({ season_id: null }).eq('season_id', seasonId)
+    await supabase.from('league_seasons').delete().eq('id', seasonId)
+    setSeasons(prev => prev.filter(s => s.id !== seasonId))
   }
 
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -827,6 +890,85 @@ export default function SettingsPage() {
               </button>
             </div>
           </form>
+
+          {/* ── Season Archive ── */}
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>Season Archive</div>
+                <div style={S.cardSub}>Archive a completed season to preserve its standings and stats. Archived seasons appear in the History tab on your public page.</div>
+              </div>
+            </div>
+            {seasons.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                {seasons.map(s => {
+                  const champ = teams.find(t => t.id === s.champion_team_id)
+                  return (
+                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #1C1C26' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 16, textTransform: 'uppercase' as const, color: '#EEEEF5' }}>{s.name}</div>
+                        <div style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace", marginTop: 2 }}>
+                          {s.start_date && s.end_date ? `${s.start_date} → ${s.end_date}` : s.start_date || s.end_date || 'No dates'}
+                          {champ && <span style={{ marginLeft: 10, color: '#F5C542' }}>🏆 {champ.name}</span>}
+                        </div>
+                        {s.notes && <div style={{ fontSize: 12, color: '#6A6A82', marginTop: 2 }}>{s.notes}</div>}
+                      </div>
+                      <button type="button" onClick={() => { if (confirm(`Delete season "${s.name}"? Games will be untagged but not deleted.`)) deleteSeason(s.id) }}
+                        style={{ background: 'none', border: 'none', color: '#6A6A82', cursor: 'pointer', fontSize: 13, padding: '4px 8px', fontFamily: "'DM Mono', monospace" }}>
+                        Delete
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            {seasons.length === 0 && !showArchiveForm && (
+              <div style={{ fontSize: 13, color: '#6A6A82', marginBottom: 16 }}>No seasons archived yet.</div>
+            )}
+            {!showArchiveForm ? (
+              <button type="button" onClick={() => setShowArchiveForm(true)} style={S.cancelBtn}>
+                Archive Current Season…
+              </button>
+            ) : (
+              <div style={{ border: '1px solid #39FF1430', borderRadius: 10, padding: 16, background: '#0A0A0E' }}>
+                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, textTransform: 'uppercase' as const, color: '#39FF14', marginBottom: 14 }}>Archive Season</div>
+                <div style={S.fieldGrid}>
+                  <div style={S.field}>
+                    <label style={S.label}>Season Name *</label>
+                    <input value={archiveName} onChange={e => setArchiveName(e.target.value)} placeholder="e.g. Winter 2024" style={S.input} />
+                  </div>
+                  <div style={S.field}>
+                    <label style={S.label}>Champion</label>
+                    <select value={archiveChampionId} onChange={e => setArchiveChampionId(e.target.value)} style={S.input}>
+                      <option value="">None</option>
+                      {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </div>
+                  <div style={S.field}>
+                    <label style={S.label}>Start Date</label>
+                    <input type="date" value={archiveStartDate} onChange={e => setArchiveStartDate(e.target.value)} style={S.input} />
+                  </div>
+                  <div style={S.field}>
+                    <label style={S.label}>End Date</label>
+                    <input type="date" value={archiveEndDate} onChange={e => setArchiveEndDate(e.target.value)} style={S.input} />
+                  </div>
+                </div>
+                <div style={S.field}>
+                  <label style={S.label}>Notes (optional)</label>
+                  <input value={archiveNotes} onChange={e => setArchiveNotes(e.target.value)} placeholder="e.g. MVP: John Smith, 12-team league" style={S.input} />
+                </div>
+                <div style={{ fontSize: 12, color: '#6A6A82', marginTop: 8, marginBottom: 14 }}>
+                  All current unarchived regular-season games will be tagged to this season. Games in a season show up under History on your public page.
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button type="button" onClick={() => setShowArchiveForm(false)} style={S.cancelBtn}>Cancel</button>
+                  <button type="button" onClick={archiveSeason} disabled={!archiveName.trim() || archiving} style={S.saveBtn}>
+                    {archiving ? 'Archiving…' : 'Archive Season'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           </>}
 
           {sTab === 'general' && <>
@@ -1526,6 +1668,48 @@ export default function SettingsPage() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* ── League Rules ── */}
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>League Rules</div>
+                <div style={S.cardSub}>Rules shown on your public page under a Rules tab. Organize by section (General Rules, Fouls, Playoffs, etc.).</div>
+              </div>
+              <SaveIndicator state={rulesSave.state} />
+            </div>
+            {rulesSections.map((sec, idx) => (
+              <div key={idx} style={{ marginBottom: 16, padding: 16, background: '#0A0A0E', border: '1px solid #2E2E3A', borderRadius: 10 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+                  <input
+                    value={sec.title}
+                    onChange={e => { const next = rulesSections.map((s, i) => i === idx ? { ...s, title: e.target.value } : s); setRulesSections(next) }}
+                    placeholder="Section title (e.g. General Rules)"
+                    style={{ ...S.input, flex: 1, fontWeight: 600 }}
+                  />
+                  <button type="button" onClick={() => saveRules(rulesSections.map((s, i) => i === idx ? { ...s, title: (document.querySelector(`[data-rules-title="${idx}"]`) as HTMLInputElement)?.value ?? s.title } : s))} style={{ display: 'none' }} />
+                  <button type="button" disabled={idx === 0} onClick={() => { const next = [...rulesSections]; [next[idx-1], next[idx]] = [next[idx], next[idx-1]]; saveRules(next) }}
+                    style={{ background: 'none', border: 'none', color: '#6A6A82', cursor: idx === 0 ? 'default' : 'pointer', fontSize: 16, padding: '0 4px' }}>↑</button>
+                  <button type="button" disabled={idx === rulesSections.length - 1} onClick={() => { const next = [...rulesSections]; [next[idx], next[idx+1]] = [next[idx+1], next[idx]]; saveRules(next) }}
+                    style={{ background: 'none', border: 'none', color: '#6A6A82', cursor: idx === rulesSections.length - 1 ? 'default' : 'pointer', fontSize: 16, padding: '0 4px' }}>↓</button>
+                  <button type="button" onClick={() => saveRules(rulesSections.filter((_, i) => i !== idx))}
+                    style={{ background: 'none', border: 'none', color: '#6A6A82', cursor: 'pointer', fontSize: 18, padding: '0 4px', lineHeight: 1 }}>×</button>
+                </div>
+                <textarea
+                  value={sec.content}
+                  onChange={e => { const next = rulesSections.map((s, i) => i === idx ? { ...s, content: e.target.value } : s); setRulesSections(next) }}
+                  onBlur={() => saveRules(rulesSections)}
+                  placeholder="Enter rules for this section…"
+                  rows={5}
+                  style={{ ...S.input, width: '100%', resize: 'vertical' as const, fontFamily: "'DM Mono', monospace", fontSize: 12, lineHeight: 1.6 }}
+                />
+              </div>
+            ))}
+            <button type="button" onClick={() => saveRules([...rulesSections, { title: '', content: '' }])}
+              style={{ ...S.cancelBtn, width: '100%', textAlign: 'center' as const, marginTop: 4 }}>
+              + Add Section
+            </button>
           </div>
           </>}
 

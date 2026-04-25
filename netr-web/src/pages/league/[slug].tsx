@@ -5,7 +5,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { getFontFamily, getFontGF } from '../../lib/league-fonts'
 
-type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null;league_font:string|null;signup_url:string|null;signup_label:string|null }
+type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null;league_font:string|null;signup_url:string|null;signup_label:string|null;rules_sections:{title:string;content:string}[]|null }
+type LeagueSeason = { id:string;league_id:string;name:string;start_date:string|null;end_date:string|null;champion_team_id:string|null;notes:string|null;display_order:number;created_at:string }
 type Sponsor = { id:string;name:string;logo_url:string|null;website_url:string|null }
 type GalleryPhoto = { id:string;photo_url:string;caption:string|null }
 type Team = { id:string;name:string;color:string;logo_url:string|null }
@@ -14,7 +15,7 @@ type Standing = { team_id:string;team_name:string;color:string;wins:number;losse
 type Game = { id:string;home_team_id:string;away_team_id:string;scheduled_at:string;location:string|null;status:string;home_score:number|null;away_score:number|null;game_type:string|null }
 type RawStat = { game_id:string;player_id:string;team_id:string;points:number;rebounds:number;assists:number;steals:number;blocks:number;turnovers:number;field_goals_made:number;field_goals_attempted:number;three_pointers_made:number;three_pointers_attempted:number;free_throws_made:number;free_throws_attempted:number }
 type PStat = { player_id:string;display_name:string;team_id:string;team_name:string;team_color:string;gp:number;ppg:number;rpg:number;apg:number;spg:number;bpg:number }
-type Tab = 'overview'|'schedule'|'stats'|'teams'|'gallery'
+type Tab = 'overview'|'schedule'|'stats'|'teams'|'gallery'|'rules'|'history'
 type SortKey = 'ppg'|'rpg'|'apg'|'spg'|'bpg'
 const ACC = '#39FF14'
 
@@ -39,8 +40,15 @@ export default function PublicLeaguePage() {
   const [sponsors,setSponsors] = useState<Sponsor[]>([])
   const [galleryPhotos,setGalleryPhotos] = useState<GalleryPhoto[]>([])
   const [lightboxIdx,setLightboxIdx] = useState<number|null>(null)
-  const activeTab:Tab = (['overview','schedule','stats','teams','gallery'].includes(tabParam as string)?tabParam:'overview') as Tab
+  const VALID_TABS = ['overview','schedule','stats','teams','gallery','rules','history']
+  const activeTab:Tab = (VALID_TABS.includes(tabParam as string)?tabParam:'overview') as Tab
   const setTab = (t:Tab) => router.replace({pathname:router.pathname,query:{slug,tab:t}},undefined,{shallow:true})
+
+  const [seasons,setSeasons] = useState<LeagueSeason[]>([])
+  const [selectedSeasonId,setSelectedSeasonId] = useState<string|null>(null)
+  const [seasonGames,setSeasonGames] = useState<Game[]>([])
+  const [seasonStats,setSeasonStats] = useState<RawStat[]>([])
+  const [loadingSeason,setLoadingSeason] = useState(false)
 
   useEffect(()=>{ if(slug) load() },[slug])
 
@@ -68,11 +76,12 @@ export default function PublicLeaguePage() {
       supabase.from('league_players').select('id,display_name,jersey_number,position,team_id').eq('league_id',lg.id),
     ])
     setStandings(sr.data??[]);setTeams(tr.data??[]);setAllGames(gr.data??[]);setPlayers(pr.data??[])
-    const [sponsorsRes,galleryRes] = await Promise.all([
+    const [sponsorsRes,galleryRes,seasonsRes] = await Promise.all([
       supabase.from('league_sponsors').select('id,name,logo_url,website_url').eq('league_id',lg.id).order('display_order'),
       supabase.from('league_gallery_photos').select('id,photo_url,caption').eq('league_id',lg.id).order('created_at',{ascending:false}),
+      supabase.from('league_seasons').select('*').eq('league_id',lg.id).order('display_order',{ascending:false}),
     ])
-    setSponsors(sponsorsRes.data??[]);setGalleryPhotos(galleryRes.data??[])
+    setSponsors(sponsorsRes.data??[]);setGalleryPhotos(galleryRes.data??[]);setSeasons(seasonsRes.data??[])
     const pids=(pr.data??[]).map((p:Player)=>p.id)
     if(pids.length>0){
       const {data:sd}=await supabase.from('league_player_stats').select('game_id,player_id,team_id,points,rebounds,assists,steals,blocks,turnovers,field_goals_made,field_goals_attempted,three_pointers_made,three_pointers_attempted,free_throws_made,free_throws_attempted').in('player_id',pids)
@@ -97,6 +106,36 @@ export default function PublicLeaguePage() {
       }
     }
     setLoading(false)
+  }
+
+  async function loadSeason(seasonId:string) {
+    setLoadingSeason(true)
+    setSelectedSeasonId(seasonId)
+    const {data:sg} = await supabase.from('league_games').select('*').eq('season_id',seasonId).order('scheduled_at')
+    const sgData = sg ?? []
+    setSeasonGames(sgData)
+    const gameIds = sgData.map((g:Game)=>g.id)
+    if(gameIds.length>0){
+      const {data:ss} = await supabase.from('league_player_stats').select('game_id,player_id,team_id,points,rebounds,assists,steals,blocks,turnovers,field_goals_made,field_goals_attempted,three_pointers_made,three_pointers_attempted,free_throws_made,free_throws_attempted').in('game_id',gameIds)
+      setSeasonStats(ss??[])
+    } else {
+      setSeasonStats([])
+    }
+    setLoadingSeason(false)
+  }
+
+  function computeSeasonStandings(games:Game[]):Standing[] {
+    const map:Record<string,Standing>={}
+    for(const t of teams) map[t.id]={team_id:t.id,team_name:t.name,color:t.color,wins:0,losses:0,pts_for:0,pts_against:0}
+    for(const g of games){
+      if(g.status!=='final'||g.home_score==null||g.away_score==null) continue
+      const h=map[g.home_team_id],a=map[g.away_team_id]
+      if(!h||!a) continue
+      h.pts_for+=g.home_score;h.pts_against+=g.away_score
+      a.pts_for+=g.away_score;a.pts_against+=g.home_score
+      if(g.home_score>g.away_score){h.wins++;a.losses++} else {a.wins++;h.losses++}
+    }
+    return Object.values(map).filter(s=>s.wins+s.losses>0).sort((a,b)=>b.wins-a.wins||(b.pts_for-b.pts_against)-(a.pts_for-a.pts_against))
   }
 
   if(loading) return <Spinner/>
@@ -184,6 +223,8 @@ export default function PublicLeaguePage() {
           {([
             ['overview','Overview'],['schedule','Schedule'],['stats','Stats'],['teams','Teams'],
             ...(galleryPhotos.length>0?[['gallery','Gallery']]:[] as [Tab,string][]),
+            ...(league.rules_sections&&league.rules_sections.length>0?[['rules','Rules']]:[] as [Tab,string][]),
+            ...(seasons.length>0?[['history','History']]:[] as [Tab,string][]),
           ] as [Tab,string][]).map(([t,label])=>(
             <button key={t} onClick={()=>setTab(t)} style={{background:'none',border:'none',borderBottom:activeTab===t?`3px solid ${accent}`:'3px solid transparent',color:activeTab===t?accent:'#EEEEF5',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase',letterSpacing:1,padding:'14px 20px',cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>
               {label}
@@ -362,6 +403,136 @@ export default function PublicLeaguePage() {
                   {p.caption&&<div style={{position:'absolute',bottom:0,left:0,right:0,background:'linear-gradient(transparent,rgba(0,0,0,0.75))',padding:'24px 12px 10px',fontSize:12,color:'#EEEEF5',fontFamily:"'DM Sans',sans-serif"}}>{p.caption}</div>}
                 </div>
               ))}
+            </div>
+          )}
+        </section>}
+
+        {/* RULES */}
+        {activeTab==='rules'&&<section>
+          <SecTitle accent={accent}>League Rules</SecTitle>
+          {(!league.rules_sections||league.rules_sections.length===0)?<Empty>No rules posted yet.</Empty>:(
+            <div style={{display:'flex',flexDirection:'column',gap:24}}>
+              {league.rules_sections.map((sec,i)=>(
+                <div key={i} style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:12,overflow:'hidden'}}>
+                  {sec.title&&(
+                    <div style={{padding:'14px 20px',borderBottom:'1px solid #1C1C26',background:'#0F0F14'}}>
+                      <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,textTransform:'uppercase',letterSpacing:0.5,color:accent}}>{sec.title}</span>
+                    </div>
+                  )}
+                  <div style={{padding:'16px 20px',fontSize:14,lineHeight:1.75,color:'rgba(238,238,245,0.85)',whiteSpace:'pre-wrap' as const,fontFamily:"'DM Sans',sans-serif"}}>
+                    {sec.content}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>}
+
+        {/* HISTORY */}
+        {activeTab==='history'&&<section>
+          <SecTitle accent={accent}>Season History</SecTitle>
+          {seasons.length===0?<Empty>No archived seasons yet.</Empty>:(
+            <div style={{display:'flex',flexDirection:'column',gap:16}}>
+              {seasons.map(s=>{
+                const champ=tMap[s.champion_team_id??'']
+                const isOpen=selectedSeasonId===s.id
+                return(
+                  <div key={s.id} style={{background:'#0A0A0E',border:`1px solid ${isOpen?accent+'44':'#1C1C26'}`,borderRadius:12,overflow:'hidden',transition:'border-color 0.2s'}}>
+                    <button onClick={()=>{if(isOpen){setSelectedSeasonId(null)}else{loadSeason(s.id)}}}
+                      style={{width:'100%',background:'none',border:'none',padding:'18px 20px',cursor:'pointer',display:'flex',alignItems:'center',gap:14,textAlign:'left' as const}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:20,textTransform:'uppercase',color:'#EEEEF5',letterSpacing:0.5}}>{s.name}</div>
+                        <div style={{display:'flex',gap:12,flexWrap:'wrap' as const,marginTop:4,fontSize:12,color:'#6A6A82',fontFamily:"'DM Mono',monospace"}}>
+                          {s.start_date&&s.end_date&&<span>{s.start_date.slice(0,7)} → {s.end_date.slice(0,7)}</span>}
+                          {champ&&<span style={{color:'#F5C542'}}>🏆 {champ.name}</span>}
+                          {s.notes&&<span>{s.notes}</span>}
+                        </div>
+                      </div>
+                      <span style={{color:isOpen?accent:'#2E2E3A',fontSize:18,transition:'transform 0.2s',display:'inline-block',transform:isOpen?'rotate(90deg)':'rotate(0deg)'}}>›</span>
+                    </button>
+                    {isOpen&&(
+                      <div style={{borderTop:'1px solid #1C1C26',padding:'20px'}}>
+                        {loadingSeason?<div style={{textAlign:'center',padding:'24px 0',color:'#6A6A82',fontFamily:"'DM Mono',monospace",fontSize:13}}>Loading…</div>:(
+                          <>
+                            {champ&&(
+                              <div style={{display:'flex',alignItems:'center',gap:12,background:`${accent}10`,border:`1px solid ${accent}30`,borderRadius:10,padding:'12px 16px',marginBottom:20}}>
+                                <span style={{fontSize:24}}>🏆</span>
+                                <div>
+                                  <div style={{fontSize:11,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:2}}>Champion</div>
+                                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,textTransform:'uppercase',color:'#EEEEF5'}}>{champ.name}</div>
+                                </div>
+                              </div>
+                            )}
+                            {/* Standings */}
+                            {(()=>{
+                              const std=computeSeasonStandings(seasonGames)
+                              if(std.length===0) return <Empty>No final games recorded for this season.</Empty>
+                              return(
+                                <div style={{marginBottom:20}}>
+                                  <div style={{fontSize:12,fontWeight:600,color:'#6A6A82',fontFamily:"'DM Mono',monospace",textTransform:'uppercase' as const,letterSpacing:1,marginBottom:10}}>Standings</div>
+                                  <div style={{overflowX:'auto'}}>
+                                    <table style={{width:'100%',borderCollapse:'collapse',minWidth:320}}>
+                                      <thead><tr style={{borderBottom:'1px solid #1C1C26'}}>
+                                        <th style={{textAlign:'left' as const,padding:'6px 10px',fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace",fontWeight:400}}>#</th>
+                                        <th style={{textAlign:'left' as const,padding:'6px 10px',fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace",fontWeight:400}}>Team</th>
+                                        <th style={{textAlign:'center' as const,padding:'6px 10px',fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace",fontWeight:400}}>W</th>
+                                        <th style={{textAlign:'center' as const,padding:'6px 10px',fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace",fontWeight:400}}>L</th>
+                                        <th style={{textAlign:'center' as const,padding:'6px 10px',fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace",fontWeight:400}}>PCT</th>
+                                        <th style={{textAlign:'center' as const,padding:'6px 10px',fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace",fontWeight:400}}>PF</th>
+                                        <th style={{textAlign:'center' as const,padding:'6px 10px',fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace",fontWeight:400}}>PA</th>
+                                      </tr></thead>
+                                      <tbody>
+                                        {std.map((row,ri)=>{
+                                          const gp=row.wins+row.losses
+                                          const pct=gp>0?(row.wins/gp).toFixed(3):'—'
+                                          const isChamp=row.team_id===s.champion_team_id
+                                          return(<tr key={row.team_id} style={{borderBottom:'1px solid #0F0F14',background:isChamp?`${accent}08`:'transparent'}}>
+                                            <td style={{padding:'8px 10px',fontSize:13,color:'#6A6A82',fontFamily:"'DM Mono',monospace"}}>{ri+1}</td>
+                                            <td style={{padding:'8px 10px',display:'flex',alignItems:'center',gap:8}}>
+                                              <span style={{width:8,height:8,borderRadius:'50%',background:row.color,display:'inline-block',flexShrink:0}}/>
+                                              <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase',color:isChamp?accent:'#EEEEF5'}}>{row.team_name}</span>
+                                              {isChamp&&<span style={{fontSize:12}}>🏆</span>}
+                                            </td>
+                                            <td style={{textAlign:'center' as const,padding:'8px 10px',fontFamily:"'DM Mono',monospace",fontSize:13,color:accent,fontWeight:600}}>{row.wins}</td>
+                                            <td style={{textAlign:'center' as const,padding:'8px 10px',fontFamily:"'DM Mono',monospace",fontSize:13,color:'#6A6A82'}}>{row.losses}</td>
+                                            <td style={{textAlign:'center' as const,padding:'8px 10px',fontFamily:"'DM Mono',monospace",fontSize:13,color:'#EEEEF5'}}>{pct}</td>
+                                            <td style={{textAlign:'center' as const,padding:'8px 10px',fontFamily:"'DM Mono',monospace",fontSize:13,color:'#6A6A82'}}>{row.pts_for}</td>
+                                            <td style={{textAlign:'center' as const,padding:'8px 10px',fontFamily:"'DM Mono',monospace",fontSize:13,color:'#6A6A82'}}>{row.pts_against}</td>
+                                          </tr>)
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              )
+                            })()}
+                            {/* Top scorers */}
+                            {(()=>{
+                              const sp=computeStats(seasonStats,pMap,tMap)
+                              if(sp.length===0) return null
+                              const top5=sp.slice().sort((a,b)=>b.ppg-a.ppg).slice(0,5)
+                              return(
+                                <div>
+                                  <div style={{fontSize:12,fontWeight:600,color:'#6A6A82',fontFamily:"'DM Mono',monospace",textTransform:'uppercase' as const,letterSpacing:1,marginBottom:10}}>Top Scorers</div>
+                                  {top5.map((p,pi)=>(
+                                    <div key={p.player_id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid #0F0F14'}}>
+                                      <span style={{width:22,textAlign:'center' as const,fontFamily:"'DM Mono',monospace",fontSize:12,color:'#6A6A82'}}>{pi+1}</span>
+                                      <span style={{width:8,height:8,borderRadius:'50%',background:p.team_color,display:'inline-block',flexShrink:0}}/>
+                                      <span style={{flex:1,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,textTransform:'uppercase',color:'#EEEEF5'}}>{p.display_name}</span>
+                                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:accent,fontWeight:600}}>{p.ppg.toFixed(1)}</span>
+                                      <span style={{fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace"}}>PPG</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )
+                            })()}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </section>}

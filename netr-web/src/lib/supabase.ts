@@ -66,7 +66,20 @@ export type League = {
   cross_division_play: boolean
   game_time_slots: string[] | null
   game_day_time_slots: Record<string, string[]> | null
+  rules_sections: { title: string; content: string }[] | null
   season_end_date: string | null
+  created_at: string
+}
+
+export type LeagueSeason = {
+  id: string
+  league_id: string
+  name: string
+  start_date: string | null
+  end_date: string | null
+  champion_team_id: string | null
+  notes: string | null
+  display_order: number
   created_at: string
 }
 
@@ -138,6 +151,7 @@ export type LeagueGame = {
   playoff_bracket_slot: number | null
   court_id: string | null
   division_id: string | null
+  season_id: string | null
   created_at: string
 }
 
