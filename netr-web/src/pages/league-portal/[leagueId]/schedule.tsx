@@ -469,7 +469,7 @@ export default function SchedulePage() {
                 <p style={{ fontSize: 12, color: '#6A6A82', margin: '4px 0 10px' }}>Each slot is one game on that day. All slots will be filled — add as many as the gym has hours.</p>
                 {genConfig.gameDays.length === 0 && <p style={{ fontSize: 13, color: '#6A6A82' }}>Select game days above first.</p>}
                 {genConfig.gameDays.slice().sort((a, b) => a - b).map(day => {
-                  const dayLabel = DISPLAY_LABELS[DISPLAY_DOW.indexOf(day)] ?? `Day ${day}`
+                  const dayLabel = DISPLAY_LABELS[(DISPLAY_DOW as readonly number[]).indexOf(day)] ?? `Day ${day}`
                   const slots = genConfig.dayTimeSlots?.[day] ?? []
                   const inputVal = newSlotTimes[day] ?? ''
                   return (
