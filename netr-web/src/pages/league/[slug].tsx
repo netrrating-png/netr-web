@@ -4,6 +4,7 @@ import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { getFontFamily, getFontGF } from '../../lib/league-fonts'
+import { Globe, MapPin, Mail, X } from 'lucide-react'
 
 type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null;league_font:string|null;signup_url:string|null;signup_label:string|null;rules_sections:{title:string;content:string}[]|null }
 type LeagueSeason = { id:string;league_id:string;name:string;start_date:string|null;end_date:string|null;champion_team_id:string|null;notes:string|null;display_order:number;created_at:string }
@@ -162,83 +163,151 @@ export default function PublicLeaguePage() {
       <meta name="robots" content="noindex"/>
       <meta name="viewport" content="width=device-width,initial-scale=1"/>
       <link href={`https://fonts.googleapis.com/css2?family=${fontGF}&family=Barlow+Condensed:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap`} rel="stylesheet"/>
+      <style>{`
+        @keyframes logoPulse {
+          0%,100% { box-shadow: 0 0 0 0 ${accent}40, 0 0 32px ${accent}30; }
+          50%      { box-shadow: 0 0 0 8px ${accent}00, 0 0 48px ${accent}50; }
+        }
+        @keyframes fadeUp {
+          from { opacity:0; transform:translateY(16px); }
+          to   { opacity:1; transform:translateY(0); }
+        }
+        .hero-logo { animation: logoPulse 3s ease-in-out infinite; }
+        .hero-content > * { animation: fadeUp 0.5s ease both; }
+        .hero-content > *:nth-child(1) { animation-delay: 0.05s; }
+        .hero-content > *:nth-child(2) { animation-delay: 0.12s; }
+        .hero-content > *:nth-child(3) { animation-delay: 0.2s; }
+        .hero-content > *:nth-child(4) { animation-delay: 0.28s; }
+      `}</style>
     </Head>
     <div style={{minHeight:'100vh',background:'#040406',fontFamily:"'DM Sans',sans-serif",color:'#EEEEF5'}}>
 
-      {/* Hero */}
-      <div style={{position:'relative',minHeight:560,background:'#040406',overflow:'hidden',display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
-        {/* Banner image */}
-        {league.banner_url&&<img src={league.banner_url} alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>}
-        {/* Gradient overlays */}
-        <div style={{position:'absolute',inset:0,background:league.banner_url?`linear-gradient(to bottom,rgba(4,4,6,0.3) 0%,rgba(4,4,6,0.7) 40%,rgba(4,4,6,1) 100%)`:`linear-gradient(135deg,#07070F 0%,#040406 60%,#06060E 100%)`}}/>
-        <div style={{position:'absolute',inset:0,background:`radial-gradient(ellipse at 15% 85%,${accent}18 0%,transparent 50%)`}}/>
-        <div style={{position:'absolute',inset:0,background:`radial-gradient(ellipse at 85% 20%,${accent}08 0%,transparent 45%)`}}/>
-        {/* Dot grid texture */}
-        {!league.banner_url&&<div style={{position:'absolute',inset:0,backgroundImage:`radial-gradient(circle,${accent}14 1px,transparent 1px)`,backgroundSize:'28px 28px',opacity:0.4}}/>}
-        {/* Content */}
-        <div style={{position:'relative',zIndex:1,maxWidth:960,margin:'0 auto',width:'100%',padding:'80px 24px 48px'}}>
-          {/* Eyebrow */}
-          <div style={{display:'inline-flex',alignItems:'center',gap:8,background:`${accent}12`,border:`1px solid ${accent}30`,borderRadius:99,padding:'5px 14px',marginBottom:24}}>
-            <div style={{width:6,height:6,borderRadius:'50%',background:accent,boxShadow:`0 0 8px ${accent}`}}/>
-            <span style={{fontSize:11,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase'}}>{league.is_active?'Active Season':league.season||league.sport||'League'}</span>
+      {/* ── HERO ── */}
+      <div style={{position:'relative',minHeight:600,background:'#040406',overflow:'hidden',display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+        {/* Banner */}
+        {league.banner_url
+          ?<img src={league.banner_url} alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',objectPosition:'center top',display:'block'}}/>
+          :<>
+            {/* No-banner: rich layered background */}
+            <div style={{position:'absolute',inset:0,background:`linear-gradient(135deg,#060610 0%,#040406 50%,#06060C 100%)`}}/>
+            <div style={{position:'absolute',inset:0,backgroundImage:`radial-gradient(circle,${accent}18 1px,transparent 1px)`,backgroundSize:'32px 32px',opacity:0.35}}/>
+          </>
+        }
+        {/* Gradient scrims */}
+        <div style={{position:'absolute',inset:0,background:league.banner_url
+          ?`linear-gradient(to bottom, rgba(4,4,6,0.15) 0%, rgba(4,4,6,0.55) 35%, rgba(4,4,6,0.95) 75%, #040406 100%)`
+          :`linear-gradient(to bottom, transparent 0%, rgba(4,4,6,0.6) 60%, #040406 100%)`}}/>
+        {/* Color glows */}
+        <div style={{position:'absolute',bottom:0,left:0,width:'60%',height:'70%',background:`radial-gradient(ellipse at 0% 100%, ${accent}20 0%, transparent 65%)`,pointerEvents:'none'}}/>
+        <div style={{position:'absolute',top:0,right:0,width:'40%',height:'50%',background:`radial-gradient(ellipse at 100% 0%, ${accent}08 0%, transparent 60%)`,pointerEvents:'none'}}/>
+
+        {/* Hero content */}
+        <div className="hero-content" style={{position:'relative',zIndex:1,maxWidth:980,margin:'0 auto',width:'100%',padding:'100px 24px 52px',display:'flex',flexDirection:'column',gap:0}}>
+
+          {/* Active pill */}
+          <div style={{marginBottom:28}}>
+            <span style={{display:'inline-flex',alignItems:'center',gap:7,background:`${accent}14`,border:`1px solid ${accent}35`,borderRadius:99,padding:'5px 14px 5px 10px'}}>
+              <span style={{width:7,height:7,borderRadius:'50%',background:accent,display:'inline-block',boxShadow:`0 0 10px ${accent}`,flexShrink:0}}/>
+              <span style={{fontSize:10,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const}}>{league.is_active?'Active Season':league.season||league.sport||'League'}</span>
+            </span>
           </div>
-          {/* Name + logo */}
-          <div style={{display:'flex',alignItems:'center',gap:24,marginBottom:20,flexWrap:'wrap' as const}}>
+
+          {/* Logo + Name row */}
+          <div style={{display:'flex',alignItems:'flex-end',gap:28,marginBottom:22,flexWrap:'wrap' as const}}>
             {league.logo_url&&(
               <div style={{position:'relative',flexShrink:0}}>
-                <div style={{position:'absolute',inset:-4,borderRadius:18,background:`${accent}`,opacity:0.2,filter:'blur(12px)'}}/>
-                <img src={league.logo_url} alt={league.name} style={{position:'relative',width:100,height:100,borderRadius:14,objectFit:'cover',border:`2px solid ${accent}55`,background:'#0A0A0E'}}/>
+                {/* Outer glow ring */}
+                <div style={{position:'absolute',inset:-10,borderRadius:26,background:`radial-gradient(circle, ${accent}30 0%, transparent 70%)`,filter:'blur(8px)'}}/>
+                {/* Ring border */}
+                <div style={{position:'absolute',inset:-3,borderRadius:22,border:`1.5px solid ${accent}50`}}/>
+                <img
+                  src={league.logo_url}
+                  alt={league.name}
+                  className="hero-logo"
+                  style={{
+                    position:'relative',
+                    width:110,height:110,
+                    borderRadius:18,
+                    objectFit:'cover',
+                    background:'#0A0A0E',
+                    display:'block',
+                  }}
+                />
               </div>
             )}
-            <div>
-              <h1 style={{fontFamily:displayFont,fontWeight:900,fontSize:'clamp(48px,10vw,108px)',textTransform:'uppercase',lineHeight:0.88,letterSpacing:'-2px',margin:0,wordBreak:'break-word' as const,textShadow:`0 0 80px ${accent}30`}}>{league.name}</h1>
-              {league.season&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:13,color:'#6A6A82',marginTop:8,letterSpacing:2}}>{league.season.toUpperCase()}</div>}
+            <div style={{flex:1,minWidth:0}}>
+              <h1 style={{
+                fontFamily:displayFont,fontWeight:900,
+                fontSize:'clamp(52px,10vw,112px)',
+                textTransform:'uppercase' as const,
+                lineHeight:0.9,letterSpacing:'-2px',
+                margin:0,wordBreak:'break-word' as const,
+                textShadow:`0 2px 40px ${accent}25`,
+              }}>{league.name}</h1>
+              {league.season&&(
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:`${accent}80`,marginTop:10,letterSpacing:3,textTransform:'uppercase' as const}}>{league.season}</div>
+              )}
             </div>
           </div>
+
+          {/* Description */}
           {league.description&&(
-            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:'clamp(14px,2vw,17px)',color:'rgba(238,238,245,0.65)',lineHeight:1.6,margin:'0 0 28px',maxWidth:560,fontWeight:400}}>
+            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:'clamp(14px,2vw,16px)',color:'rgba(238,238,245,0.6)',lineHeight:1.65,margin:'0 0 28px',maxWidth:520,fontWeight:400}}>
               {league.description}
             </p>
           )}
-          {/* Actions row */}
+
+          {/* Meta + social + CTA */}
           <div style={{display:'flex',alignItems:'center',flexWrap:'wrap' as const,gap:10}}>
-            {league.location&&<Chip>📍 {league.location}</Chip>}
-            {league.contact_info&&<a href={league.contact_info.includes('@')?`mailto:${league.contact_info}`:league.contact_info.startsWith('http')?league.contact_info:`tel:${league.contact_info}`} style={{display:'inline-flex',alignItems:'center',gap:5,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:99,padding:'6px 14px',color:'#EEEEF5',fontSize:12,fontFamily:"'DM Sans',sans-serif",textDecoration:'none',whiteSpace:'nowrap' as const}}>✉ Contact</a>}
+            {league.location&&(
+              <span style={{display:'inline-flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:99,padding:'6px 14px',fontSize:12,color:'#9090A8',fontFamily:"'DM Sans',sans-serif"}}>
+                <MapPin size={12} strokeWidth={2}/>{league.location}
+              </span>
+            )}
+            {league.contact_info&&(
+              <a href={league.contact_info.includes('@')?`mailto:${league.contact_info}`:league.contact_info.startsWith('http')?league.contact_info:`tel:${league.contact_info}`}
+                style={{display:'inline-flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:99,padding:'6px 14px',fontSize:12,color:'#9090A8',fontFamily:"'DM Sans',sans-serif",textDecoration:'none',whiteSpace:'nowrap' as const}}>
+                <Mail size={12} strokeWidth={2}/>Contact
+              </a>
+            )}
             {league.social_links&&<SocialIcons links={league.social_links} accent={accent}/>}
             {league.signup_url&&(
               <a href={league.signup_url} target="_blank" rel="noopener noreferrer"
-                style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:8,background:accent,color:'#040406',fontFamily:displayFont,fontWeight:900,fontSize:17,textTransform:'uppercase',letterSpacing:'1px',padding:'13px 32px',borderRadius:12,textDecoration:'none',flexShrink:0,boxShadow:`0 4px 32px ${accent}55`,whiteSpace:'nowrap' as const}}>
+                style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:8,background:accent,color:'#040406',fontFamily:displayFont,fontWeight:900,fontSize:16,textTransform:'uppercase' as const,letterSpacing:'1px',padding:'12px 30px',borderRadius:12,textDecoration:'none',flexShrink:0,boxShadow:`0 4px 28px ${accent}50,0 0 0 1px ${accent}`,whiteSpace:'nowrap' as const}}>
                 {league.signup_label||'Join the League'} →
               </a>
             )}
           </div>
         </div>
+
         {/* Stats strip */}
-        <div style={{position:'relative',zIndex:1,borderTop:`1px solid ${accent}22`,background:`rgba(4,4,6,0.7)`,backdropFilter:'blur(8px)'}}>
-          <div style={{maxWidth:960,margin:'0 auto',display:'flex',padding:'14px 24px',gap:0,overflowX:'auto'}}>
+        <div style={{position:'relative',zIndex:1,borderTop:`1px solid ${accent}20`,background:'rgba(4,4,6,0.75)',backdropFilter:'blur(12px)'}}>
+          <div style={{maxWidth:980,margin:'0 auto',display:'flex',padding:'0 24px',overflowX:'auto',scrollbarWidth:'none' as const}}>
             {[
               {label:'Teams',value:teams.length},
-              {label:'Games',value:allGames.filter(g=>g.status==='final').length},
+              {label:'Games Played',value:allGames.filter(g=>g.status==='final').length},
               {label:'Players',value:players.length},
-              ...(standings[0]?[{label:'League Leader',value:standings[0].team_name,wide:true}]:[]),
+              ...(standings[0]&&standings[0].wins>0?[{label:'League Leader',value:standings[0].team_name,accent:true}]:[]),
             ].map((item,i)=>(
-              <div key={i} style={{display:'flex',flexDirection:'column',alignItems:'center',padding:'0 24px',borderRight:`1px solid ${accent}15`,flexShrink:0}}>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:item.wide?16:22,color:'#EEEEF5',textTransform:'uppercase' as const,letterSpacing:item.wide?0:-0.5}}>{item.value}</div>
-                <div style={{fontSize:9,color:'#4A4A5E',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginTop:1}}>{item.label}</div>
+              <div key={i} style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'14px 28px',borderRight:`1px solid rgba(255,255,255,0.05)`,flexShrink:0}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:item.accent?15:24,color:item.accent?accent:'#EEEEF5',textTransform:'uppercase' as const,letterSpacing:item.accent?0.5:-0.5,lineHeight:1}}>{item.value}</div>
+                <div style={{fontSize:9,color:'#3A3A4E',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginTop:3}}>{item.label}</div>
               </div>
             ))}
           </div>
         </div>
-        <div style={{height:3,background:`linear-gradient(90deg,${accent},${accent}44,transparent)`}}/>
+        <div style={{height:2,background:`linear-gradient(90deg,${accent},${accent}60,transparent 70%)`}}/>
       </div>
 
       {/* Announcement */}
       {league.announcement&&!dismissed&&(
-        <div style={{background:`${accent}18`,borderBottom:`1px solid ${accent}40`,padding:'12px 20px'}}>
-          <div style={{maxWidth:900,margin:'0 auto',display:'flex',alignItems:'center',gap:12}}>
-            <span>📢</span>
-            <span style={{flex:1,fontSize:14,lineHeight:1.5}}>{league.announcement}</span>
-            <button onClick={()=>setDismissed(true)} style={{background:'none',border:'none',color:'#6A6A82',cursor:'pointer',fontSize:20,lineHeight:1,padding:'0 4px'}}>×</button>
+        <div style={{background:`linear-gradient(90deg,${accent}18,${accent}10)`,borderBottom:`1px solid ${accent}30`,padding:'0 24px'}}>
+          <div style={{maxWidth:980,margin:'0 auto',display:'flex',alignItems:'center',gap:14,padding:'13px 0'}}>
+            <div style={{width:28,height:28,borderRadius:8,background:`${accent}20`,border:`1px solid ${accent}40`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:14}}>📢</div>
+            <span style={{flex:1,fontSize:13,lineHeight:1.6,color:'rgba(238,238,245,0.85)'}}>{league.announcement}</span>
+            <button onClick={()=>setDismissed(true)} style={{background:'none',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,color:'#4A4A5E',cursor:'pointer',width:26,height:26,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:14}}>
+              <X size={14} strokeWidth={2}/>
+            </button>
           </div>
         </div>
       )}
@@ -840,14 +909,53 @@ export default function PublicLeaguePage() {
   </>)
 }
 
+function IgIcon() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+      <circle cx="12" cy="12" r="4"/>
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+    </svg>
+  )
+}
+function XIcon() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 4 L20 20 M20 4 L4 20"/>
+    </svg>
+  )
+}
+function FbIcon() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+    </svg>
+  )
+}
+function TtIcon() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/>
+    </svg>
+  )
+}
+function YtIcon() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="5" width="20" height="14" rx="4"/>
+      <polygon points="10,9 16,12 10,15" fill="currentColor" stroke="none"/>
+    </svg>
+  )
+}
+
 function SocialIcons({links,accent}:{links:Record<string,string>;accent:string}) {
-  const defs:{[k:string]:{label:string;color:string;url:(h:string)=>string}} = {
-    instagram:{label:'IG',color:'#E1306C',url:h=>`https://instagram.com/${h}`},
-    twitter:  {label:'𝕏', color:'#1DA1F2',url:h=>`https://twitter.com/${h}`},
-    facebook: {label:'f', color:'#1877F2',url:h=>`https://facebook.com/${h}`},
-    tiktok:   {label:'TT',color:'#69C9D0',url:h=>`https://tiktok.com/@${h}`},
-    youtube:  {label:'▶', color:'#FF0000',url:h=>`https://youtube.com/@${h}`},
-    website:  {label:'🔗',color:accent,   url:h=>h},
+  const defs:{[k:string]:{icon:React.ReactNode;label:string;color:string;url:(h:string)=>string}} = {
+    instagram:{icon:<IgIcon/>,label:'Instagram',color:'#E1306C',url:h=>`https://instagram.com/${h}`},
+    twitter:  {icon:<XIcon/>, label:'X / Twitter',color:'#E7E9EA',url:h=>`https://twitter.com/${h}`},
+    facebook: {icon:<FbIcon/>,label:'Facebook',  color:'#1877F2',url:h=>`https://facebook.com/${h}`},
+    tiktok:   {icon:<TtIcon/>,label:'TikTok',    color:'#69C9D0',url:h=>`https://tiktok.com/@${h}`},
+    youtube:  {icon:<YtIcon/>,label:'YouTube',   color:'#FF0000',url:h=>`https://youtube.com/@${h}`},
+    website:  {icon:<Globe size={18}/>,label:'Website',color:accent,url:h=>h},
   }
   return(
     <>
@@ -855,8 +963,8 @@ function SocialIcons({links,accent}:{links:Record<string,string>;accent:string})
         const d=defs[k]; if(!d) return null
         return(
           <a key={k} href={d.url(handle)} target="_blank" rel="noopener noreferrer" title={d.label}
-            style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:28,height:28,borderRadius:'50%',background:`${d.color}22`,border:`1px solid ${d.color}55`,color:d.color,fontSize:11,fontFamily:"'DM Mono',monospace",fontWeight:700,textDecoration:'none',flexShrink:0}}>
-            {d.label}
+            style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:34,height:34,borderRadius:10,background:`${d.color}18`,border:`1px solid ${d.color}44`,color:d.color,textDecoration:'none',flexShrink:0,transition:'background 0.2s'}}>
+            {d.icon}
           </a>
         )
       })}
