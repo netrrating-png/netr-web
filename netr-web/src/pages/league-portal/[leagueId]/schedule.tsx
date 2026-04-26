@@ -46,6 +46,9 @@ export default function SchedulePage() {
   // attendance (RSVP counts per game)
   const [attendance, setAttendance] = useState<LeagueGameAttendance[]>([])
 
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
+  const [deletingAll, setDeletingAll] = useState(false)
+
   // standings for playoffs
   const [standings, setStandings] = useState<StandingRow[]>([])
   const [playoffDate, setPlayoffDate] = useState(new Date().toISOString().slice(0,10))
@@ -170,6 +173,17 @@ export default function SchedulePage() {
     setPreview(null)
     setShowGenerator(false)
     setSavingSchedule(false)
+  }
+
+  async function handleDeleteAll() {
+    setDeletingAll(true)
+    const idsToDelete = games.filter(g => g.game_type === 'regular').map(g => g.id)
+    for (let i = 0; i < idsToDelete.length; i += 100) {
+      await supabase.from('league_games').delete().in('id', idsToDelete.slice(i, i + 100))
+    }
+    setGames(prev => prev.filter(g => g.game_type !== 'regular'))
+    setConfirmDeleteAll(false)
+    setDeletingAll(false)
   }
 
   async function handleAvailChange(teamId: string, day: number, checked: boolean) {
@@ -371,11 +385,25 @@ export default function SchedulePage() {
 
           {/* Generator toggle row */}
           {divTeams.length >= 2 && (
-            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' as const, alignItems: 'center' }}>
               <button onClick={() => { setShowGenerator(v => !v); setPreview(null) }} style={S.addBtn}>
                 {showGenerator ? '▲ Hide Generator' : '⚙ Generate Schedule'}
               </button>
               <button onClick={() => setShowForm(v => !v)} style={S.outlineBtn}>+ Add Single Game</button>
+              {regularGames.length > 0 && !confirmDeleteAll && (
+                <button onClick={() => setConfirmDeleteAll(true)} style={{ ...S.outlineBtn, marginLeft: 'auto', color: '#FF4455', borderColor: '#FF445540' }}>
+                  🗑 Clear All Games
+                </button>
+              )}
+              {confirmDeleteAll && (
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,68,85,0.08)', border: '1px solid rgba(255,68,85,0.3)', borderRadius: 10, padding: '8px 14px' }}>
+                  <span style={{ fontSize: 13, color: '#FF8899' }}>Delete all {regularGames.length} regular season games?</span>
+                  <button onClick={handleDeleteAll} disabled={deletingAll} style={{ background: '#FF4455', border: 'none', borderRadius: 7, color: '#fff', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, padding: '6px 14px', cursor: 'pointer' }}>
+                    {deletingAll ? 'Deleting…' : 'Yes, delete all'}
+                  </button>
+                  <button onClick={() => setConfirmDeleteAll(false)} style={{ background: 'none', border: 'none', color: '#6A6A82', cursor: 'pointer', fontSize: 18, padding: '0 4px', lineHeight: 1 }}>×</button>
+                </div>
+              )}
             </div>
           )}
 
@@ -564,10 +592,39 @@ export default function SchedulePage() {
               </div>
               {preview ? (
                 <div style={S.previewBox}>
-                  <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:16, marginBottom:10 }}>Preview</div>
-                  <div style={{ display:'flex', gap:20, flexWrap:'wrap' as const, marginBottom:12, fontSize:14 }}>
-                    <span><strong style={{ color:'#EEEEF5' }}>{preview.length}</strong> games</span>
-                    <span style={{ color:'#6A6A82' }}>{fmtPreviewRange(preview)}</span>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10, flexWrap:'wrap' as const, gap:8 }}>
+                    <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:18 }}>Schedule Preview</div>
+                    <div style={{ display:'flex', gap:16, fontSize:13, color:'#A0A0B8' }}>
+                      <span><strong style={{ color:'#EEEEF5' }}>{preview.length}</strong> games</span>
+                      <span>{fmtPreviewRange(preview)}</span>
+                    </div>
+                  </div>
+                  {/* Full game list */}
+                  <div style={{ maxHeight:340, overflowY:'auto', marginBottom:14, border:'1px solid #1C1C26', borderRadius:8 }}>
+                    {(() => {
+                      const teamsById: Record<string, LeagueTeam> = {}
+                      for (const t of divTeams) teamsById[t.id] = t
+                      return preview.map((g, i) => {
+                        const home = teamsById[g.home_team_id]
+                        const away = teamsById[g.away_team_id]
+                        const d = new Date(g.scheduled_at)
+                        const dateStr = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
+                        const timeStr = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' })
+                        return (
+                          <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', borderBottom: i < preview.length-1 ? '1px solid #1A1A28' : 'none', background: g.hasConflict ? 'rgba(245,197,66,0.04)' : 'none' }}>
+                            <div style={{ flex:1, display:'flex', alignItems:'center', gap:8 }}>
+                              {home && <span style={{ width:8, height:8, borderRadius:'50%', background:home.color, flexShrink:0, display:'inline-block' }}/>}
+                              <span style={{ fontSize:13, fontWeight:600, color:'#EEEEF5' }}>{home?.name ?? '?'}</span>
+                              <span style={{ fontSize:11, color:'#4A4A5E', fontFamily:"'DM Mono',monospace" }}>vs</span>
+                              {away && <span style={{ width:8, height:8, borderRadius:'50%', background:away.color, flexShrink:0, display:'inline-block' }}/>}
+                              <span style={{ fontSize:13, fontWeight:600, color:'#EEEEF5' }}>{away?.name ?? '?'}</span>
+                            </div>
+                            <div style={{ fontSize:11, color:'#6A6A82', fontFamily:"'DM Mono',monospace", flexShrink:0 }}>{dateStr} · {timeStr}</div>
+                            {g.hasConflict && <span style={{ fontSize:10, color:'#F5C542', flexShrink:0 }}>⚠ conflict</span>}
+                          </div>
+                        )
+                      })
+                    })()}
                   </div>
 
                   {/* Long-range warning */}
@@ -612,9 +669,11 @@ export default function SchedulePage() {
                     )
                   })()}
 
-                  <div style={{ display:'flex', gap:10 }}>
-                    <button onClick={() => setPreview(null)} style={S.cancelBtn}>Clear</button>
-                    <button onClick={handleSaveSchedule} style={S.saveBtn} disabled={savingSchedule}>{savingSchedule ? 'Saving…' : `Save ${preview.length} Games`}</button>
+                  <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+                    <button onClick={() => setPreview(null)} style={S.cancelBtn}>Discard Preview</button>
+                    <button onClick={handleSaveSchedule} style={S.saveBtn} disabled={savingSchedule}>
+                      {savingSchedule ? 'Saving…' : `✓ Confirm & Save ${preview.length} Games`}
+                    </button>
                   </div>
                 </div>
               ) : (
