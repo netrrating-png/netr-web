@@ -1044,9 +1044,9 @@ function GCard({g,tMap,accent,onClick,showLoc,rsvpCount}:{g:Game;tMap:Record<str
             <div style={{fontSize:11,color:'#FF4455',fontFamily:"'DM Mono',monospace",letterSpacing:1,textAlign:'center'}}>CANCELLED</div>
           ):(
             <>
-              <div style={{fontSize:9,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",letterSpacing:1}}>{dayStr}</div>
-              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:28,color:'#2E2E3A',lineHeight:1}}>{dateNum}</div>
-              <div style={{fontSize:10,color:'#C8C8D4',fontFamily:"'DM Mono',monospace"}}>{timeStr}</div>
+              <div style={{fontSize:9,color:'#EEEEF5',fontFamily:"'DM Mono',monospace",letterSpacing:1}}>{dayStr}</div>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:28,color:'#FFFFFF',lineHeight:1,WebkitTextStroke:`1px ${accent}`,textShadow:`0 0 8px ${accent}40`}}>{dateNum}</div>
+              <div style={{fontSize:10,color:'#EEEEF5',fontFamily:"'DM Mono',monospace"}}>{timeStr}</div>
               {rsvpCount!=null&&rsvpCount>0&&<div style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",marginTop:2}}>✓{rsvpCount}</div>}
             </>
           )}
