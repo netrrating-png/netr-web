@@ -154,15 +154,20 @@ export function assignDates(
 
   // Fallback: force-schedule remaining games ignoring availability
   const [fh, fm] = defaultSlots[0].split(':').map(Number)
-  for (const [home, away] of remaining) {
-    while (!cfg.gameDays.includes(cur.getDay())) cur.setDate(cur.getDate() + 1)
-    if (endDate && cur > endDate) break
-    const dt = new Date(cur)
-    dt.setHours(fh, fm, 0, 0)
-    scheduled.push({ home_team_id: home, away_team_id: away, scheduled_at: dt.toISOString(), location: cfg.location, hasConflict: true })
-    conflicts++
-    cur.setDate(cur.getDate() + 1)
-    while (!cfg.gameDays.includes(cur.getDay())) cur.setDate(cur.getDate() + 1)
+  if (cfg.gameDays.length > 0 && !isNaN(cur.getTime())) {
+    for (const [home, away] of remaining) {
+      let g = 0
+      while (!cfg.gameDays.includes(cur.getDay()) && g++ < 7) cur.setDate(cur.getDate() + 1)
+      if (g >= 7) break
+      if (endDate && cur > endDate) break
+      const dt = new Date(cur)
+      dt.setHours(fh, fm, 0, 0)
+      scheduled.push({ home_team_id: home, away_team_id: away, scheduled_at: dt.toISOString(), location: cfg.location, hasConflict: true })
+      conflicts++
+      cur.setDate(cur.getDate() + 1)
+      g = 0
+      while (!cfg.gameDays.includes(cur.getDay()) && g++ < 7) cur.setDate(cur.getDate() + 1)
+    }
   }
 
   return { games: scheduled, conflicts }

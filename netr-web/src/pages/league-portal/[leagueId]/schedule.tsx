@@ -138,6 +138,7 @@ export default function SchedulePage() {
   }, [leagueId])
 
   function handlePreview() {
+    if (!genConfig.startDate || isNaN(new Date(genConfig.startDate + 'T12:00:00').getTime())) return
     const scopedTeams = divFilter === 'all' ? teams : teams.filter(t => t.division_id === divFilter)
     if (scopedTeams.length < 2) return
     const dayAvail: Record<string, number[]> = {}
@@ -610,7 +611,7 @@ export default function SchedulePage() {
                 </div>
               ) : (
                 <div style={{ display:'flex', justifyContent:'flex-end' }}>
-                  <button onClick={handlePreview} style={S.saveBtn} disabled={genConfig.gameDays.length===0 || genConfig.timeSlots.length===0}>Preview Schedule</button>
+                  <button onClick={handlePreview} style={S.saveBtn} disabled={genConfig.gameDays.length===0||!genConfig.startDate}>Preview Schedule</button>
                 </div>
               )}
               </>)}
