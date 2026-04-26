@@ -467,7 +467,15 @@ export default function SchedulePage() {
               {/* Per-day time slots */}
               <div style={{ marginBottom: 18 }}>
                 <label style={S.label}>Game Time Slots (per day)</label>
-                <p style={{ fontSize: 12, color: '#6A6A82', margin: '4px 0 10px' }}>Each slot is one game on that day. All slots will be filled — add as many as the gym has hours.</p>
+                {(() => {
+                  const divTeamCount = (divFilter === 'all' ? teams : teams.filter(t => t.division_id === divFilter)).length
+                  const maxGamesPerDay = Math.floor(divTeamCount / 2)
+                  const maxSlotsAcrossDays = Math.max(...genConfig.gameDays.map(d => (genConfig.dayTimeSlots?.[d]?.length ?? 0)))
+                  if (divTeamCount >= 2 && maxSlotsAcrossDays > maxGamesPerDay) {
+                    return <p style={{ fontSize: 12, color: '#F5C542', margin: '4px 0 10px' }}>⚠ You have {divTeamCount} teams — max {maxGamesPerDay} game{maxGamesPerDay !== 1 ? 's' : ''} per day. Slots beyond that won&apos;t be used.</p>
+                  }
+                  return <p style={{ fontSize: 12, color: '#6A6A82', margin: '4px 0 10px' }}>Each slot is one game on that day. With {divTeamCount} teams, you can run up to {maxGamesPerDay} game{maxGamesPerDay !== 1 ? 's' : ''} simultaneously per day.</p>
+                })()}
                 {genConfig.gameDays.length === 0 && <p style={{ fontSize: 13, color: '#6A6A82' }}>Select game days above first.</p>}
                 {genConfig.gameDays.slice().sort((a, b) => a - b).map(day => {
                   const dayLabel = DISPLAY_LABELS[(DISPLAY_DOW as readonly number[]).indexOf(day)] ?? `Day ${day}`
