@@ -38,6 +38,7 @@ export default function SchedulePage() {
   const [previewConflicts, setPreviewConflicts] = useState(0)
   const [savingSchedule, setSavingSchedule] = useState(false)
   const [newSlotTimes, setNewSlotTimes] = useState<Record<number, string>>({})
+  const [newSlotLocs, setNewSlotLocs] = useState<Record<number, string>>({})
 
   // team availability
   const [availability, setAvailability] = useState<Record<string, number[]>>({})
@@ -95,6 +96,7 @@ export default function SchedulePage() {
           ...(lg.season_end_date ? { endDate: lg.season_end_date } : {}),
           timeSlots: [],
           dayTimeSlots,
+          daySlotLocations: lg.game_slot_locations ?? {},
         }
       })
       setCourts(courtsRes ?? [])
@@ -205,16 +207,33 @@ export default function SchedulePage() {
   async function handleDaySlotAdd(day: number) {
     const t = newSlotTimes[day]
     if (!t || (genConfig.dayTimeSlots?.[day] ?? []).includes(t)) return
-    const next = { ...genConfig.dayTimeSlots, [day]: [...(genConfig.dayTimeSlots?.[day] ?? []), t].sort() }
-    setGenConfig(c => ({ ...c, dayTimeSlots: next }))
+    const nextSlots = { ...genConfig.dayTimeSlots, [day]: [...(genConfig.dayTimeSlots?.[day] ?? []), t].sort() }
+    const loc = newSlotLocs[day]?.trim() || ''
+    const key = `${day}:${t}`
+    const nextLocs = loc
+      ? { ...(genConfig.daySlotLocations ?? {}), [key]: loc }
+      : { ...(genConfig.daySlotLocations ?? {}) }
+    setGenConfig(c => ({ ...c, dayTimeSlots: nextSlots, daySlotLocations: nextLocs }))
     setNewSlotTimes(p => ({ ...p, [day]: '' }))
-    await supabase.from('leagues').update({ game_day_time_slots: next }).eq('id', leagueId)
+    setNewSlotLocs(p => ({ ...p, [day]: '' }))
+    await supabase.from('leagues').update({ game_day_time_slots: nextSlots, game_slot_locations: nextLocs }).eq('id', leagueId)
   }
 
   async function handleDaySlotRemove(day: number, slot: string) {
-    const next = { ...genConfig.dayTimeSlots, [day]: (genConfig.dayTimeSlots?.[day] ?? []).filter(s => s !== slot) }
-    setGenConfig(c => ({ ...c, dayTimeSlots: next }))
-    await supabase.from('leagues').update({ game_day_time_slots: next }).eq('id', leagueId)
+    const nextSlots = { ...genConfig.dayTimeSlots, [day]: (genConfig.dayTimeSlots?.[day] ?? []).filter(s => s !== slot) }
+    const nextLocs = { ...(genConfig.daySlotLocations ?? {}) }
+    delete nextLocs[`${day}:${slot}`]
+    setGenConfig(c => ({ ...c, dayTimeSlots: nextSlots, daySlotLocations: nextLocs }))
+    await supabase.from('leagues').update({ game_day_time_slots: nextSlots, game_slot_locations: nextLocs }).eq('id', leagueId)
+  }
+
+  async function handleSlotLocationUpdate(day: number, slot: string, loc: string) {
+    const key = `${day}:${slot}`
+    const nextLocs = loc.trim()
+      ? { ...(genConfig.daySlotLocations ?? {}), [key]: loc.trim() }
+      : (() => { const n = { ...(genConfig.daySlotLocations ?? {}) }; delete n[key]; return n })()
+    setGenConfig(c => ({ ...c, daySlotLocations: nextLocs }))
+    await supabase.from('leagues').update({ game_slot_locations: nextLocs }).eq('id', leagueId)
   }
 
   async function handleGeneratePlayoffs() {
@@ -508,22 +527,38 @@ export default function SchedulePage() {
                 {genConfig.gameDays.slice().sort((a, b) => a - b).map(day => {
                   const dayLabel = DISPLAY_LABELS[(DISPLAY_DOW as readonly number[]).indexOf(day)] ?? `Day ${day}`
                   const slots = genConfig.dayTimeSlots?.[day] ?? []
-                  const inputVal = newSlotTimes[day] ?? ''
+                  const inputTime = newSlotTimes[day] ?? ''
+                  const inputLoc  = newSlotLocs[day]  ?? ''
+                  const defaultLoc = genConfig.location || 'Default location'
                   return (
                     <div key={day} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid #1A1A2E' }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: '#EEEEF5', marginBottom: 8, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>{dayLabel}</div>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 8 }}>
-                        {slots.map(slot => (
-                          <div key={slot} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#0A0A0E', border: '1.5px solid #39FF1444', borderRadius: 8, padding: '5px 10px' }}>
-                            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: '#EEEEF5' }}>{fmtSlot(slot)}</span>
-                            <button type="button" onClick={() => handleDaySlotRemove(day, slot)} style={{ background: 'none', border: 'none', color: '#6A6A82', cursor: 'pointer', padding: '0 2px', fontSize: 16, lineHeight: '1', fontFamily: 'sans-serif' }}>×</button>
-                          </div>
-                        ))}
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6, marginBottom: 10 }}>
+                        {slots.map(slot => {
+                          const key = `${day}:${slot}`
+                          const slotLoc = genConfig.daySlotLocations?.[key] ?? ''
+                          return (
+                            <div key={slot} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#0A0A0E', border: '1.5px solid #39FF1444', borderRadius: 8, padding: '7px 10px' }}>
+                              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: '#EEEEF5', flexShrink: 0, minWidth: 60 }}>{fmtSlot(slot)}</span>
+                              <span style={{ color: '#2A2A3A', fontSize: 12 }}>@</span>
+                              <input
+                                type="text"
+                                placeholder={defaultLoc}
+                                value={slotLoc}
+                                onChange={e => setGenConfig(c => ({ ...c, daySlotLocations: e.target.value.trim() ? { ...(c.daySlotLocations ?? {}), [key]: e.target.value } : (() => { const n = { ...(c.daySlotLocations ?? {}) }; delete n[key]; return n })() }))}
+                                onBlur={e => handleSlotLocationUpdate(day, slot, e.target.value)}
+                                style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: slotLoc ? '#EEEEF5' : '#4A4A5E', fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}
+                              />
+                              <button type="button" onClick={() => handleDaySlotRemove(day, slot)} style={{ background: 'none', border: 'none', color: '#6A6A82', cursor: 'pointer', padding: '0 2px', fontSize: 16, lineHeight: '1', fontFamily: 'sans-serif', flexShrink: 0 }}>×</button>
+                            </div>
+                          )
+                        })}
                         {slots.length === 0 && <span style={{ fontSize: 13, color: '#6A6A82' }}>No slots — add at least one.</span>}
                       </div>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <input type="time" value={inputVal} onChange={e => setNewSlotTimes(p => ({ ...p, [day]: e.target.value }))} style={{ ...S.input, width: 'auto', flex: '0 0 auto' }} />
-                        <button type="button" onClick={() => handleDaySlotAdd(day)} style={S.outlineBtn} disabled={!inputVal || slots.includes(inputVal)}>+ Add Slot</button>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const }}>
+                        <input type="time" value={inputTime} onChange={e => setNewSlotTimes(p => ({ ...p, [day]: e.target.value }))} style={{ ...S.input, width: 'auto', flex: '0 0 auto' }} placeholder="Time" />
+                        <input type="text" value={inputLoc} onChange={e => setNewSlotLocs(p => ({ ...p, [day]: e.target.value }))} style={{ ...S.input, flex: 1, minWidth: 120 }} placeholder={`Location (default: ${defaultLoc})`} />
+                        <button type="button" onClick={() => handleDaySlotAdd(day)} style={{ ...S.outlineBtn, flexShrink: 0 }} disabled={!inputTime || slots.includes(inputTime)}>+ Add</button>
                       </div>
                     </div>
                   )

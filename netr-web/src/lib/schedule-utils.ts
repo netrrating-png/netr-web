@@ -65,11 +65,9 @@ export type AssignConfig = {
   gameDays: number[]       // [1,3,6] = Mon,Wed,Sat
   timeSlots: string[]      // fallback slots when dayTimeSlots has no entry for a day
   dayTimeSlots?: Record<number, string[]>  // per-day slots — key is DOW (0=Sun…6=Sat)
+  daySlotLocations?: Record<string, string> // "${dow}:${time}" → location override
   location: string
   oneGamePerWeek?: boolean // when true, each team plays at most once per calendar week
-  // Flexible mode: fill available slots with any compatible pair (repeats allowed).
-  // When true, round-robin matchups are generated on the fly and some pairs may
-  // never meet if their availability is incompatible — that's intentional.
   allowRematches?: boolean
   allTeamIds?: string[]    // required when allowRematches=true
   gamesPerTeam?: number    // target per team when allowRematches=true
@@ -138,7 +136,8 @@ export function assignDates(
           const [home, away] = remaining[found]
           const dt = new Date(cur)
           dt.setHours(h, m, 0, 0)
-          scheduled.push({ home_team_id: home, away_team_id: away, scheduled_at: dt.toISOString(), location: cfg.location })
+          const slotLoc = cfg.daySlotLocations?.[`${dow}:${slot}`] || cfg.location
+          scheduled.push({ home_team_id: home, away_team_id: away, scheduled_at: dt.toISOString(), location: slotLoc })
           remaining.splice(found, 1)
           playedToday.add(home)
           playedToday.add(away)
