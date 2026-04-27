@@ -56,6 +56,7 @@ export type GameSlot = {
   away_team_id: string
   scheduled_at: string
   location: string
+  court_id?: string
   hasConflict?: boolean
 }
 
@@ -65,7 +66,9 @@ export type AssignConfig = {
   gameDays: number[]       // [1,3,6] = Mon,Wed,Sat
   timeSlots: string[]      // fallback slots when dayTimeSlots has no entry for a day
   dayTimeSlots?: Record<number, string[]>  // per-day slots — key is DOW (0=Sun…6=Sat)
-  daySlotLocations?: Record<string, string> // "${dow}:${time}" → location override
+  daySlotLocations?: Record<string, string>  // "${dow}:${time}" → location override
+  daySlotCourtIds?: Record<string, string>   // "${dow}:${time}" → court_id override
+  defaultCourtId?: string                    // fallback court_id when no per-slot override
   location: string
   oneGamePerWeek?: boolean // when true, each team plays at most once per calendar week
   allowRematches?: boolean
@@ -92,7 +95,7 @@ export function assignDates(
   const cur = new Date(cfg.startDate + 'T12:00:00')
 
   if (cfg.allowRematches && cfg.allTeamIds && cfg.gamesPerTeam) {
-    return assignDatesFlexible(cfg.allTeamIds, cfg.gamesPerTeam, teamDayAvail, teamTimeAvail, defaultSlots, cfg.dayTimeSlots ?? {}, cfg.gameDays, cfg.location, cur, endDate, !!cfg.oneGamePerWeek)
+    return assignDatesFlexible(cfg.allTeamIds, cfg.gamesPerTeam, teamDayAvail, teamTimeAvail, defaultSlots, cfg.dayTimeSlots ?? {}, cfg.gameDays, cfg.location, cur, endDate, !!cfg.oneGamePerWeek, cfg.daySlotLocations, cfg.daySlotCourtIds, cfg.defaultCourtId)
   }
 
   // ── Round-robin mode ────────────────────────────────────────────
@@ -136,8 +139,10 @@ export function assignDates(
           const [home, away] = remaining[found]
           const dt = new Date(cur)
           dt.setHours(h, m, 0, 0)
-          const slotLoc = cfg.daySlotLocations?.[`${dow}:${slot}`] || cfg.location
-          scheduled.push({ home_team_id: home, away_team_id: away, scheduled_at: dt.toISOString(), location: slotLoc })
+          const key = `${dow}:${slot}`
+          const slotLoc = cfg.daySlotLocations?.[key] || cfg.location
+          const slotCourtId = cfg.daySlotCourtIds?.[key] || cfg.defaultCourtId
+          scheduled.push({ home_team_id: home, away_team_id: away, scheduled_at: dt.toISOString(), location: slotLoc, court_id: slotCourtId })
           remaining.splice(found, 1)
           playedToday.add(home)
           playedToday.add(away)
@@ -161,7 +166,7 @@ export function assignDates(
       if (endDate && cur > endDate) break
       const dt = new Date(cur)
       dt.setHours(fh, fm, 0, 0)
-      scheduled.push({ home_team_id: home, away_team_id: away, scheduled_at: dt.toISOString(), location: cfg.location, hasConflict: true })
+      scheduled.push({ home_team_id: home, away_team_id: away, scheduled_at: dt.toISOString(), location: cfg.location, court_id: cfg.defaultCourtId, hasConflict: true })
       conflicts++
       cur.setDate(cur.getDate() + 1)
       g = 0
@@ -183,7 +188,10 @@ function assignDatesFlexible(
   location: string,
   cur: Date,
   endDate: Date | null,
-  oneGamePerWeek: boolean
+  oneGamePerWeek: boolean,
+  daySlotLocations?: Record<string, string>,
+  daySlotCourtIds?: Record<string, string>,
+  defaultCourtId?: string
 ): { games: GameSlot[]; conflicts: number } {
   const scheduled: GameSlot[] = []
   const gameCount: Record<string, number> = {}
@@ -238,7 +246,10 @@ function assignDatesFlexible(
 
         const dt = new Date(cur)
         dt.setHours(h, m, 0, 0)
-        scheduled.push({ home_team_id: bestHome, away_team_id: bestAway, scheduled_at: dt.toISOString(), location })
+        const slotKey = `${dow}:${slot}`
+        const slotLoc = daySlotLocations?.[slotKey] || location
+        const slotCourtId = daySlotCourtIds?.[slotKey] || defaultCourtId
+        scheduled.push({ home_team_id: bestHome, away_team_id: bestAway, scheduled_at: dt.toISOString(), location: slotLoc, court_id: slotCourtId })
         gameCount[bestHome]++
         gameCount[bestAway]++
         const [a, b] = [bestHome, bestAway].sort()

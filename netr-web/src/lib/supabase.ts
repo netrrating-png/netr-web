@@ -67,6 +67,7 @@ export type League = {
   game_time_slots: string[] | null
   game_day_time_slots: Record<string, string[]> | null
   game_slot_locations: Record<string, string> | null
+  game_slot_court_ids: Record<string, string> | null
   rules_sections: { title: string; content: string }[] | null
   season_end_date: string | null
   created_at: string

@@ -39,6 +39,7 @@ export default function SchedulePage() {
   const [savingSchedule, setSavingSchedule] = useState(false)
   const [newSlotTimes, setNewSlotTimes] = useState<Record<number, string>>({})
   const [newSlotLocs, setNewSlotLocs] = useState<Record<number, string>>({})
+  const [newSlotCourtIds, setNewSlotCourtIds] = useState<Record<number, string>>({})
 
   // team availability
   const [availability, setAvailability] = useState<Record<string, number[]>>({})
@@ -97,6 +98,8 @@ export default function SchedulePage() {
           timeSlots: [],
           dayTimeSlots,
           daySlotLocations: lg.game_slot_locations ?? {},
+          daySlotCourtIds: lg.game_slot_court_ids ?? {},
+          defaultCourtId: lg.default_court_id ?? undefined,
         }
       })
       setCourts(courtsRes ?? [])
@@ -166,7 +169,7 @@ export default function SchedulePage() {
     setSavingSchedule(true)
     const defaultCourtId = league?.default_court_id ?? null
     const divisionId = divFilter !== 'all' ? divFilter : null
-    const rows = preview.map(g => ({ league_id: leagueId, home_team_id: g.home_team_id, away_team_id: g.away_team_id, scheduled_at: g.scheduled_at, location: g.location || null, court_id: defaultCourtId, division_id: divisionId, game_type: 'regular', status: 'scheduled' }))
+    const rows = preview.map(g => ({ league_id: leagueId, home_team_id: g.home_team_id, away_team_id: g.away_team_id, scheduled_at: g.scheduled_at, location: g.location || null, court_id: g.court_id ?? defaultCourtId, division_id: divisionId, game_type: 'regular', status: 'scheduled' }))
     for (let i = 0; i < rows.length; i += 50) await supabase.from('league_games').insert(rows.slice(i, i+50))
     const { data } = await supabase.from('league_games').select('*').eq('league_id', leagueId).order('scheduled_at')
     const teamsById: Record<string, LeagueTeam> = {}
@@ -209,31 +212,37 @@ export default function SchedulePage() {
     if (!t || (genConfig.dayTimeSlots?.[day] ?? []).includes(t)) return
     const nextSlots = { ...genConfig.dayTimeSlots, [day]: [...(genConfig.dayTimeSlots?.[day] ?? []), t].sort() }
     const loc = newSlotLocs[day]?.trim() || ''
+    const courtId = newSlotCourtIds[day] ?? ''
     const key = `${day}:${t}`
-    const nextLocs = loc
-      ? { ...(genConfig.daySlotLocations ?? {}), [key]: loc }
-      : { ...(genConfig.daySlotLocations ?? {}) }
-    setGenConfig(c => ({ ...c, dayTimeSlots: nextSlots, daySlotLocations: nextLocs }))
+    const nextLocs = loc ? { ...(genConfig.daySlotLocations ?? {}), [key]: loc } : { ...(genConfig.daySlotLocations ?? {}) }
+    const nextCourtIds = courtId ? { ...(genConfig.daySlotCourtIds ?? {}), [key]: courtId } : { ...(genConfig.daySlotCourtIds ?? {}) }
+    setGenConfig(c => ({ ...c, dayTimeSlots: nextSlots, daySlotLocations: nextLocs, daySlotCourtIds: nextCourtIds }))
     setNewSlotTimes(p => ({ ...p, [day]: '' }))
     setNewSlotLocs(p => ({ ...p, [day]: '' }))
-    await supabase.from('leagues').update({ game_day_time_slots: nextSlots, game_slot_locations: nextLocs }).eq('id', leagueId)
+    setNewSlotCourtIds(p => ({ ...p, [day]: '' }))
+    await supabase.from('leagues').update({ game_day_time_slots: nextSlots, game_slot_locations: nextLocs, game_slot_court_ids: nextCourtIds }).eq('id', leagueId)
   }
 
   async function handleDaySlotRemove(day: number, slot: string) {
     const nextSlots = { ...genConfig.dayTimeSlots, [day]: (genConfig.dayTimeSlots?.[day] ?? []).filter(s => s !== slot) }
     const nextLocs = { ...(genConfig.daySlotLocations ?? {}) }
+    const nextCourtIds = { ...(genConfig.daySlotCourtIds ?? {}) }
     delete nextLocs[`${day}:${slot}`]
-    setGenConfig(c => ({ ...c, dayTimeSlots: nextSlots, daySlotLocations: nextLocs }))
-    await supabase.from('leagues').update({ game_day_time_slots: nextSlots, game_slot_locations: nextLocs }).eq('id', leagueId)
+    delete nextCourtIds[`${day}:${slot}`]
+    setGenConfig(c => ({ ...c, dayTimeSlots: nextSlots, daySlotLocations: nextLocs, daySlotCourtIds: nextCourtIds }))
+    await supabase.from('leagues').update({ game_day_time_slots: nextSlots, game_slot_locations: nextLocs, game_slot_court_ids: nextCourtIds }).eq('id', leagueId)
   }
 
-  async function handleSlotLocationUpdate(day: number, slot: string, loc: string) {
+  async function handleSlotCourtUpdate(day: number, slot: string, courtId: string, courtName: string) {
     const key = `${day}:${slot}`
-    const nextLocs = loc.trim()
-      ? { ...(genConfig.daySlotLocations ?? {}), [key]: loc.trim() }
+    const nextLocs = courtName
+      ? { ...(genConfig.daySlotLocations ?? {}), [key]: courtName }
       : (() => { const n = { ...(genConfig.daySlotLocations ?? {}) }; delete n[key]; return n })()
-    setGenConfig(c => ({ ...c, daySlotLocations: nextLocs }))
-    await supabase.from('leagues').update({ game_slot_locations: nextLocs }).eq('id', leagueId)
+    const nextCourtIds = courtId
+      ? { ...(genConfig.daySlotCourtIds ?? {}), [key]: courtId }
+      : (() => { const n = { ...(genConfig.daySlotCourtIds ?? {}) }; delete n[key]; return n })()
+    setGenConfig(c => ({ ...c, daySlotLocations: nextLocs, daySlotCourtIds: nextCourtIds }))
+    await supabase.from('leagues').update({ game_slot_locations: nextLocs, game_slot_court_ids: nextCourtIds }).eq('id', leagueId)
   }
 
   async function handleGeneratePlayoffs() {
@@ -446,7 +455,7 @@ export default function SchedulePage() {
                   <label style={S.label}>Season End Date <span style={{ color: '#6A6A82', fontWeight: 400, textTransform: 'none' as const }}>(optional)</span></label>
                   <input type="date" value={genConfig.endDate ?? ''} onChange={e => setGenConfig(c => ({ ...c, endDate: e.target.value || undefined }))} style={S.input} />
                 </div>
-                <div><label style={S.label}>Default Location</label><input type="text" value={genConfig.location} placeholder="Gym name" onChange={e => setGenConfig(c => ({ ...c, location: e.target.value }))} style={S.input} /></div>
+                <div><label style={S.label}>Default Court / Location</label><CourtPicker courts={courts} courtId={genConfig.defaultCourtId ?? ''} onChange={(id, name) => setGenConfig(c => ({ ...c, location: name, defaultCourtId: id || undefined }))} placeholder="Search all NETR courts…" /></div>
               </div>
 
               {/* One game per week toggle */}
@@ -528,27 +537,25 @@ export default function SchedulePage() {
                   const dayLabel = DISPLAY_LABELS[(DISPLAY_DOW as readonly number[]).indexOf(day)] ?? `Day ${day}`
                   const slots = genConfig.dayTimeSlots?.[day] ?? []
                   const inputTime = newSlotTimes[day] ?? ''
-                  const inputLoc  = newSlotLocs[day]  ?? ''
-                  const defaultLoc = genConfig.location || 'Default location'
                   return (
                     <div key={day} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid #1A1A2E' }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: '#EEEEF5', marginBottom: 8, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>{dayLabel}</div>
                       <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6, marginBottom: 10 }}>
                         {slots.map(slot => {
                           const key = `${day}:${slot}`
-                          const slotLoc = genConfig.daySlotLocations?.[key] ?? ''
+                          const slotCourtId = genConfig.daySlotCourtIds?.[key] ?? ''
                           return (
                             <div key={slot} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#0A0A0E', border: '1.5px solid #39FF1444', borderRadius: 8, padding: '7px 10px' }}>
                               <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: '#EEEEF5', flexShrink: 0, minWidth: 60 }}>{fmtSlot(slot)}</span>
-                              <span style={{ color: '#2A2A3A', fontSize: 12 }}>@</span>
-                              <input
-                                type="text"
-                                placeholder={defaultLoc}
-                                value={slotLoc}
-                                onChange={e => setGenConfig(c => ({ ...c, daySlotLocations: e.target.value.trim() ? { ...(c.daySlotLocations ?? {}), [key]: e.target.value } : (() => { const n = { ...(c.daySlotLocations ?? {}) }; delete n[key]; return n })() }))}
-                                onBlur={e => handleSlotLocationUpdate(day, slot, e.target.value)}
-                                style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: slotLoc ? '#EEEEF5' : '#4A4A5E', fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}
-                              />
+                              <span style={{ color: '#2A2A3A', fontSize: 12, flexShrink: 0 }}>@</span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <CourtPicker
+                                  courts={courts}
+                                  courtId={slotCourtId}
+                                  onChange={(id, name) => handleSlotCourtUpdate(day, slot, id, name)}
+                                  placeholder={genConfig.location ? `Default: ${genConfig.location}` : 'Search NETR courts…'}
+                                />
+                              </div>
                               <button type="button" onClick={() => handleDaySlotRemove(day, slot)} style={{ background: 'none', border: 'none', color: '#6A6A82', cursor: 'pointer', padding: '0 2px', fontSize: 16, lineHeight: '1', fontFamily: 'sans-serif', flexShrink: 0 }}>×</button>
                             </div>
                           )
@@ -557,7 +564,14 @@ export default function SchedulePage() {
                       </div>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const }}>
                         <input type="time" value={inputTime} onChange={e => setNewSlotTimes(p => ({ ...p, [day]: e.target.value }))} style={{ ...S.input, width: 'auto', flex: '0 0 auto' }} placeholder="Time" />
-                        <input type="text" value={inputLoc} onChange={e => setNewSlotLocs(p => ({ ...p, [day]: e.target.value }))} style={{ ...S.input, flex: 1, minWidth: 120 }} placeholder={`Location (default: ${defaultLoc})`} />
+                        <div style={{ flex: 1, minWidth: 120 }}>
+                          <CourtPicker
+                            courts={courts}
+                            courtId={newSlotCourtIds[day] ?? ''}
+                            onChange={(id, name) => { setNewSlotCourtIds(p => ({ ...p, [day]: id })); setNewSlotLocs(p => ({ ...p, [day]: name })) }}
+                            placeholder="Court (optional)"
+                          />
+                        </div>
                         <button type="button" onClick={() => handleDaySlotAdd(day)} style={{ ...S.outlineBtn, flexShrink: 0 }} disabled={!inputTime || slots.includes(inputTime)}>+ Add</button>
                       </div>
                     </div>
