@@ -189,6 +189,8 @@ export default function PublicLeaguePage() {
       <meta name="viewport" content="width=device-width,initial-scale=1"/>
       <link href={`https://fonts.googleapis.com/css2?family=${fontGF}&family=Barlow+Condensed:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap`} rel="stylesheet"/>
       <style>{`
+        * { box-sizing: border-box; }
+        html, body { max-width: 100vw; overflow-x: hidden; }
         @keyframes logoPulse {
           0%,100% { box-shadow: 0 0 0 0 ${accent}40, 0 0 32px ${accent}30; }
           50%      { box-shadow: 0 0 0 8px ${accent}00, 0 0 48px ${accent}50; }
@@ -203,6 +205,20 @@ export default function PublicLeaguePage() {
         .hero-content > *:nth-child(2) { animation-delay: 0.12s; }
         .hero-content > *:nth-child(3) { animation-delay: 0.2s; }
         .hero-content > *:nth-child(4) { animation-delay: 0.28s; }
+        @media (max-width: 640px) {
+          .hero-content { padding: 56px 16px 24px !important; }
+          .hero-name { font-size: clamp(28px,10vw,56px) !important; line-height: 1 !important; }
+          .stats-strip-item { padding: 10px 14px !important; }
+          .stats-strip-value { font-size: 18px !important; }
+          .page-main { padding: 20px 12px 60px !important; }
+          .standings-grid { grid-template-columns: 1fr !important; }
+          .leader-cards { grid-template-columns: repeat(2,1fr) !important; }
+          .signup-btn { margin-left: 0 !important; width: 100% !important; justify-content: center !important; }
+          .chip-row { gap: 6px !important; }
+          .tab-btn { padding: 13px 12px !important; font-size: 12px !important; letter-spacing: 1px !important; }
+          .team-cards { grid-template-columns: 1fr !important; }
+          .hero-desc { font-size: 14px !important; }
+        }
       `}</style>
     </Head>
     <div style={{minHeight:'100vh',background:'#040406',fontFamily:"'DM Sans',sans-serif",color:'#EEEEF5'}}>
@@ -256,7 +272,7 @@ export default function PublicLeaguePage() {
                 />
               </div>
             )}
-            <h1 style={{
+            <h1 className="hero-name" style={{
               flex:1,minWidth:0,
               fontFamily:displayFont,fontWeight:900,
               fontSize:'clamp(38px,7vw,84px)',
@@ -292,7 +308,7 @@ export default function PublicLeaguePage() {
           )}
 
           {/* Meta + CTA */}
-          <div style={{display:'flex',alignItems:'center',flexWrap:'wrap' as const,gap:8}}>
+          <div className="chip-row" style={{display:'flex',alignItems:'center',flexWrap:'wrap' as const,gap:8}}>
             {league.location&&(
               <span style={{display:'inline-flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:99,padding:'6px 14px',fontSize:12,color:'#9090A8',fontFamily:"'DM Sans',sans-serif"}}>
                 <MapPin size={12} strokeWidth={2}/>{league.location}
@@ -306,7 +322,8 @@ export default function PublicLeaguePage() {
             )}
             {league.signup_url&&(
               <a href={league.signup_url} target="_blank" rel="noopener noreferrer"
-                style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:8,background:accent,color:'#040406',fontFamily:displayFont,fontWeight:900,fontSize:15,textTransform:'uppercase' as const,letterSpacing:'1px',padding:'11px 28px',borderRadius:12,textDecoration:'none',flexShrink:0,boxShadow:`0 4px 28px ${accent}50,0 0 0 1px ${accent}`,whiteSpace:'nowrap' as const}}>
+                className="signup-btn"
+                style={{display:'inline-flex',alignItems:'center',gap:8,background:accent,color:'#040406',fontFamily:displayFont,fontWeight:900,fontSize:15,textTransform:'uppercase' as const,letterSpacing:'1px',padding:'11px 28px',borderRadius:12,textDecoration:'none',flexShrink:0,boxShadow:`0 4px 28px ${accent}50,0 0 0 1px ${accent}`,whiteSpace:'nowrap' as const}}>
                 {league.signup_label||'Join the League'} →
               </a>
             )}
@@ -322,8 +339,8 @@ export default function PublicLeaguePage() {
               {label:'Players',value:players.length},
               ...(standings[0]&&standings[0].wins>0?[{label:'League Leader',value:standings[0].team_name,accent:true}]:[]),
             ].map((item,i)=>(
-              <div key={i} style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'14px 28px',borderRight:`1px solid rgba(255,255,255,0.05)`,flexShrink:0}}>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:item.accent?15:24,color:item.accent?accent:'#EEEEF5',textTransform:'uppercase' as const,letterSpacing:item.accent?0.5:-0.5,lineHeight:1}}>{item.value}</div>
+              <div key={i} className="stats-strip-item" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'14px 28px',borderRight:`1px solid rgba(255,255,255,0.05)`,flexShrink:0}}>
+                <div className="stats-strip-value" style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:item.accent?15:24,color:item.accent?accent:'#EEEEF5',textTransform:'uppercase' as const,letterSpacing:item.accent?0.5:-0.5,lineHeight:1}}>{item.value}</div>
                 <div style={{fontSize:9,color:'#3A3A4E',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginTop:3}}>{item.label}</div>
               </div>
             ))}
@@ -354,14 +371,14 @@ export default function PublicLeaguePage() {
             ...(seasons.length>0?[['history','History']]:[] as [Tab,string][]),
             ...(galleryPhotos.length>0?[['gallery','Gallery']]:[] as [Tab,string][]),
           ] as [Tab,string][]).map(([t,label])=>(
-            <button key={t} onClick={()=>setTab(t)} style={{background:'none',border:'none',borderBottom:activeTab===t?`3px solid ${accent}`:'3px solid transparent',color:activeTab===t?accent:'#C8C8D4',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase',letterSpacing:1.5,padding:'16px 18px',cursor:'pointer',whiteSpace:'nowrap',flexShrink:0,transition:'color 0.15s'}}>
+            <button key={t} onClick={()=>setTab(t)} className="tab-btn" style={{background:'none',border:'none',borderBottom:activeTab===t?`3px solid ${accent}`:'3px solid transparent',color:activeTab===t?accent:'#C8C8D4',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase',letterSpacing:1.5,padding:'16px 18px',cursor:'pointer',whiteSpace:'nowrap',flexShrink:0,transition:'color 0.15s'}}>
               {label}
             </button>
           ))}
         </div>
       </div>
 
-      <main style={{maxWidth:960,margin:'0 auto',padding:'32px 16px 80px'}}>
+      <main className="page-main" style={{maxWidth:960,margin:'0 auto',padding:'32px 16px 80px'}}>
 
         {/* OVERVIEW */}
         {activeTab==='overview'&&<>
@@ -374,7 +391,7 @@ export default function PublicLeaguePage() {
               {key:'apg' as const,label:'Assists',unit:'APG',icon:'🎯'},
             ]
             return(
-              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:12,marginBottom:36}}>
+              <div className="leader-cards" style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:12,marginBottom:36}}>
                 {leaders.map(({key,label,unit,icon})=>{
                   const leader=[...pStats].sort((a,b)=>b[key]-a[key])[0]
                   if(!leader) return null
@@ -398,7 +415,7 @@ export default function PublicLeaguePage() {
           })()}
 
           {/* Two-column: upcoming + standings mini */}
-          <div style={{display:'grid',gridTemplateColumns:standings.length>0?'1fr 320px':'1fr',gap:24,alignItems:'start',marginBottom:48}}>
+          <div className="standings-grid" style={{display:'grid',gridTemplateColumns:standings.length>0?'1fr 320px':'1fr',gap:24,alignItems:'start',marginBottom:48}}>
             {/* Upcoming games */}
             <section>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,flexWrap:'wrap' as const,gap:8}}>
@@ -645,7 +662,7 @@ export default function PublicLeaguePage() {
         {/* TEAMS */}
         {activeTab==='teams'&&<section>
           <SecTitle accent={accent}>Teams</SecTitle>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}}>
+          <div className="team-cards" style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}}>
             {teams.map(t=>{
               const s=sMap[t.id],cnt=players.filter(p=>p.team_id===t.id).length,top=standings[0]?.team_id===t.id&&standings[0]?.wins>0
               return(
