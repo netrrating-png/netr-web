@@ -6,6 +6,18 @@ import { PortalNav } from './index'
 
 type TeamWithPlayers = LeagueTeam & { players: LeaguePlayer[] }
 
+function netrScoreColor(s:number):string {
+  if(s>=9.5)return'#C40010'
+  if(s>=9.0)return'#FF3B30'
+  if(s>=8.0)return'#FF7A00'
+  if(s>=7.0)return'#FFC247'
+  if(s>=6.0)return'#39FF14'
+  if(s>=5.0)return'#2ECC71'
+  if(s>=4.0)return'#2DA8FF'
+  if(s>=3.0)return'#7B9FFF'
+  return'#9B8BFF'
+}
+
 const COLORS = ['#39FF14','#FF453A','#FF9500','#4A9EFF','#BF5AF2','#F5C542','#EEEEF5']
 
 export default function TeamsPage() {
@@ -467,7 +479,7 @@ export default function TeamsPage() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
                                   <span style={S.playerNameStyle}>{p.display_name}</span>
                                   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                  {(p as any).netr_score != null && <span onClick={()=>setShowNetrInfo(true)} style={{ background: 'rgba(57,255,20,0.12)', border: '1px solid rgba(57,255,20,0.3)', borderRadius: 4, color: '#39FF14', fontFamily: "'DM Mono',monospace", fontSize: 10, fontWeight: 700, padding: '1px 6px', letterSpacing: 0.3, cursor: 'pointer', userSelect: 'none' as const }}>{((p as any).netr_score as number).toFixed(2)}</span>}
+                                  {(p as any).netr_score != null && (()=>{ const c=netrScoreColor((p as any).netr_score); return <span onClick={()=>setShowNetrInfo(true)} style={{ background: `${c}1F`, border: `1px solid ${c}55`, borderRadius: 4, color: c, fontFamily: "'DM Mono',monospace", fontSize: 10, fontWeight: 700, padding: '1px 6px', letterSpacing: 0.3, cursor: 'pointer', userSelect: 'none' as const }}>{((p as any).netr_score as number).toFixed(2)}</span> })()}
                                   {p.position && <span style={S.pos}>{p.position}</span>}
                                 </div>
                               </td>

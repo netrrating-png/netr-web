@@ -12,6 +12,18 @@ type Sponsor = { id:string;name:string;logo_url:string|null;website_url:string|n
 type GalleryPhoto = { id:string;photo_url:string;caption:string|null }
 type Team = { id:string;name:string;color:string;logo_url:string|null }
 type Player = { id:string;display_name:string;jersey_number:string|null;position:string|null;team_id:string;netr_score:number|null }
+
+function netrScoreColor(s:number):string {
+  if(s>=9.5)return'#C40010'
+  if(s>=9.0)return'#FF3B30'
+  if(s>=8.0)return'#FF7A00'
+  if(s>=7.0)return'#FFC247'
+  if(s>=6.0)return'#39FF14'
+  if(s>=5.0)return'#2ECC71'
+  if(s>=4.0)return'#2DA8FF'
+  if(s>=3.0)return'#7B9FFF'
+  return'#9B8BFF'
+}
 type Standing = { team_id:string;team_name:string;color:string;wins:number;losses:number;pts_for:number;pts_against:number }
 type Game = { id:string;home_team_id:string;away_team_id:string;scheduled_at:string;location:string|null;status:string;home_score:number|null;away_score:number|null;game_type:string|null }
 type RawStat = { game_id:string;player_id:string;team_id:string;points:number;rebounds:number;assists:number;steals:number;blocks:number;turnovers:number;field_goals_made:number;field_goals_attempted:number;three_pointers_made:number;three_pointers_attempted:number;free_throws_made:number;free_throws_attempted:number }
@@ -146,11 +158,15 @@ export default function PublicLeaguePage() {
   if(loading) return <Spinner/>
   if(notFound||!league) return <NotFound/>
   const accent=league.accent_color||ACC
-  const NetrBadge=({score}:{score:number|null|undefined})=>score!=null?(
-    <span onClick={e=>{e.stopPropagation();setShowNetrInfo(true)}} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(57,255,20,0.13)',border:'1px solid rgba(57,255,20,0.4)',borderRadius:5,color:'#39FF14',fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:700,padding:'3px 8px',letterSpacing:0.4,flexShrink:0,cursor:'pointer',userSelect:'none' as const,lineHeight:'16px',boxShadow:'0 0 8px rgba(57,255,20,0.15)'}}>
-      <span style={{fontSize:9,letterSpacing:1.5,opacity:0.75}}>NETR</span>{score.toFixed(2)}
-    </span>
-  ):null
+  const NetrBadge=({score}:{score:number|null|undefined})=>{
+    if(score==null)return null
+    const c=netrScoreColor(score)
+    return(
+      <span onClick={e=>{e.stopPropagation();setShowNetrInfo(true)}} style={{display:'inline-flex',alignItems:'center',gap:4,background:`${c}1F`,border:`1px solid ${c}66`,borderRadius:5,color:c,fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:700,padding:'3px 8px',letterSpacing:0.4,flexShrink:0,cursor:'pointer',userSelect:'none' as const,lineHeight:'16px',boxShadow:`0 0 8px ${c}22`}}>
+        <span style={{fontSize:9,letterSpacing:1.5,opacity:0.75}}>NETR</span>{score.toFixed(2)}
+      </span>
+    )
+  }
   const displayFont=getFontFamily(league.league_font)
   const fontGF=getFontGF(league.league_font)
   const tMap=Object.fromEntries(teams.map(t=>[t.id,t]))
@@ -606,7 +622,10 @@ export default function PublicLeaguePage() {
                         <div style={{display:'flex',alignItems:'center',gap:8}}>
                           <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:'#2E2E3A',width:18,flexShrink:0}}>{i+1}</span>
                           <div>
-                            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase' as const}}>{p.display_name}</div>
+                            <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' as const}}>
+                              <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase' as const}}>{p.display_name}</span>
+                              <NetrBadge score={pMap[p.player_id]?.netr_score}/>
+                            </div>
                             <div style={{fontSize:10,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",display:'flex',alignItems:'center',gap:4,marginTop:1}}><span style={{display:'inline-block',width:5,height:5,borderRadius:'50%',background:p.team_color}}/>{p.team_name}</div>
                           </div>
                         </div>
