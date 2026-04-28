@@ -324,7 +324,7 @@ export default function Admin() {
                         <td style={S.td}><span style={{ color: '#39FF14', fontFamily: 'monospace' }}>@{u.username || '—'}</span></td>
                         <td style={S.td}>{u.full_name || '—'}</td>
                         <td style={S.td}>
-                          <span style={S.badge('#39FF14')}>{u.netr_score?.toFixed(1) || '—'}</span>
+                          <span style={S.badge('#39FF14')}>{u.netr_score?.toFixed(2) || '—'}</span>
                         </td>
                         <td style={{ ...S.td, color: '#6A6A82' }}>{u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
                       </tr>
@@ -348,7 +348,7 @@ export default function Admin() {
                     <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : '#0A0A0D' }}>
                       <td style={S.td}><span style={{ color: '#39FF14', fontFamily: 'monospace' }}>@{u.username || '—'}</span></td>
                       <td style={S.td}>{u.full_name || '—'}</td>
-                      <td style={S.td}><span style={S.badge('#39FF14')}>{u.netr_score?.toFixed(1) || '—'}</span></td>
+                      <td style={S.td}><span style={S.badge('#39FF14')}>{u.netr_score?.toFixed(2) || '—'}</span></td>
                       <td style={{ ...S.td, color: '#6A6A82' }}>{u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
                     </tr>
                   ))}

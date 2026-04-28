@@ -148,7 +148,7 @@ export default function PublicLeaguePage() {
   const accent=league.accent_color||ACC
   const NetrBadge=({score}:{score:number|null|undefined})=>score!=null?(
     <span onClick={e=>{e.stopPropagation();setShowNetrInfo(true)}} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(57,255,20,0.13)',border:'1px solid rgba(57,255,20,0.4)',borderRadius:5,color:'#39FF14',fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:700,padding:'3px 8px',letterSpacing:0.4,flexShrink:0,cursor:'pointer',userSelect:'none' as const,lineHeight:'16px',boxShadow:'0 0 8px rgba(57,255,20,0.15)'}}>
-      <span style={{fontSize:9,letterSpacing:1.5,opacity:0.75}}>NETR</span>{score.toFixed(1)}
+      <span style={{fontSize:9,letterSpacing:1.5,opacity:0.75}}>NETR</span>{score.toFixed(2)}
     </span>
   ):null
   const displayFont=getFontFamily(league.league_font)

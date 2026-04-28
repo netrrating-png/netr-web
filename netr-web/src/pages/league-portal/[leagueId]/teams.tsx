@@ -467,7 +467,7 @@ export default function TeamsPage() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
                                   <span style={S.playerNameStyle}>{p.display_name}</span>
                                   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                  {(p as any).netr_score != null && <span onClick={()=>setShowNetrInfo(true)} style={{ background: 'rgba(57,255,20,0.12)', border: '1px solid rgba(57,255,20,0.3)', borderRadius: 4, color: '#39FF14', fontFamily: "'DM Mono',monospace", fontSize: 10, fontWeight: 700, padding: '1px 6px', letterSpacing: 0.3, cursor: 'pointer', userSelect: 'none' as const }}>{((p as any).netr_score as number).toFixed(1)}</span>}
+                                  {(p as any).netr_score != null && <span onClick={()=>setShowNetrInfo(true)} style={{ background: 'rgba(57,255,20,0.12)', border: '1px solid rgba(57,255,20,0.3)', borderRadius: 4, color: '#39FF14', fontFamily: "'DM Mono',monospace", fontSize: 10, fontWeight: 700, padding: '1px 6px', letterSpacing: 0.3, cursor: 'pointer', userSelect: 'none' as const }}>{((p as any).netr_score as number).toFixed(2)}</span>}
                                   {p.position && <span style={S.pos}>{p.position}</span>}
                                 </div>
                               </td>
