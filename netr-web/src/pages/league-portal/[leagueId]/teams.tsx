@@ -64,7 +64,7 @@ export default function TeamsPage() {
       const [leagueRes, teamsRes, playersRes, divisionsRes] = await Promise.all([
         supabase.from('leagues').select('*').eq('id', leagueId).eq('owner_id', user.id).single(),
         supabase.from('league_teams').select('*').eq('league_id', leagueId).order('created_at'),
-        supabase.from('league_players').select('*').eq('league_id', leagueId),
+        supabase.from('league_players').select('*, profiles(netr_score)').eq('league_id', leagueId),
         supabase.from('league_divisions').select('*').eq('league_id', leagueId).order('display_order'),
       ])
 
@@ -74,7 +74,8 @@ export default function TeamsPage() {
       const playersByTeam: Record<string, LeaguePlayer[]> = {}
       for (const p of (playersRes.data ?? [])) {
         if (!playersByTeam[p.team_id]) playersByTeam[p.team_id] = []
-        playersByTeam[p.team_id].push(p)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        playersByTeam[p.team_id].push({ ...p, netr_score: (p as any).profiles?.netr_score ?? null })
       }
 
       setTeams((teamsRes.data ?? []).map(t => ({ ...t, players: playersByTeam[t.id] ?? [] })))
@@ -251,12 +252,13 @@ export default function TeamsPage() {
 
     const [teamsRes, playersRes] = await Promise.all([
       supabase.from('league_teams').select('*').eq('league_id', leagueId).order('created_at'),
-      supabase.from('league_players').select('*').eq('league_id', leagueId),
+      supabase.from('league_players').select('*, profiles(netr_score)').eq('league_id', leagueId),
     ])
     const playersByTeam: Record<string, LeaguePlayer[]> = {}
     for (const p of (playersRes.data ?? [])) {
       if (!playersByTeam[p.team_id]) playersByTeam[p.team_id] = []
-      playersByTeam[p.team_id].push(p)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      playersByTeam[p.team_id].push({ ...p, netr_score: (p as any).profiles?.netr_score ?? null })
     }
     setTeams((teamsRes.data ?? []).map(t => ({ ...t, players: playersByTeam[t.id] ?? [] })))
     setImportDone(`Imported ${totalPlayers} players across ${csvPreview.length} teams.`)
@@ -461,9 +463,10 @@ export default function TeamsPage() {
                             <tr key={p.id} style={S.tr}>
                               <td style={S.td}><span style={S.jerseyNum}>{p.jersey_number ?? '—'}</span></td>
                               <td style={S.td}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
                                   <span style={S.playerNameStyle}>{p.display_name}</span>
-                                  {p.profile_id && <span style={S.linkedBadge}>NETR</span>}
+                                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                  {(p as any).netr_score != null && <span style={{ background: 'rgba(57,255,20,0.12)', border: '1px solid rgba(57,255,20,0.3)', borderRadius: 4, color: '#39FF14', fontFamily: "'DM Mono',monospace", fontSize: 10, fontWeight: 700, padding: '1px 6px', letterSpacing: 0.3 }}>{((p as any).netr_score as number).toFixed(1)}</span>}
                                   {p.position && <span style={S.pos}>{p.position}</span>}
                                 </div>
                               </td>

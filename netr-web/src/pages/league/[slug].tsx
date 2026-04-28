@@ -11,7 +11,7 @@ type LeagueSeason = { id:string;league_id:string;name:string;start_date:string|n
 type Sponsor = { id:string;name:string;logo_url:string|null;website_url:string|null }
 type GalleryPhoto = { id:string;photo_url:string;caption:string|null }
 type Team = { id:string;name:string;color:string;logo_url:string|null }
-type Player = { id:string;display_name:string;jersey_number:string|null;position:string|null;team_id:string }
+type Player = { id:string;display_name:string;jersey_number:string|null;position:string|null;team_id:string;netr_score:number|null }
 type Standing = { team_id:string;team_name:string;color:string;wins:number;losses:number;pts_for:number;pts_against:number }
 type Game = { id:string;home_team_id:string;away_team_id:string;scheduled_at:string;location:string|null;status:string;home_score:number|null;away_score:number|null;game_type:string|null }
 type RawStat = { game_id:string;player_id:string;team_id:string;points:number;rebounds:number;assists:number;steals:number;blocks:number;turnovers:number;field_goals_made:number;field_goals_attempted:number;three_pointers_made:number;three_pointers_attempted:number;free_throws_made:number;free_throws_attempted:number }
@@ -74,16 +74,19 @@ export default function PublicLeaguePage() {
       supabase.from('league_standings').select('*').eq('league_id',lg.id).order('wins',{ascending:false}),
       supabase.from('league_teams').select('id,name,color,logo_url').eq('league_id',lg.id),
       supabase.from('league_games').select('*').eq('league_id',lg.id).order('scheduled_at',{ascending:true}),
-      supabase.from('league_players').select('id,display_name,jersey_number,position,team_id').eq('league_id',lg.id),
+      supabase.from('league_players').select('id,display_name,jersey_number,position,team_id,profiles(netr_score)').eq('league_id',lg.id),
     ])
-    setStandings(sr.data??[]);setTeams(tr.data??[]);setAllGames(gr.data??[]);setPlayers(pr.data??[])
+    setStandings(sr.data??[]);setTeams(tr.data??[]);setAllGames(gr.data??[])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setPlayers((pr.data??[]).map((p:any)=>({...p,netr_score:p.profiles?.netr_score??null,profiles:undefined})))
     const [sponsorsRes,galleryRes,seasonsRes] = await Promise.all([
       supabase.from('league_sponsors').select('id,name,logo_url,website_url').eq('league_id',lg.id).order('display_order'),
       supabase.from('league_gallery_photos').select('id,photo_url,caption').eq('league_id',lg.id).order('created_at',{ascending:false}),
       supabase.from('league_seasons').select('*').eq('league_id',lg.id).order('display_order',{ascending:false}),
     ])
     setSponsors(sponsorsRes.data??[]);setGalleryPhotos(galleryRes.data??[]);setSeasons(seasonsRes.data??[])
-    const pids=(pr.data??[]).map((p:Player)=>p.id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pids=(pr.data??[]).map((p:any)=>p.id)
     if(pids.length>0){
       const {data:sd}=await supabase.from('league_player_stats').select('game_id,player_id,team_id,points,rebounds,assists,steals,blocks,turnovers,field_goals_made,field_goals_attempted,three_pointers_made,three_pointers_attempted,free_throws_made,free_throws_attempted').in('player_id',pids)
       setAllStats(sd??[])
@@ -142,6 +145,7 @@ export default function PublicLeaguePage() {
   if(loading) return <Spinner/>
   if(notFound||!league) return <NotFound/>
   const accent=league.accent_color||ACC
+  const NetrBadge=({score}:{score:number|null|undefined})=>score!=null?<span style={{background:'rgba(57,255,20,0.12)',border:'1px solid rgba(57,255,20,0.28)',borderRadius:4,color:'#39FF14',fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:700,padding:'1px 5px',letterSpacing:0.3,flexShrink:0,lineHeight:'14px'}}>{score.toFixed(1)}</span>:null
   const displayFont=getFontFamily(league.league_font)
   const fontGF=getFontGF(league.league_font)
   const tMap=Object.fromEntries(teams.map(t=>[t.id,t]))
@@ -557,7 +561,10 @@ export default function PublicLeaguePage() {
                           <div style={{fontSize:20,marginBottom:8}}>{medals[i]}</div>
                           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:sizes[i],color:i===0?accent:'#EEEEF5',lineHeight:1,marginBottom:4}}>{p[sortBy]}</div>
                           <div style={{fontSize:9,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",letterSpacing:2,marginBottom:10}}>{{ppg:'PTS/G',rpg:'REB/G',apg:'AST/G',spg:'STL/G',bpg:'BLK/G'}[sortBy]}</div>
-                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase' as const,color:'#EEEEF5'}}>{p.display_name}</div>
+                          <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' as const}}>
+                            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase' as const,color:'#EEEEF5'}}>{p.display_name}</div>
+                            <NetrBadge score={pMap[p.player_id]?.netr_score}/>
+                          </div>
                           <div style={{display:'flex',alignItems:'center',gap:4,marginTop:3}}>
                             {team&&<span style={{width:6,height:6,borderRadius:'50%',background:team.color,display:'inline-block'}}/>}
                             <span style={{fontSize:10,color:'#C8C8D4',fontFamily:"'DM Mono',monospace"}}>{p.team_name}</span>
@@ -781,6 +788,7 @@ export default function PublicLeaguePage() {
                                       <span style={{width:22,textAlign:'center' as const,fontFamily:"'DM Mono',monospace",fontSize:12,color:'#C8C8D4'}}>{pi+1}</span>
                                       <span style={{width:8,height:8,borderRadius:'50%',background:p.team_color,display:'inline-block',flexShrink:0}}/>
                                       <span style={{flex:1,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,textTransform:'uppercase',color:'#EEEEF5'}}>{p.display_name}</span>
+                                      <NetrBadge score={pMap[p.player_id]?.netr_score}/>
                                       <span style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:accent,fontWeight:600}}>{p.ppg.toFixed(1)}</span>
                                       <span style={{fontSize:11,color:'#C8C8D4',fontFamily:"'DM Mono',monospace"}}>PPG</span>
                                     </div>
@@ -852,7 +860,7 @@ export default function PublicLeaguePage() {
                   <tbody>{tStats.map(s=>{
                     const pl=pMap[s.player_id]
                     return(<tr key={s.player_id} style={{borderBottom:'1px solid #0D0D12'}}>
-                      <td style={{...TD,textAlign:'left'}}><span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase'}}>{pl?.display_name??'—'}</span>{pl?.jersey_number&&<span style={{color:'#C8C8D4',fontFamily:"'DM Mono',monospace",fontSize:11,marginLeft:6}}>#{pl.jersey_number}</span>}</td>
+                      <td style={{...TD,textAlign:'left'}}><div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap' as const}}><span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase'}}>{pl?.display_name??'—'}</span>{pl?.jersey_number&&<span style={{color:'#C8C8D4',fontFamily:"'DM Mono',monospace",fontSize:11}}>#{pl.jersey_number}</span>}<NetrBadge score={pl?.netr_score}/></div></td>
                       <td style={{...TD,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,color:s.points>0?accent:'#C8C8D4'}}>{s.points}</td>
                       <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:13}}>{s.rebounds}</td>
                       <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:13}}>{s.assists}</td>
@@ -898,7 +906,7 @@ export default function PublicLeaguePage() {
                 const ps=modalPStats.find(s=>s.player_id===p.id)
                 return(<tr key={p.id} style={{borderBottom:'1px solid #0D0D12'}}>
                   <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:'#C8C8D4'}}>{p.jersey_number??'—'}</td>
-                  <td style={{...TD,textAlign:'left'}}><div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase'}}>{p.display_name}</div>{p.position&&<div style={{fontSize:10,color:'#C8C8D4',fontFamily:"'DM Mono',monospace"}}>{p.position}</div>}</td>
+                  <td style={{...TD,textAlign:'left'}}><div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' as const}}><span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase'}}>{p.display_name}</span><NetrBadge score={p.netr_score}/></div>{p.position&&<div style={{fontSize:10,color:'#C8C8D4',fontFamily:"'DM Mono',monospace"}}>{p.position}</div>}</td>
                   {modalPStats.length>0&&<>
                     <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:'#C8C8D4'}}>{ps?.gp??0}</td>
                     <td style={{...TD,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:17,color:ps?.ppg?accent:'#3A3A4E'}}>{ps?.ppg??'—'}</td>
