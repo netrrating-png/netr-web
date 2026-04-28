@@ -137,6 +137,12 @@ export default function SettingsPage() {
   const [cnameCopied, setCnameCopied]             = useState(false)
   const domainSave = useSaveState()
 
+  // Slug editor
+  const [slugInput, setSlugInput]       = useState('')
+  const [slugSaving, setSlugSaving]     = useState(false)
+  const [slugError, setSlugError]       = useState('')
+  const [slugSaved, setSlugSaved]       = useState(false)
+
   // Contact & social
   const [contactInfo, setContactInfo]   = useState('')
   const [socialLinks, setSocialLinks]   = useState<Record<string,string>>({})
@@ -205,6 +211,7 @@ export default function SettingsPage() {
       setCustomDomain(data.custom_domain ?? '')
       setDomainInput(data.custom_domain ?? '')
       setCustomDomainStatus(data.custom_domain_status ?? null)
+      setSlugInput(data.slug)
       setDefaultCourtId(data.default_court_id ?? null)
       setLeagueFont(data.league_font ?? 'barlow')
       setSignupUrl(data.signup_url ?? '')
@@ -447,6 +454,34 @@ export default function SettingsPage() {
     setGalleryPhotos(prev => prev.filter(p => p.id !== id))
   }
 
+  async function saveSlug(e: React.FormEvent) {
+    e.preventDefault()
+    if (!league) return
+    const cleaned = slugInput.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/(^-|-$)/g, '')
+    if (!cleaned) return
+    if (cleaned === league.slug) return
+    setSlugSaving(true)
+    setSlugError('')
+    setSlugSaved(false)
+    // Check uniqueness
+    const { data: existing } = await supabase.from('leagues').select('id').eq('slug', cleaned).single()
+    if (existing) {
+      setSlugError('That URL is already taken — try something different.')
+      setSlugInput(cleaned)
+      setSlugSaving(false)
+      return
+    }
+    const { error } = await supabase.from('leagues').update({ slug: cleaned }).eq('id', leagueId)
+    if (error) {
+      setSlugError('Could not save — try again.')
+    } else {
+      setLeague(l => l ? { ...l, slug: cleaned } : l)
+      setSlugSaved(true)
+      setTimeout(() => setSlugSaved(false), 3000)
+    }
+    setSlugSaving(false)
+  }
+
   async function saveCustomDomainFn(e: React.FormEvent) {
     e.preventDefault()
     const cleaned = domainInput.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '')
@@ -484,7 +519,7 @@ export default function SettingsPage() {
     if (!league) return
     setCloning(true)
     const baseSlug = league.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-    const newSlug = baseSlug + '-' + Date.now().toString(36)
+    const newSlug = baseSlug + '-' + Math.random().toString(36).slice(2, 6)
 
     const { data: newLeague, error } = await supabase.from('leagues').insert({
       owner_id: league.owner_id,
@@ -1440,6 +1475,34 @@ export default function SettingsPage() {
               >
                 Preview ↗
               </a>
+            </div>
+
+            {/* Slug editor */}
+            <div style={{ marginTop: 20, borderTop: '1px solid #1A1A2E', paddingTop: 20 }}>
+              <label style={S.label}>Custom URL</label>
+              <div style={{ fontSize: 12, color: '#6A6A82', marginBottom: 10 }}>Change the last part of your league link. Lowercase letters, numbers, and hyphens only.</div>
+              <form onSubmit={saveSlug} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' as const }}>
+                <div style={{ display: 'flex', alignItems: 'center', background: '#0A0A0E', border: `1px solid ${slugError ? '#FF4444' : '#2E2E3A'}`, borderRadius: 8, flex: 1, minWidth: 220, overflow: 'hidden' }}>
+                  <span style={{ padding: '10px 0 10px 12px', color: '#4A4A5E', fontFamily: "'DM Mono', monospace", fontSize: 13, whiteSpace: 'nowrap' as const }}>netr.pro/league/</span>
+                  <input
+                    type="text"
+                    value={slugInput}
+                    onChange={e => { setSlugInput(e.target.value); setSlugError(''); setSlugSaved(false) }}
+                    style={{ ...S.input, border: 'none', background: 'transparent', flex: 1, borderRadius: 0, fontFamily: "'DM Mono', monospace", fontSize: 13, padding: '10px 12px 10px 0' }}
+                    placeholder="your-league-name"
+                    spellCheck={false}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={slugSaving || slugInput.trim() === league.slug}
+                  style={{ ...S.copyBtn, opacity: (slugSaving || slugInput.trim() === league.slug) ? 0.5 : 1, cursor: (slugSaving || slugInput.trim() === league.slug) ? 'default' : 'pointer' }}
+                >
+                  {slugSaving ? 'Saving…' : slugSaved ? '✓ Saved' : 'Save URL'}
+                </button>
+              </form>
+              {slugError && <div style={{ marginTop: 8, fontSize: 13, color: '#FF6666' }}>{slugError}</div>}
+              {slugSaved && <div style={{ marginTop: 8, fontSize: 13, color: '#39FF14' }}>✓ URL updated — share the new link with your players.</div>}
             </div>
           </div>
           </>}

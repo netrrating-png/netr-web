@@ -30,7 +30,7 @@ export default function NewLeague() {
     setLoading(true)
 
     const baseSlug = toSlug(name)
-    const slug = baseSlug + '-' + Date.now().toString(36)
+    const slug = baseSlug + '-' + Math.random().toString(36).slice(2, 6)
 
     const { data, error } = await supabase
       .from('leagues')
