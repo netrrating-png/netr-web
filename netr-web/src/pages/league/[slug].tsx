@@ -46,6 +46,7 @@ export default function PublicLeaguePage() {
   const setTab = (t:Tab) => router.replace({pathname:router.pathname,query:{slug,tab:t}},undefined,{shallow:true})
 
   const [seasons,setSeasons] = useState<LeagueSeason[]>([])
+  const [showNetrInfo,setShowNetrInfo] = useState(false)
   const [selectedSeasonId,setSelectedSeasonId] = useState<string|null>(null)
   const [seasonGames,setSeasonGames] = useState<Game[]>([])
   const [seasonStats,setSeasonStats] = useState<RawStat[]>([])
@@ -145,7 +146,11 @@ export default function PublicLeaguePage() {
   if(loading) return <Spinner/>
   if(notFound||!league) return <NotFound/>
   const accent=league.accent_color||ACC
-  const NetrBadge=({score}:{score:number|null|undefined})=>score!=null?<span style={{background:'rgba(57,255,20,0.12)',border:'1px solid rgba(57,255,20,0.28)',borderRadius:4,color:'#39FF14',fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:700,padding:'1px 5px',letterSpacing:0.3,flexShrink:0,lineHeight:'14px'}}>{score.toFixed(1)}</span>:null
+  const NetrBadge=({score}:{score:number|null|undefined})=>score!=null?(
+    <span onClick={e=>{e.stopPropagation();setShowNetrInfo(true)}} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(57,255,20,0.13)',border:'1px solid rgba(57,255,20,0.4)',borderRadius:5,color:'#39FF14',fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:700,padding:'3px 8px',letterSpacing:0.4,flexShrink:0,cursor:'pointer',userSelect:'none' as const,lineHeight:'16px',boxShadow:'0 0 8px rgba(57,255,20,0.15)'}}>
+      <span style={{fontSize:9,letterSpacing:1.5,opacity:0.75}}>NETR</span>{score.toFixed(1)}
+    </span>
+  ):null
   const displayFont=getFontFamily(league.league_font)
   const fontGF=getFontGF(league.league_font)
   const tMap=Object.fromEntries(teams.map(t=>[t.id,t]))
@@ -919,6 +924,27 @@ export default function PublicLeaguePage() {
               })}</tbody>
             </table></div>
           )}
+        </Modal>
+      )}
+
+      {/* NETR Rating info popup */}
+      {showNetrInfo&&(
+        <Modal onClose={()=>setShowNetrInfo(false)}>
+          <div style={{textAlign:'center',paddingBottom:24,marginBottom:24,borderBottom:'1px solid #1C1C26'}}>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:42,color:'#39FF14',letterSpacing:3,lineHeight:1,marginBottom:6}}>NETR</div>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:'#6A6A82',letterSpacing:2,textTransform:'uppercase' as const}}>The Modern Rating System</div>
+          </div>
+          <h2 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:24,color:'#EEEEF5',marginBottom:12,textTransform:'uppercase' as const,letterSpacing:0.5}}>What&apos;s a NETR Rating?</h2>
+          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:15,color:'#C8C8D4',lineHeight:1.7,marginBottom:14}}>
+            NETR is basketball&apos;s first peer-to-peer skill rating system. Every player earns their score from real feedback — given by the people they actually played with, after every run. No self-reporting. No algorithms. Just honest ratings from real players.
+          </p>
+          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:15,color:'#C8C8D4',lineHeight:1.7,marginBottom:28}}>
+            The number next to a player&apos;s name is their verified NETR score — built from real games, real courts, real competition. The higher the number, the more the players they run with back it up.
+          </p>
+          <a href="https://apps.apple.com/us/app/netr-rating/id6761962317" target="_blank" rel="noopener noreferrer"
+            style={{display:'block',background:'#39FF14',color:'#040406',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:20,letterSpacing:1.5,textTransform:'uppercase' as const,textAlign:'center' as const,padding:'18px 24px',borderRadius:12,textDecoration:'none',boxShadow:'0 0 24px rgba(57,255,20,0.3)'}}>
+            Download NETR — Free on the App Store
+          </a>
         </Modal>
       )}
     </div>

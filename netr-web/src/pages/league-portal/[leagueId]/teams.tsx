@@ -42,6 +42,7 @@ export default function TeamsPage() {
   const [feeNoteValue, setFeeNoteValue] = useState('')
 
   const [saving, setSaving] = useState(false)
+  const [showNetrInfo, setShowNetrInfo] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
 
   // Divisions
@@ -466,7 +467,7 @@ export default function TeamsPage() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
                                   <span style={S.playerNameStyle}>{p.display_name}</span>
                                   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                  {(p as any).netr_score != null && <span style={{ background: 'rgba(57,255,20,0.12)', border: '1px solid rgba(57,255,20,0.3)', borderRadius: 4, color: '#39FF14', fontFamily: "'DM Mono',monospace", fontSize: 10, fontWeight: 700, padding: '1px 6px', letterSpacing: 0.3 }}>{((p as any).netr_score as number).toFixed(1)}</span>}
+                                  {(p as any).netr_score != null && <span onClick={()=>setShowNetrInfo(true)} style={{ background: 'rgba(57,255,20,0.12)', border: '1px solid rgba(57,255,20,0.3)', borderRadius: 4, color: '#39FF14', fontFamily: "'DM Mono',monospace", fontSize: 10, fontWeight: 700, padding: '1px 6px', letterSpacing: 0.3, cursor: 'pointer', userSelect: 'none' as const }}>{((p as any).netr_score as number).toFixed(1)}</span>}
                                   {p.position && <span style={S.pos}>{p.position}</span>}
                                 </div>
                               </td>
@@ -627,6 +628,30 @@ export default function TeamsPage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* NETR Rating info popup */}
+      {showNetrInfo && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={() => setShowNetrInfo(false)}>
+          <div style={{ background: '#0F0F14', border: '1px solid #2E2E3A', borderRadius: 16, padding: '32px 28px', width: '100%', maxWidth: 480, position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowNetrInfo(false)} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: '1px solid #2E2E3A', borderRadius: 8, color: '#C8C8D4', fontSize: 16, width: 32, height: 32, cursor: 'pointer' }}>✕</button>
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 38, color: '#39FF14', letterSpacing: 3, lineHeight: 1, marginBottom: 6 }}>NETR</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#6A6A82', letterSpacing: 2, textTransform: 'uppercase' as const }}>The Modern Rating System</div>
+            </div>
+            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 22, color: '#EEEEF5', marginBottom: 12, textTransform: 'uppercase' as const }}>What&apos;s a NETR Rating?</h2>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: '#C8C8D4', lineHeight: 1.7, marginBottom: 14 }}>
+              NETR is basketball&apos;s first peer-to-peer skill rating system. Players earn their score from real feedback — given by the people they actually played with, after every run. No self-reporting. No algorithms.
+            </p>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: '#C8C8D4', lineHeight: 1.7, marginBottom: 24 }}>
+              The number next to a player&apos;s name is their verified NETR score — built from real games and real competition.
+            </p>
+            <a href="https://apps.apple.com/us/app/netr-rating/id6761962317" target="_blank" rel="noopener noreferrer"
+              style={{ display: 'block', background: '#39FF14', color: '#040406', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 18, letterSpacing: 1.5, textTransform: 'uppercase' as const, textAlign: 'center' as const, padding: '16px 24px', borderRadius: 12, textDecoration: 'none' }}>
+              Download NETR — Free on the App Store
+            </a>
           </div>
         </div>
       )}
