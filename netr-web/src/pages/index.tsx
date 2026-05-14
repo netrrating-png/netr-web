@@ -461,6 +461,7 @@ export default function Home() {
           <a href="#vibe">Vibe Score</a>
           <a href="#crews">Crews</a>
           <a href="#games">Daily Games</a>
+          <a href="/leagues">Leagues</a>
           <a href="/faq">FAQ</a>
           <a href="#waitlist"><button className="btn-cta">Join Waitlist</button></a>
         </div>
@@ -476,6 +477,7 @@ export default function Home() {
         <a href="#vibe" onClick={closeMenu}>Vibe Score</a>
         <a href="#crews" onClick={closeMenu}>Crews</a>
         <a href="#games" onClick={closeMenu}>Daily Games</a>
+        <a href="/leagues" onClick={closeMenu}>Leagues</a>
         <a href="/faq" onClick={closeMenu}>FAQ</a>
         <a href="#waitlist" onClick={closeMenu}>
           <button className="mob-cta">Join Waitlist</button>
