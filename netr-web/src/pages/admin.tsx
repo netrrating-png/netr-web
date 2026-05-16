@@ -189,16 +189,18 @@ export default function Admin() {
   }
 
   async function approveCourt(id: string) {
-    await fetch(`${SUPABASE_URL}/rest/v1/courts?id=eq.${id}`, {
-      method: 'PATCH',
-      headers: {
-        apikey: SUPABASE_ANON,
-        Authorization: `Bearer ${SUPABASE_ANON}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ verified: true }),
+    const res = await fetch('/api/admin/approve-court', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, password: TEAM_PASSWORD }),
     })
+    if (!res.ok) {
+      const err = await res.json()
+      alert(err.error || 'Failed to approve court')
+      return
+    }
     setPendingCourts(p => p.filter(c => c.id !== id))
+    setCourts(prev => prev.map(c => c.id === id ? { ...c, verified: true } : c))
   }
 
   if (!authed) {
