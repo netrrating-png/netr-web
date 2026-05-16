@@ -2,38 +2,44 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 
 const ADMIN_PASSWORD = 'dimesandnickles4'
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://obroygzzfpphumsrqtsm.supabase.co'
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+// Use service role key when available (bypasses RLS), fall back to anon key
+const AUTH_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || ANON_KEY
 
 async function sbCount(table: string, filter = ''): Promise<number> {
   let url = `${SUPABASE_URL}/rest/v1/${table}?select=id`
   if (filter) url += `&${filter}`
-  const res = await fetch(url, {
-    headers: {
-      apikey: SERVICE_KEY,
-      Authorization: `Bearer ${SERVICE_KEY}`,
-      'Prefer': 'count=exact',
-      'Range': '0-0',
-    },
-  })
-  const range = res.headers.get('Content-Range') || ''
-  const total = range.split('/')[1]
-  return total && total !== '*' ? parseInt(total, 10) : 0
+  try {
+    const res = await fetch(url, {
+      headers: {
+        apikey: AUTH_KEY,
+        Authorization: `Bearer ${AUTH_KEY}`,
+        'Prefer': 'count=exact',
+        'Range': '0-0',
+      },
+    })
+    const range = res.headers.get('Content-Range') || ''
+    const total = range.split('/')[1]
+    return total && total !== '*' ? parseInt(total, 10) : 0
+  } catch { return 0 }
 }
 
 async function sbFetch(table: string, select: string, filter = '', order = '', limit = 100): Promise<any[]> {
   let url = `${SUPABASE_URL}/rest/v1/${table}?select=${select}`
   if (filter) url += `&${filter}`
   if (order) url += `&order=${order}`
-  const res = await fetch(url, {
-    headers: {
-      apikey: SERVICE_KEY,
-      Authorization: `Bearer ${SERVICE_KEY}`,
-      'Prefer': 'count=none',
-      'Range': `0-${limit - 1}`,
-    },
-  })
-  const data = await res.json()
-  return Array.isArray(data) ? data : []
+  try {
+    const res = await fetch(url, {
+      headers: {
+        apikey: AUTH_KEY,
+        Authorization: `Bearer ${AUTH_KEY}`,
+        'Prefer': 'count=none',
+        'Range': `0-${limit - 1}`,
+      },
+    })
+    const data = await res.json()
+    return Array.isArray(data) ? data : []
+  } catch { return [] }
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -41,7 +47,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { password } = req.body
   if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' })
-  if (!SERVICE_KEY) return res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured' })
 
   const [
     usersCount, courtsCount, verifiedCount, pendingCount,
@@ -70,7 +75,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     sbFetch('ratings', 'id,rater_id,rated_id,overall_score,created_at', '', 'created_at.desc', 100),
     sbFetch('feed_posts', 'id,author_id,content,created_at', '', 'created_at.desc', 50),
     sbFetch('leagues', 'id,name,slug,sport,season,is_active,created_at,owner_id,location,league_teams(count),league_players(count),league_games(count)', '', 'created_at.desc', 500),
-    // Exclude password field — never send it to the client
+    // password column deliberately excluded
     sbFetch('crews', 'id,name,icon,icon_url,is_public,creator_id,created_at,crew_members(count)', '', 'created_at.desc', 1000),
   ])
 
