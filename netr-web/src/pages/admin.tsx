@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 
 // ─── TEAM CREDENTIALS ─────────────────────────────────────────
 // Simple password gate. For production, use Supabase Auth or NextAuth.
-const TEAM_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASS || 'dimesandnickles4'
+const TEAM_PASSWORD = 'dimesandnickles4'
 
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://obroygzzfpphumsrqtsm.supabase.co'
