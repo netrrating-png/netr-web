@@ -75,8 +75,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     sbFetch('ratings', 'id,rater_id,rated_id,overall_score,created_at', '', 'created_at.desc', 100),
     sbFetch('feed_posts', 'id,author_id,content,created_at', '', 'created_at.desc', 50),
     sbFetch('leagues', 'id,name,slug,sport,season,is_active,created_at,owner_id,location,league_teams(count),league_players(count),league_games(count)', '', 'created_at.desc', 500),
-    // crews_safe view permanently excludes the password column
-    sbFetch('crews_safe', 'id,name,icon,icon_url,is_public,creator_id,created_at,crew_members(count)', '', 'created_at.desc', 1000),
+    // password column excluded from select; anon has no column-level grant on it
+    sbFetch('crews', 'id,name,icon,icon_url,is_public,creator_id,created_at,crew_members(count)', '', 'created_at.desc', 1000),
   ])
 
   return res.status(200).json({
