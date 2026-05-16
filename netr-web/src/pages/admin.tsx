@@ -45,7 +45,7 @@ function fmt(n: number) { return n.toLocaleString() }
 function fmtDate(s: string) { return s ? new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—' }
 function fmtScore(n: number) { return n != null ? n.toFixed(1) : '—' }
 
-type Tab = 'overview' | 'users' | 'courts' | 'ratings' | 'feed' | 'leagues' | 'qr'
+type Tab = 'overview' | 'users' | 'courts' | 'crews' | 'ratings' | 'feed' | 'leagues' | 'qr'
 
 const C = {
   green: '#39FF14',
@@ -109,6 +109,7 @@ export default function Admin() {
     users: 0, courts: 0, verified: 0, pending: 0,
     ratings: 0, posts: 0, leagues: 0, activeLeagues: 0,
     teams: 0, players: 0, games: 0,
+    crews: 0, crewMembers: 0, publicCrews: 0,
   })
   const [users, setUsers] = useState<any[]>([])
   const [courts, setCourts] = useState<any[]>([])
@@ -116,8 +117,10 @@ export default function Admin() {
   const [ratings, setRatings] = useState<any[]>([])
   const [posts, setPosts] = useState<any[]>([])
   const [leagues, setLeagues] = useState<any[]>([])
+  const [crews, setCrews] = useState<any[]>([])
   const [userSearch, setUserSearch] = useState('')
   const [courtSearch, setCourtSearch] = useState('')
+  const [crewSearch, setCrewSearch] = useState('')
 
   const campaigns = [
     { key: 'default', label: 'Default / Beta', url: '/qr?c=default' },
@@ -140,7 +143,8 @@ export default function Admin() {
         usersCount, courtsCount, verifiedCount, pendingCount,
         ratingsCount, postsCount, leaguesCount, activeLeaguesCount,
         teamsCount, playersCount, gamesCount,
-        recentUsers, allCourts, pendingList, recentRatings, recentPosts, allLeagues,
+        crewsCount, crewMembersCount, publicCrewsCount,
+        recentUsers, allCourts, pendingList, recentRatings, recentPosts, allLeagues, allCrews,
       ] = await Promise.all([
         sbCount('profiles'),
         sbCount('courts'),
@@ -153,21 +157,26 @@ export default function Admin() {
         sbCount('league_teams'),
         sbCount('league_players'),
         sbCount('league_games'),
+        sbCount('crews'),
+        sbCount('crew_members'),
+        sbCount('crews', 'is_public=eq.true'),
         sbFetch('profiles', 'id,username,full_name,netr_score,created_at', '', 'created_at.desc', 1000),
         sbFetch('courts', 'id,name,city,verified,surface,created_at', '', 'created_at.desc', 5000),
         sbFetch('courts', 'id,name,city,submitted_by,created_at', 'verified=eq.false', 'created_at.desc', 500),
         sbFetch('ratings', 'id,rater_id,rated_id,overall_score,created_at', '', 'created_at.desc', 100),
         sbFetch('feed_posts', 'id,author_id,content,created_at', '', 'created_at.desc', 50),
         sbFetch('leagues', 'id,name,slug,sport,season,is_active,created_at,owner_id,location,league_teams(count),league_players(count),league_games(count)', '', 'created_at.desc', 500),
+        sbFetch('crews', 'id,name,icon,icon_url,is_public,creator_id,created_at,crew_members(count)', '', 'created_at.desc', 1000),
       ])
 
-      setCounts({ users: usersCount, courts: courtsCount, verified: verifiedCount, pending: pendingCount, ratings: ratingsCount, posts: postsCount, leagues: leaguesCount, activeLeagues: activeLeaguesCount, teams: teamsCount, players: playersCount, games: gamesCount })
+      setCounts({ users: usersCount, courts: courtsCount, verified: verifiedCount, pending: pendingCount, ratings: ratingsCount, posts: postsCount, leagues: leaguesCount, activeLeagues: activeLeaguesCount, teams: teamsCount, players: playersCount, games: gamesCount, crews: crewsCount, crewMembers: crewMembersCount, publicCrews: publicCrewsCount })
       setUsers(recentUsers)
       setCourts(allCourts)
       setPendingCourts(pendingList)
       setRatings(recentRatings)
       setPosts(recentPosts)
       setLeagues(allLeagues)
+      setCrews(allCrews)
     } catch (e) { console.error(e) }
     setLoading(false)
   }
@@ -195,6 +204,12 @@ export default function Admin() {
     const q = courtSearch.toLowerCase()
     return courts.filter(c => c.name?.toLowerCase().includes(q) || c.city?.toLowerCase().includes(q))
   }, [courts, courtSearch])
+
+  const filteredCrews = useMemo(() => {
+    if (!crewSearch.trim()) return crews
+    const q = crewSearch.toLowerCase()
+    return crews.filter(c => c.name?.toLowerCase().includes(q))
+  }, [crews, crewSearch])
 
   const CSS = `
     *{box-sizing:border-box}
@@ -282,6 +297,7 @@ export default function Admin() {
     { key: 'overview', label: '📊 Overview' },
     { key: 'users', label: `👥 Users${counts.users ? ` (${fmt(counts.users)})` : ''}` },
     { key: 'courts', label: `🏀 Courts${counts.pending > 0 ? ` · ${counts.pending} pending` : ''}` },
+    { key: 'crews', label: `🤝 Crews${counts.crews ? ` (${fmt(counts.crews)})` : ''}` },
     { key: 'ratings', label: `⭐ Ratings` },
     { key: 'feed', label: `📢 Feed` },
     { key: 'leagues', label: `🏆 Leagues${counts.leagues ? ` (${counts.leagues})` : ''}` },
@@ -352,11 +368,19 @@ export default function Admin() {
               </div>
 
               {/* Secondary stats */}
-              <div className="stat-grid" style={{ marginBottom: 28 }}>
+              <div className="stat-grid" style={{ marginBottom: 14 }}>
                 <StatCard label="League Teams" value={counts.teams} color={C.yellow} />
                 <StatCard label="League Players" value={counts.players} color={C.green} />
                 <StatCard label="Games Played" value={counts.games} color={C.blue} />
                 <StatCard label="Feed Posts" value={counts.posts} color={C.muted} />
+              </div>
+
+              {/* Crew stats */}
+              <div className="stat-grid" style={{ marginBottom: 28 }}>
+                <StatCard label="Total Crews" value={counts.crews} color={C.purple} />
+                <StatCard label="Crew Members" value={counts.crewMembers} color={C.green} sub={counts.crews > 0 ? `avg ${(counts.crewMembers / counts.crews).toFixed(1)} per crew` : undefined} />
+                <StatCard label="Public Crews" value={counts.publicCrews} color={C.blue} />
+                <StatCard label="Private Crews" value={counts.crews - counts.publicCrews} color={C.muted} />
               </div>
 
               {/* Recent signups + recent ratings side by side */}
@@ -558,6 +582,69 @@ export default function Admin() {
                       ))}
                       {filteredCourts.length === 0 && (
                         <tr><td colSpan={5} style={{ textAlign: 'center', color: C.muted, padding: 32 }}>No courts found</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ── CREWS ── */}
+          {tab === 'crews' && (
+            <>
+              <div className="stat-grid" style={{ marginBottom: 20 }}>
+                <StatCard label="Total Crews" value={counts.crews} color={C.purple} />
+                <StatCard label="Total Members" value={counts.crewMembers} color={C.green} sub={counts.crews > 0 ? `avg ${(counts.crewMembers / counts.crews).toFixed(1)} per crew` : undefined} />
+                <StatCard label="Public" value={counts.publicCrews} color={C.blue} />
+                <StatCard label="Private" value={counts.crews - counts.publicCrews} color={C.muted} />
+              </div>
+
+              <div className="card">
+                <div className="page-header" style={{ marginBottom: 12 }}>
+                  <div>
+                    <div className="section-title" style={{ marginBottom: 4 }}>All Crews</div>
+                    <div style={{ fontSize: 12, color: C.muted }}>{fmt(filteredCrews.length)} of {fmt(counts.crews)} crews{crewSearch ? ' matching search' : ''}</div>
+                  </div>
+                </div>
+                <SearchBox value={crewSearch} onChange={setCrewSearch} placeholder="Search by crew name…" />
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Crew</th>
+                        <th>Members</th>
+                        <th>Visibility</th>
+                        <th>Password</th>
+                        <th>Created</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredCrews.map((c, i) => {
+                        const memberCount = c.crew_members?.[0]?.count ?? '—'
+                        return (
+                          <tr key={i}>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                {(c.icon_url || c.icon) && (
+                                  <span style={{ fontSize: 18 }}>{c.icon || ''}</span>
+                                )}
+                                <span style={{ fontWeight: 600 }}>{c.name}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <span style={{ fontFamily: 'monospace', fontWeight: 700, color: C.green }}>{memberCount}</span>
+                            </td>
+                            <td>{badge(c.is_public ? C.blue : C.muted, c.is_public ? '🌐 Public' : '🔒 Private')}</td>
+                            <td style={{ color: c.password ? C.yellow : C.muted, fontFamily: 'monospace', fontSize: 12 }}>
+                              {c.password ? '••••••' : 'none'}
+                            </td>
+                            <td style={{ color: C.muted, fontSize: 12 }}>{fmtDate(c.created_at)}</td>
+                          </tr>
+                        )
+                      })}
+                      {filteredCrews.length === 0 && (
+                        <tr><td colSpan={5} style={{ textAlign: 'center', color: C.muted, padding: 32 }}>No crews found</td></tr>
                       )}
                     </tbody>
                   </table>
