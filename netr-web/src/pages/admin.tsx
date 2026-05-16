@@ -2,44 +2,6 @@ import Head from 'next/head'
 import { useState, useMemo } from 'react'
 
 const TEAM_PASSWORD = 'dimesandnickles4'
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://obroygzzfpphumsrqtsm.supabase.co'
-const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-
-async function sbCount(table: string, filter = ''): Promise<number> {
-  let url = `${SUPABASE_URL}/rest/v1/${table}?select=id`
-  if (filter) url += `&${filter}`
-  try {
-    const res = await fetch(url, {
-      headers: {
-        apikey: SUPABASE_ANON,
-        Authorization: `Bearer ${SUPABASE_ANON}`,
-        'Prefer': 'count=exact',
-        'Range': '0-0',
-      },
-    })
-    const range = res.headers.get('Content-Range') || ''
-    const total = range.split('/')[1]
-    return total && total !== '*' ? parseInt(total, 10) : 0
-  } catch { return 0 }
-}
-
-async function sbFetch(table: string, select = '*', filter = '', order = '', limit = 100): Promise<any[]> {
-  let url = `${SUPABASE_URL}/rest/v1/${table}?select=${select}`
-  if (filter) url += `&${filter}`
-  if (order) url += `&order=${order}`
-  try {
-    const res = await fetch(url, {
-      headers: {
-        apikey: SUPABASE_ANON,
-        Authorization: `Bearer ${SUPABASE_ANON}`,
-        'Prefer': 'count=none',
-        'Range': `0-${limit - 1}`,
-      },
-    })
-    const data = await res.json()
-    return Array.isArray(data) ? data : []
-  } catch { return [] }
-}
 
 function fmt(n: number) { return n.toLocaleString() }
 function fmtDate(s: string) { return s ? new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—' }
@@ -139,44 +101,26 @@ export default function Admin() {
   async function loadData() {
     setLoading(true)
     try {
-      const [
-        usersCount, courtsCount, verifiedCount, pendingCount,
-        ratingsCount, postsCount, leaguesCount, activeLeaguesCount,
-        teamsCount, playersCount, gamesCount,
-        crewsCount, crewMembersCount, publicCrewsCount,
-        recentUsers, allCourts, pendingList, recentRatings, recentPosts, allLeagues, allCrews,
-      ] = await Promise.all([
-        sbCount('profiles'),
-        sbCount('courts'),
-        sbCount('courts', 'verified=eq.true'),
-        sbCount('courts', 'verified=eq.false'),
-        sbCount('ratings'),
-        sbCount('feed_posts'),
-        sbCount('leagues'),
-        sbCount('leagues', 'is_active=eq.true'),
-        sbCount('league_teams'),
-        sbCount('league_players'),
-        sbCount('league_games'),
-        sbCount('crews'),
-        sbCount('crew_members'),
-        sbCount('crews', 'is_public=eq.true'),
-        sbFetch('profiles', 'id,username,full_name,netr_score,created_at', '', 'created_at.desc', 1000),
-        sbFetch('courts', 'id,name,city,verified,surface,created_at', '', 'created_at.desc', 5000),
-        sbFetch('courts', 'id,name,city,submitted_by,created_at', 'verified=eq.false', 'created_at.desc', 500),
-        sbFetch('ratings', 'id,rater_id,rated_id,overall_score,created_at', '', 'created_at.desc', 100),
-        sbFetch('feed_posts', 'id,author_id,content,created_at', '', 'created_at.desc', 50),
-        sbFetch('leagues', 'id,name,slug,sport,season,is_active,created_at,owner_id,location,league_teams(count),league_players(count),league_games(count)', '', 'created_at.desc', 500),
-        sbFetch('crews', 'id,name,icon,icon_url,is_public,creator_id,created_at,crew_members(count)', '', 'created_at.desc', 1000),
-      ])
-
-      setCounts({ users: usersCount, courts: courtsCount, verified: verifiedCount, pending: pendingCount, ratings: ratingsCount, posts: postsCount, leagues: leaguesCount, activeLeagues: activeLeaguesCount, teams: teamsCount, players: playersCount, games: gamesCount, crews: crewsCount, crewMembers: crewMembersCount, publicCrews: publicCrewsCount })
-      setUsers(recentUsers)
-      setCourts(allCourts)
-      setPendingCourts(pendingList)
-      setRatings(recentRatings)
-      setPosts(recentPosts)
-      setLeagues(allLeagues)
-      setCrews(allCrews)
+      const res = await fetch('/api/admin/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: TEAM_PASSWORD }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        console.error('Admin data error:', err.error)
+        setLoading(false)
+        return
+      }
+      const d = await res.json()
+      setCounts(d.counts)
+      setUsers(d.users || [])
+      setCourts(d.courts || [])
+      setPendingCourts(d.pendingCourts || [])
+      setRatings(d.ratings || [])
+      setPosts(d.posts || [])
+      setLeagues(d.leagues || [])
+      setCrews(d.crews || [])
     } catch (e) { console.error(e) }
     setLoading(false)
   }
