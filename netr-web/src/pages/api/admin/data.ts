@@ -72,7 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     sbFetch('profiles', 'id,username,full_name,netr_score,created_at', '', 'created_at.desc', 1000),
     sbFetch('courts', 'id,name,city,verified,surface,created_at', '', 'created_at.desc', 5000),
     sbFetch('courts', 'id,name,city,submitted_by,created_at', 'verified=eq.false', 'created_at.desc', 500),
-    sbFetch('ratings', 'id,rater_id,rated_id,overall_score,created_at', '', 'created_at.desc', 100),
+    sbFetch('ratings', 'id,rater_id,rated_id,overall,created_at', '', 'created_at.desc', 100),
     sbFetch('feed_posts', 'id,author_id,content,created_at', '', 'created_at.desc', 50),
     sbFetch('leagues', 'id,name,slug,sport,season,is_active,created_at,owner_id,location,league_teams(count),league_players(count),league_games(count)', '', 'created_at.desc', 500),
     // password column excluded from select; anon has no column-level grant on it

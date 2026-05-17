@@ -370,12 +370,12 @@ export default function Admin() {
                       </thead>
                       <tbody>
                         {ratings.slice(0, 10).map((r, i) => {
-                          const col = r.overall_score >= 7 ? C.green : r.overall_score >= 4 ? C.yellow : C.red
+                          const col = r.overall >= 7 ? C.green : r.overall >= 4 ? C.yellow : C.red
                           return (
                             <tr key={i}>
                               <td style={{ color: C.muted, fontFamily: 'monospace', fontSize: 11 }}>{r.rater_id?.slice(0, 8)}…</td>
                               <td style={{ color: C.muted, fontFamily: 'monospace', fontSize: 11 }}>{r.rated_id?.slice(0, 8)}…</td>
-                              <td>{badge(col, fmtScore(r.overall_score))}</td>
+                              <td>{badge(col, fmtScore(r.overall))}</td>
                               <td style={{ color: C.muted, fontSize: 12 }}>{fmtDate(r.created_at)}</td>
                             </tr>
                           )
@@ -602,7 +602,7 @@ export default function Admin() {
             <>
               <div className="stat-grid-3" style={{ marginBottom: 20 }}>
                 <StatCard label="Total Ratings" value={counts.ratings} color={C.purple} />
-                <StatCard label="Avg Score (shown)" value={ratings.length ? (ratings.reduce((s, r) => s + (r.overall_score || 0), 0) / ratings.length).toFixed(2) : '—'} color={C.green} />
+                <StatCard label="Avg Score (shown)" value={ratings.length ? (ratings.reduce((s, r) => s + (r.overall || 0), 0) / ratings.length).toFixed(2) : '—'} color={C.green} />
                 <StatCard label="Loaded" value={ratings.length} color={C.muted} sub="most recent 100" />
               </div>
               <div className="card">
@@ -619,12 +619,12 @@ export default function Admin() {
                     </thead>
                     <tbody>
                       {ratings.map((r, i) => {
-                        const col = r.overall_score >= 7 ? C.green : r.overall_score >= 4 ? C.yellow : C.red
+                        const col = r.overall >= 7 ? C.green : r.overall >= 4 ? C.yellow : C.red
                         return (
                           <tr key={i}>
                             <td style={{ fontFamily: 'monospace', fontSize: 12, color: C.muted }}>{r.rater_id?.slice(0, 12)}…</td>
                             <td style={{ fontFamily: 'monospace', fontSize: 12, color: C.muted }}>{r.rated_id?.slice(0, 12)}…</td>
-                            <td>{badge(col, fmtScore(r.overall_score))}</td>
+                            <td>{badge(col, fmtScore(r.overall))}</td>
                             <td style={{ color: C.muted, fontSize: 12 }}>{fmtDate(r.created_at)}</td>
                           </tr>
                         )
