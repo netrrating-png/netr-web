@@ -357,7 +357,7 @@ export default function PublicLeaguePage() {
 
           {/* Description — center stage */}
           {league.description&&(
-            <div style={{borderLeft:`3px solid ${accent}`,paddingLeft:20,marginBottom:22,...(!isDark?{background:'rgba(255,255,255,0.72)',borderRadius:'0 8px 8px 0',padding:'10px 16px 10px 20px'}:{})}}>
+            <div style={{borderLeft:`3px solid ${accent}`,paddingLeft:20,marginBottom:22}}>
               <p style={{
                 fontFamily:"'DM Sans',sans-serif",
                 fontSize:'clamp(16px,2.2vw,21px)',
