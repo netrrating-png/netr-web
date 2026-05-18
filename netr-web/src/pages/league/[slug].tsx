@@ -63,8 +63,25 @@ export default function PublicLeaguePage() {
   const [seasonGames,setSeasonGames] = useState<Game[]>([])
   const [seasonStats,setSeasonStats] = useState<RawStat[]>([])
   const [loadingSeason,setLoadingSeason] = useState(false)
+  const [countdownStr,setCountdownStr] = useState<string|null>(null)
 
   useEffect(()=>{ if(slug) load() },[slug])
+
+  useEffect(()=>{
+    if(allGames.length===0){setCountdownStr(null);return}
+    const nextGame=[...allGames].filter(g=>g.status==='scheduled').sort((a,b)=>a.scheduled_at.localeCompare(b.scheduled_at))[0]
+    if(!nextGame){setCountdownStr(null);return}
+    const target=new Date(nextGame.scheduled_at).getTime()
+    function tick(){
+      const diff=target-Date.now()
+      if(diff<=0){setCountdownStr('Game Time!');return}
+      const d=Math.floor(diff/86400000),h=Math.floor((diff%86400000)/3600000),m=Math.floor((diff%3600000)/60000),s=Math.floor((diff%60000)/1000)
+      setCountdownStr(d>0?`${d}d ${h}h ${m}m`:`${h}h ${m}m ${s}s`)
+    }
+    tick()
+    const t=setInterval(tick,1000)
+    return()=>clearInterval(t)
+  },[allGames])
 
   async function rsvp(gameId:string, status:'yes'|'no'|'maybe') {
     if(!myPlayerId) return
@@ -205,6 +222,8 @@ export default function PublicLeaguePage() {
         .hero-content > *:nth-child(2) { animation-delay: 0.12s; }
         .hero-content > *:nth-child(3) { animation-delay: 0.2s; }
         .hero-content > *:nth-child(4) { animation-delay: 0.28s; }
+        @keyframes countPulse { 0%,100%{opacity:1} 50%{opacity:0.45} }
+        .tab-btn:hover { background: rgba(255,255,255,0.04) !important; }
         @media (max-width: 640px) {
           .hero-content { padding: 56px 16px 24px !important; }
           .hero-name { font-size: clamp(28px,10vw,56px) !important; line-height: 1 !important; }
@@ -371,7 +390,7 @@ export default function PublicLeaguePage() {
             ...(seasons.length>0?[['history','History']]:[] as [Tab,string][]),
             ...(galleryPhotos.length>0?[['gallery','Gallery']]:[] as [Tab,string][]),
           ] as [Tab,string][]).map(([t,label])=>(
-            <button key={t} onClick={()=>setTab(t)} className="tab-btn" style={{background:'none',border:'none',borderBottom:activeTab===t?`3px solid ${accent}`:'3px solid transparent',color:activeTab===t?accent:'#C8C8D4',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase',letterSpacing:1.5,padding:'16px 18px',cursor:'pointer',whiteSpace:'nowrap',flexShrink:0,transition:'color 0.15s'}}>
+            <button key={t} onClick={()=>setTab(t)} className="tab-btn" style={{background:activeTab===t?`${accent}0D`:'none',border:'none',borderBottom:activeTab===t?`3px solid ${accent}`:'3px solid transparent',color:activeTab===t?accent:'#C8C8D4',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase',letterSpacing:1.5,padding:'16px 18px',cursor:'pointer',whiteSpace:'nowrap',flexShrink:0,transition:'all 0.2s',borderRadius:'8px 8px 0 0'}}>
               {label}
             </button>
           ))}
@@ -382,6 +401,43 @@ export default function PublicLeaguePage() {
 
         {/* OVERVIEW */}
         {activeTab==='overview'&&<>
+
+          {/* Player of the Week */}
+          {pStats.length>0&&(()=>{
+            const potw=[...pStats].sort((a,b)=>b.ppg-a.ppg)[0]
+            if(!potw)return null
+            const team=tMap[potw.team_id]
+            return(
+              <div style={{position:'relative',overflow:'hidden',background:'#0D0D12',border:`1px solid ${accent}40`,borderRadius:20,padding:'22px 28px',marginBottom:24,display:'flex',alignItems:'center',gap:20,flexWrap:'wrap' as const}}>
+                <div style={{position:'absolute',inset:0,background:`linear-gradient(135deg,${accent}0A 0%,transparent 50%,${team?.color??accent}08 100%)`,pointerEvents:'none'}}/>
+                <div style={{position:'absolute',top:-20,right:12,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:180,color:`${accent}04`,lineHeight:1,userSelect:'none' as const,pointerEvents:'none',letterSpacing:-8}}>1</div>
+                <div style={{position:'relative',width:72,height:72,borderRadius:16,flexShrink:0,overflow:'hidden',boxShadow:`0 0 24px ${team?.color??accent}44`}}>
+                  {team?.logo_url
+                    ?<img src={team.logo_url} alt={team.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                    :<div style={{width:'100%',height:'100%',background:team?`linear-gradient(135deg,${team.color},${team.color}88)`:`linear-gradient(135deg,${accent},${accent}88)`,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:26,color:'rgba(255,255,255,0.9)',textTransform:'uppercase' as const}}>{potw.display_name.slice(0,2)}</span>
+                    </div>}
+                </div>
+                <div style={{position:'relative',flex:1,minWidth:140}}>
+                  <div style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const,marginBottom:6,display:'flex',alignItems:'center',gap:6}}>
+                    <span style={{display:'inline-block',width:5,height:5,borderRadius:'50%',background:accent,animation:'countPulse 2s ease-in-out infinite',flexShrink:0}}/>
+                    Player of the Week
+                  </div>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:'clamp(22px,4vw,32px)',textTransform:'uppercase' as const,color:'#EEEEF5',letterSpacing:0.5,lineHeight:1,marginBottom:8}}>{potw.display_name}</div>
+                  <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' as const}}>
+                    {team&&<span style={{width:6,height:6,borderRadius:'50%',background:team.color,display:'inline-block',flexShrink:0}}/>}
+                    <span style={{fontSize:11,color:'#C8C8D4',fontFamily:"'DM Mono',monospace"}}>{potw.team_name}</span>
+                    <NetrBadge score={pMap[potw.player_id]?.netr_score}/>
+                  </div>
+                </div>
+                <div style={{position:'relative',flexShrink:0,textAlign:'center' as const,paddingLeft:20,borderLeft:'1px solid rgba(255,255,255,0.08)'}}>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:64,color:accent,lineHeight:1}}>{potw.ppg}</div>
+                  <div style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2,marginBottom:6}}>PPG</div>
+                  <div style={{fontSize:10,color:'#6A6A82',fontFamily:"'DM Mono',monospace"}}>{potw.gp}GP · {potw.rpg}RPG · {potw.apg}APG</div>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Stat leader cards */}
           {pStats.length>0&&(()=>{
@@ -414,12 +470,37 @@ export default function PublicLeaguePage() {
             )
           })()}
 
+          {/* League Updates */}
+          {league.announcement&&(
+            <div style={{marginBottom:32}}>
+              <SectionLabel accent={accent}>League Updates</SectionLabel>
+              <div style={{background:'#0D0D12',border:`1px solid ${accent}25`,borderRadius:16,overflow:'hidden'}}>
+                <div style={{background:`linear-gradient(90deg,${accent}12,${accent}06,transparent)`,padding:'12px 20px',borderBottom:`1px solid ${accent}18`,display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{display:'inline-block',width:6,height:6,borderRadius:'50%',background:accent,boxShadow:`0 0 8px ${accent}`,animation:'countPulse 2s ease-in-out infinite',flexShrink:0}}/>
+                  <span style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const}}>Latest Update</span>
+                </div>
+                <div style={{padding:'20px',display:'flex',alignItems:'flex-start',gap:16}}>
+                  <div style={{width:40,height:40,borderRadius:10,background:`${accent}14`,border:`1px solid ${accent}30`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:18}}>📢</div>
+                  <p style={{fontSize:15,lineHeight:1.75,color:'rgba(238,238,245,0.9)',fontFamily:"'DM Sans',sans-serif",margin:0}}>{league.announcement}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Two-column: upcoming + standings mini */}
           <div className="standings-grid" style={{display:'grid',gridTemplateColumns:standings.length>0?'1fr 320px':'1fr',gap:24,alignItems:'start',marginBottom:48}}>
             {/* Upcoming games */}
             <section>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,flexWrap:'wrap' as const,gap:8}}>
-                <SectionLabel accent={accent} noMargin>Next Up</SectionLabel>
+                <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap' as const}}>
+                  <SectionLabel accent={accent} noMargin>Next Up</SectionLabel>
+                  {countdownStr&&(
+                    <span style={{display:'inline-flex',alignItems:'center',gap:5,background:`${accent}10`,border:`1px solid ${accent}35`,borderRadius:99,padding:'4px 12px',fontSize:10,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:1.5,whiteSpace:'nowrap' as const}}>
+                      <span style={{display:'inline-block',width:5,height:5,borderRadius:'50%',background:accent,animation:'countPulse 2s ease-in-out infinite',flexShrink:0}}/>
+                      {countdownStr}
+                    </span>
+                  )}
+                </div>
                 {myTeamId&&<CalendarButtons slug={league.slug} teamId={myTeamId} size="sm"/>}
               </div>
               {upcoming.length===0?<Empty>No games scheduled yet.</Empty>:(
@@ -454,7 +535,9 @@ export default function PublicLeaguePage() {
                         onMouseEnter={e=>e.currentTarget.style.background='#12121C'}
                         onMouseLeave={e=>e.currentTarget.style.background='none'}>
                         <span style={{width:18,fontFamily:"'DM Mono',monospace",fontSize:11,color:top?accent:'#3A3A4E',flexShrink:0}}>{top?'🏆':i+1}</span>
-                        <div style={{width:8,height:8,borderRadius:'50%',background:s.color,flexShrink:0}}/>
+                        {tMap[s.team_id]?.logo_url
+                          ?<img src={tMap[s.team_id]?.logo_url||''} alt={s.team_name} style={{width:24,height:24,borderRadius:4,objectFit:'cover',flexShrink:0,border:`1px solid ${s.color}44`}}/>
+                          :<div style={{width:8,height:8,borderRadius:'50%',background:s.color,flexShrink:0}}/>}
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase' as const,color:top?'#EEEEF5':'#C8C8D4',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{s.team_name}</div>
                           <div style={{height:3,background:'#1A1A28',borderRadius:2,marginTop:4,overflow:'hidden'}}>
@@ -533,8 +616,10 @@ export default function PublicLeaguePage() {
                       onMouseLeave={e=>e.currentTarget.style.background=top?`${accent}06`:'transparent'}>
                       <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,color:top?accent:'#2E2E3A',textAlign:'center' as const}}>{top?'🏆':i+1}</div>
                       <div style={{minWidth:0}}>
-                        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                          {s.color&&<div style={{width:10,height:10,borderRadius:'50%',background:s.color,flexShrink:0,boxShadow:`0 0 6px ${s.color}88`}}/>}
+                        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
+                          {tMap[s.team_id]?.logo_url
+                            ?<img src={tMap[s.team_id]?.logo_url||''} alt={s.team_name} style={{width:36,height:36,borderRadius:6,objectFit:'cover',flexShrink:0,border:`1.5px solid ${s.color}55`}}/>
+                            :s.color&&<div style={{width:10,height:10,borderRadius:'50%',background:s.color,flexShrink:0,boxShadow:`0 0 6px ${s.color}88`}}/>}
                           <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase' as const,color:top?'#EEEEF5':'#C8C8D4',letterSpacing:0.5}}>{s.team_name}</span>
                         </div>
                         <div style={{height:4,background:'#151520',borderRadius:2,overflow:'hidden'}}>
