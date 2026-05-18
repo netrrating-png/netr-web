@@ -2009,7 +2009,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div style={{ padding: '14px 18px', background: '#0A0A0E', border: '1px solid #1C1C26', borderRadius: 10 }}>
-                  <div style={{ fontSize: 13, color: '#6A6A82', marginBottom: 10, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 1, fontSize: 11 }}>What happens automatically</div>
+                  <div style={{ fontSize: 11, color: '#6A6A82', marginBottom: 10, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 1 }}>What happens automatically</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {[
                       ['🏀', 'A private crew is created for each team when you add them'],
