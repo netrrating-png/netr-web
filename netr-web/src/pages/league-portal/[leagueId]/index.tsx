@@ -34,9 +34,23 @@ export default function LeagueOverview() {
 
   if (loading || !league) return <LoadingScreen />
 
+  const now = new Date()
   const gamesPlayed = games.filter(g => g.status === 'final').length
-  const upcoming = games.filter(g => g.status === 'scheduled').length
+  const upcoming = games.filter(g => g.status === 'scheduled')
+  const upcomingCount = upcoming.length
   const paidTeams = teams.filter(t => t.fee_paid).length
+
+  // Action items
+  const gamesNeedingScore = games.filter(g =>
+    g.status === 'scheduled' && new Date(g.scheduled_at) < now
+  )
+  const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const gamesThisWeek = upcoming.filter(g => {
+    const d = new Date(g.scheduled_at)
+    return d >= now && d <= weekEnd
+  })
+  const unpaidTeams = league.fee_amount ? teams.filter(t => !t.fee_paid) : []
+  const hasActions = gamesNeedingScore.length > 0 || gamesThisWeek.length > 0 || unpaidTeams.length > 0
 
   return (
     <>
@@ -65,13 +79,62 @@ export default function LeagueOverview() {
             </span>
           </div>
 
+          {/* Action Items */}
+          {hasActions && (
+            <div style={S.actionCard}>
+              <div style={S.actionHeader}>
+                <span style={S.actionTitle}>⚡ Needs Attention</span>
+                <span style={S.actionCount}>{gamesNeedingScore.length + (gamesThisWeek.length > 0 ? 1 : 0) + unpaidTeams.length} item{(gamesNeedingScore.length + (gamesThisWeek.length > 0 ? 1 : 0) + unpaidTeams.length) !== 1 ? 's' : ''}</span>
+              </div>
+              <div style={S.actionItems}>
+                {gamesNeedingScore.length > 0 && (
+                  <a href={`/league-portal/${leagueId}/schedule`} style={S.actionItem}>
+                    <div style={{ ...S.actionDot, background: '#FF453A' }} />
+                    <div style={S.actionText}>
+                      <span style={S.actionLabel}>{gamesNeedingScore.length} game{gamesNeedingScore.length !== 1 ? 's' : ''} missing scores</span>
+                      <span style={S.actionSub}>Past games waiting for final score entry</span>
+                    </div>
+                    <span style={S.actionArrow}>→</span>
+                  </a>
+                )}
+                {gamesThisWeek.length > 0 && (
+                  <a href={`/league-portal/${leagueId}/schedule`} style={S.actionItem}>
+                    <div style={{ ...S.actionDot, background: '#F5C542' }} />
+                    <div style={S.actionText}>
+                      <span style={S.actionLabel}>{gamesThisWeek.length} game{gamesThisWeek.length !== 1 ? 's' : ''} this week</span>
+                      <span style={S.actionSub}>
+                        {gamesThisWeek[0] && (() => {
+                          const d = new Date(gamesThisWeek[0].scheduled_at)
+                          return `Next: ${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+                        })()}
+                      </span>
+                    </div>
+                    <span style={S.actionArrow}>→</span>
+                  </a>
+                )}
+                {unpaidTeams.length > 0 && (
+                  <a href={`/league-portal/${leagueId}/budget`} style={S.actionItem}>
+                    <div style={{ ...S.actionDot, background: '#BF5AF2' }} />
+                    <div style={S.actionText}>
+                      <span style={S.actionLabel}>{unpaidTeams.length} team{unpaidTeams.length !== 1 ? 's' : ''} unpaid</span>
+                      <span style={S.actionSub}>
+                        ${(unpaidTeams.length * (league.fee_amount ?? 0)).toLocaleString()} outstanding · {unpaidTeams.map(t => t.name).slice(0, 3).join(', ')}{unpaidTeams.length > 3 ? `… +${unpaidTeams.length - 3}` : ''}
+                      </span>
+                    </div>
+                    <span style={S.actionArrow}>→</span>
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Quick stats */}
           <div style={S.statsRow}>
             {[
               { label: 'Teams', value: String(teams.length) },
               { label: 'Players', value: String(playerCount) },
               { label: 'Games Played', value: String(gamesPlayed) },
-              { label: 'Upcoming', value: String(upcoming) },
+              { label: 'Upcoming', value: String(upcomingCount) },
               { label: 'Total Games', value: String(games.length) },
             ].map(s => (
               <div key={s.label} style={S.statCard}>
@@ -79,7 +142,6 @@ export default function LeagueOverview() {
                 <div style={S.statLabel}>{s.label}</div>
               </div>
             ))}
-            {/* Teams Paid card — always shown */}
             <div style={{ ...S.statCard, borderColor: paidTeams === teams.length && teams.length > 0 ? 'rgba(57,255,20,0.3)' : '#1C1C26' }}>
               <div style={{ ...S.statVal, color: paidTeams === teams.length && teams.length > 0 ? '#39FF14' : paidTeams > 0 ? '#F5C542' : '#6A6A82' }}>
                 {paidTeams}/{teams.length}
@@ -96,22 +158,27 @@ export default function LeagueOverview() {
           {/* Quick nav cards */}
           <div style={S.navGrid}>
             {[
-              { href: `/league-portal/${leagueId}/teams`, icon: '👥', title: 'Teams & Rosters', desc: `${teams.length} team${teams.length !== 1 ? 's' : ''}` },
-              { href: `/league-portal/${leagueId}/schedule`, icon: '📅', title: 'Schedule & Scores', desc: `${games.length} game${games.length !== 1 ? 's' : ''} scheduled` },
-              { href: `/league-portal/${leagueId}/standings`, icon: '🏆', title: 'Standings', desc: 'Live W/L table' },
-              { href: `/league-portal/${leagueId}/stats`,     icon: '📊', title: 'Stats Leaders',    desc: 'Per-game leaderboard' },
-              { href: `/league-portal/${leagueId}/settings`,  icon: '⚙️',  title: 'Settings',          desc: 'Stats, rules & details' },
+              { href: `/league-portal/${leagueId}/teams`, icon: '👥', title: 'Teams & Rosters', desc: `${teams.length} team${teams.length !== 1 ? 's' : ''}`, badge: null },
+              { href: `/league-portal/${leagueId}/schedule`, icon: '📅', title: 'Schedule & Scores', desc: `${games.length} game${games.length !== 1 ? 's' : ''} scheduled`, badge: gamesNeedingScore.length > 0 ? { text: `${gamesNeedingScore.length} need scores`, color: '#FF453A' } : null },
+              { href: `/league-portal/${leagueId}/standings`, icon: '🏆', title: 'Standings', desc: 'Live W/L table', badge: null },
+              { href: `/league-portal/${leagueId}/stats`, icon: '📊', title: 'Stats Leaders', desc: 'Per-game leaderboard', badge: null },
+              { href: `/league-portal/${leagueId}/budget`, icon: '💰', title: 'Budget & Payments', desc: league.fee_amount ? `$${(paidTeams * league.fee_amount).toLocaleString()} collected · ${unpaidTeams.length} unpaid` : 'Track income & expenses', badge: unpaidTeams.length > 0 ? { text: `${unpaidTeams.length} unpaid`, color: '#BF5AF2' } : null },
+              { href: `/league-portal/${leagueId}/settings`, icon: '⚙️', title: 'Settings', desc: 'Stats, rules & details', badge: null },
             ].map(item => (
               <a key={item.href} href={item.href} style={S.navCard}>
                 <div style={S.navCardIcon}>{item.icon}</div>
-                <div>
+                <div style={{ flex: 1 }}>
                   <div style={S.navCardTitle}>{item.title}</div>
                   <div style={S.navCardDesc}>{item.desc}</div>
                 </div>
+                {item.badge && (
+                  <div style={{ background: `${item.badge.color}22`, border: `1px solid ${item.badge.color}55`, color: item.badge.color, fontSize: 11, padding: '3px 10px', borderRadius: 99, fontFamily: "'DM Mono', monospace", whiteSpace: 'nowrap' as const }}>
+                    {item.badge.text}
+                  </div>
+                )}
                 <div style={S.navCardArrow}>→</div>
               </a>
             ))}
-            {/* Share league page — external link */}
             <a href={`/league/${league.slug}`} target="_blank" rel="noreferrer" style={{ ...S.navCard, borderColor: 'rgba(57,255,20,0.2)' }}>
               <div style={S.navCardIcon}>🔗</div>
               <div>
@@ -120,59 +187,6 @@ export default function LeagueOverview() {
               </div>
               <div style={S.navCardArrow}>↗</div>
             </a>
-          </div>
-
-          {/* Commissioner Guide */}
-          <div style={S.guideCard}>
-            <div style={S.guideTitle}>How It Works</div>
-            <div style={S.guideSteps}>
-              {[
-                {
-                  n: '1',
-                  title: 'Build your rosters',
-                  body: 'Add your teams and enter each player by name. You don\'t need their NETR account — just a name. Players can claim their spot later.',
-                  href: `/league-portal/${leagueId}/teams`,
-                  cta: 'Go to Teams →',
-                },
-                {
-                  n: '2',
-                  title: 'Schedule your games',
-                  body: 'Add each game with a date, time, and location. Games show up on the schedule page sorted by date.',
-                  href: `/league-portal/${leagueId}/schedule`,
-                  cta: 'Go to Schedule →',
-                },
-                {
-                  n: '3',
-                  title: 'Enter stats after each game',
-                  body: 'Open the game, enter the final score, then tap +/− to enter each player\'s stats. You enter raw counts (shots made, shots taken) — percentages calculate automatically. Takes ~3 minutes.',
-                  href: null,
-                  cta: null,
-                },
-                {
-                  n: '4',
-                  title: 'Everything updates instantly',
-                  body: 'Standings re-rank after every score entry. The Stats Leaders board sorts by per-game averages. No manual calculations needed.',
-                  href: `/league-portal/${leagueId}/standings`,
-                  cta: 'View Standings →',
-                },
-              ].map(step => (
-                <div key={step.n} style={S.guideStep}>
-                  <div style={S.guideN}>{step.n}</div>
-                  <div style={S.guideStepBody}>
-                    <div style={S.guideStepTitle}>{step.title}</div>
-                    <div style={S.guideStepText}>{step.body}</div>
-                    {step.href && <a href={step.href} style={S.guideCta}>{step.cta}</a>}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div style={S.guideTip}>
-              <span style={S.guideTipIcon}>💡</span>
-              <span>
-                <strong style={{ color: '#EEEEF5' }}>Tip:</strong> For FG%, 3P%, and FT% — just enter made and attempted shots. The dashboard calculates the percentage for you. Players never see how you tracked it.
-              </span>
-            </div>
           </div>
 
           {league.description && (
@@ -194,6 +208,7 @@ export function PortalNav({ leagueName, leagueId, active, logoUrl }: { leagueNam
     { key: 'schedule',  label: 'Schedule',  href: `/league-portal/${leagueId}/schedule` },
     { key: 'standings', label: 'Standings', href: `/league-portal/${leagueId}/standings` },
     { key: 'stats',     label: 'Stats',     href: `/league-portal/${leagueId}/stats` },
+    { key: 'budget',    label: 'Budget',    href: `/league-portal/${leagueId}/budget` },
     { key: 'settings',  label: 'Settings',  href: `/league-portal/${leagueId}/settings` },
   ]
 
@@ -226,352 +241,48 @@ function LoadingScreen() {
 }
 
 const S: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: '100vh',
-    background: '#040406',
-    fontFamily: "'DM Sans', sans-serif",
-    color: '#EEEEF5',
-  },
-  nav: {
-    background: '#0A0A0E',
-    borderBottom: '1px solid #1C1C26',
-    position: 'sticky' as const,
-    top: 0,
-    zIndex: 50,
-  },
-  navTop: {
-    maxWidth: 1200,
-    margin: '0 auto',
-    padding: '0 24px',
-    height: 52,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottom: '1px solid #14141C',
-  },
-  backLink: {
-    color: '#6A6A82',
-    fontSize: 13,
-    textDecoration: 'none',
-    fontFamily: "'DM Mono', monospace",
-  },
-  logo: {
-    fontFamily: "'Barlow Condensed', sans-serif",
-    fontWeight: 900,
-    fontSize: 20,
-    color: '#39FF14',
-  },
-  tabRow: {
-    maxWidth: 1200,
-    margin: '0 auto',
-    padding: '0 24px',
-    display: 'flex',
-    gap: 0,
-  },
-  tab: {
-    padding: '14px 20px',
-    fontSize: 13,
-    fontFamily: "'Barlow Condensed', sans-serif",
-    fontWeight: 700,
-    letterSpacing: 1,
-    textTransform: 'uppercase' as const,
-    color: '#EEEEF5',
-    textDecoration: 'none',
-    borderBottom: '2px solid transparent',
-    transition: 'color 0.2s',
-  },
-  tabActive: {
-    color: '#39FF14',
-    borderBottomColor: '#39FF14',
-  },
-  main: {
-    maxWidth: 1200,
-    margin: '0 auto',
-    padding: '40px 24px',
-  },
-  leagueHeader: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 32,
-    flexWrap: 'wrap' as const,
-    gap: 16,
-  },
-  sport: {
-    fontSize: 13,
-    color: '#6A6A82',
-    marginBottom: 6,
-  },
-  leagueName: {
-    fontFamily: "'Barlow Condensed', sans-serif",
-    fontWeight: 900,
-    fontSize: 42,
-    textTransform: 'uppercase' as const,
-    marginBottom: 10,
-    lineHeight: 1,
-  },
-  meta: {
-    display: 'flex',
-    gap: 8,
-    flexWrap: 'wrap' as const,
-  },
-  chip: {
-    background: '#1C1C26',
-    color: '#EEEEF5',
-    fontSize: 12,
-    padding: '4px 12px',
-    borderRadius: 99,
-  },
-  statusBadge: {
-    fontSize: 12,
-    fontFamily: "'DM Mono', monospace",
-    padding: '6px 14px',
-    borderRadius: 99,
-    letterSpacing: 0.5,
-    whiteSpace: 'nowrap' as const,
-  },
-  statsRow: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-    gap: 16,
-    marginBottom: 32,
-  },
-  statCard: {
-    background: '#0F0F14',
-    border: '1px solid #1C1C26',
-    borderRadius: 12,
-    padding: '20px',
-    textAlign: 'center' as const,
-  },
-  statVal: {
-    fontFamily: "'Barlow Condensed', sans-serif",
-    fontWeight: 900,
-    fontSize: 36,
-    color: '#39FF14',
-    lineHeight: 1,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: '#6A6A82',
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1,
-    fontFamily: "'DM Mono', monospace",
-  },
-  navGrid: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 12,
-    marginBottom: 32,
-  },
-  navCard: {
-    background: '#0F0F14',
-    border: '1px solid #1C1C26',
-    borderRadius: 12,
-    padding: '20px 24px',
-    textDecoration: 'none',
-    color: '#EEEEF5',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 16,
-    transition: 'border-color 0.2s',
-  },
-  navCardIcon: {
-    fontSize: 28,
-    width: 44,
-    textAlign: 'center' as const,
-  },
-  navCardTitle: {
-    fontFamily: "'Barlow Condensed', sans-serif",
-    fontWeight: 700,
-    fontSize: 18,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  navCardDesc: {
-    fontSize: 13,
-    color: '#6A6A82',
-  },
-  navCardArrow: {
-    marginLeft: 'auto' as const,
-    color: '#39FF14',
-    fontSize: 18,
-    fontFamily: "'DM Mono', monospace",
-  },
-  guideCard: {
-    background: '#0F0F14',
-    border: '1px solid #1C1C26',
-    borderRadius: 12,
-    padding: '24px',
-    marginBottom: 32,
-  },
-  guideTitle: {
-    fontFamily: "'Barlow Condensed', sans-serif",
-    fontWeight: 700,
-    fontSize: 20,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-    marginBottom: 20,
-  },
-  guideSteps: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 20,
-    marginBottom: 20,
-  },
-  guideStep: {
-    display: 'flex',
-    gap: 16,
-    alignItems: 'flex-start',
-  },
-  guideN: {
-    fontFamily: "'Barlow Condensed', sans-serif",
-    fontWeight: 900,
-    fontSize: 28,
-    color: '#39FF14',
-    lineHeight: 1,
-    width: 28,
-    flexShrink: 0,
-    paddingTop: 2,
-  },
-  guideStepBody: {
-    flex: 1,
-  },
-  guideStepTitle: {
-    fontFamily: "'Barlow Condensed', sans-serif",
-    fontWeight: 700,
-    fontSize: 17,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.3,
-    marginBottom: 4,
-  },
-  guideStepText: {
-    fontSize: 13,
-    color: '#6A6A82',
-    lineHeight: 1.6,
-  },
-  guideCta: {
-    display: 'inline-block',
-    marginTop: 6,
-    fontSize: 12,
-    color: '#39FF14',
-    textDecoration: 'none',
-    fontFamily: "'DM Mono', monospace",
-  },
-  guideTip: {
-    background: 'rgba(57,255,20,0.05)',
-    border: '1px solid rgba(57,255,20,0.12)',
-    borderRadius: 8,
-    padding: '12px 16px',
-    fontSize: 13,
-    color: '#6A6A82',
-    lineHeight: 1.5,
-    display: 'flex',
-    gap: 10,
-    alignItems: 'flex-start',
-  },
-  guideTipIcon: {
-    flexShrink: 0,
-    fontSize: 15,
-    marginTop: 1,
-  },
-  settingsCard: {
-    background: '#0F0F14',
-    border: '1px solid #1C1C26',
-    borderRadius: 12,
-    padding: '24px',
-    marginBottom: 32,
-  },
-  settingsHeader: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    gap: 16,
-  },
-  settingsTitle: {
-    fontFamily: "'Barlow Condensed', sans-serif",
-    fontWeight: 700,
-    fontSize: 20,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  settingsDesc: {
-    fontSize: 13,
-    color: '#6A6A82',
-    lineHeight: 1.5,
-  },
-  savingStatus: {
-    minWidth: 60,
-    textAlign: 'right' as const,
-  },
-  saving: {
-    fontSize: 12,
-    color: '#6A6A82',
-    fontFamily: "'DM Mono', monospace",
-  },
-  saved: {
-    fontSize: 12,
-    color: '#39FF14',
-    fontFamily: "'DM Mono', monospace",
-  },
-  toggleGrid: {
-    display: 'flex',
-    flexWrap: 'wrap' as const,
-    gap: 10,
-  },
-  toggleChip: {
-    border: 'none',
-    borderRadius: 10,
-    padding: '10px 16px',
-    cursor: 'pointer',
-    textAlign: 'left' as const,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 2,
-    transition: 'all 0.15s',
-    minWidth: 80,
-  },
-  toggleChipOn: {
-    background: 'rgba(57,255,20,0.12)',
-    outline: '1.5px solid #39FF14',
-  },
-  toggleChipOff: {
-    background: '#0A0A0E',
-    outline: '1.5px solid #1C1C26',
-  },
-  toggleLabel: {
-    fontFamily: "'Barlow Condensed', sans-serif",
-    fontWeight: 700,
-    fontSize: 16,
-    letterSpacing: 0.5,
-    color: '#EEEEF5',
-  },
-  toggleFull: {
-    fontSize: 10,
-    color: '#6A6A82',
-    fontFamily: "'DM Mono', monospace",
-    whiteSpace: 'nowrap' as const,
-  },
-  descCard: {
-    background: '#0F0F14',
-    border: '1px solid #1C1C26',
-    borderRadius: 12,
-    padding: 24,
-  },
-  descLabel: {
-    fontSize: 11,
-    color: '#6A6A82',
-    textTransform: 'uppercase' as const,
-    letterSpacing: 2,
-    marginBottom: 8,
-    fontFamily: "'DM Mono', monospace",
-  },
-  descText: {
-    fontSize: 15,
-    color: '#EEEEF5',
-    lineHeight: 1.6,
-  },
+  page: { minHeight: '100vh', background: '#040406', fontFamily: "'DM Sans', sans-serif", color: '#EEEEF5' },
+  nav: { background: '#0A0A0E', borderBottom: '1px solid #1C1C26', position: 'sticky' as const, top: 0, zIndex: 50 },
+  navTop: { maxWidth: 1200, margin: '0 auto', padding: '0 24px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #14141C' },
+  backLink: { color: '#6A6A82', fontSize: 13, textDecoration: 'none', fontFamily: "'DM Mono', monospace" },
+  logo: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 20, color: '#39FF14' },
+  tabRow: { maxWidth: 1200, margin: '0 auto', padding: '0 24px', display: 'flex', gap: 0, overflowX: 'auto' as const },
+  tab: { padding: '14px 18px', fontSize: 13, fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' as const, color: '#EEEEF5', textDecoration: 'none', borderBottom: '2px solid transparent', transition: 'color 0.2s', whiteSpace: 'nowrap' as const },
+  tabActive: { color: '#39FF14', borderBottomColor: '#39FF14' },
+  main: { maxWidth: 1200, margin: '0 auto', padding: '40px 24px' },
+  leagueHeader: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32, flexWrap: 'wrap' as const, gap: 16 },
+  sport: { fontSize: 13, color: '#6A6A82', marginBottom: 6 },
+  leagueName: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 42, textTransform: 'uppercase' as const, marginBottom: 10, lineHeight: 1 },
+  meta: { display: 'flex', gap: 8, flexWrap: 'wrap' as const },
+  chip: { background: '#1C1C26', color: '#EEEEF5', fontSize: 12, padding: '4px 12px', borderRadius: 99 },
+  statusBadge: { fontSize: 12, fontFamily: "'DM Mono', monospace", padding: '6px 14px', borderRadius: 99, letterSpacing: 0.5, whiteSpace: 'nowrap' as const },
+
+  // Action items
+  actionCard: { background: '#0A0A0E', border: '1px solid rgba(255,68,85,0.25)', borderRadius: 14, marginBottom: 28, overflow: 'hidden' },
+  actionHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #14141C' },
+  actionTitle: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 16, textTransform: 'uppercase' as const, letterSpacing: 1, color: '#EEEEF5' },
+  actionCount: { fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#6A6A82' },
+  actionItems: { display: 'flex', flexDirection: 'column' as const },
+  actionItem: { display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px', borderBottom: '1px solid #0D0D14', textDecoration: 'none', color: '#EEEEF5', transition: 'background 0.15s' },
+  actionDot: { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },
+  actionText: { flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 2 },
+  actionLabel: { fontSize: 14, fontWeight: 600, color: '#EEEEF5' },
+  actionSub: { fontSize: 12, color: '#6A6A82', fontFamily: "'DM Mono', monospace" },
+  actionArrow: { color: '#39FF14', fontSize: 16, fontFamily: "'DM Mono', monospace" },
+
+  statsRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginBottom: 32 },
+  statCard: { background: '#0F0F14', border: '1px solid #1C1C26', borderRadius: 12, padding: '20px', textAlign: 'center' as const },
+  statVal: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 36, color: '#39FF14', lineHeight: 1, marginBottom: 4 },
+  statLabel: { fontSize: 11, color: '#6A6A82', textTransform: 'uppercase' as const, letterSpacing: 1, fontFamily: "'DM Mono', monospace" },
+
+  navGrid: { display: 'flex', flexDirection: 'column' as const, gap: 10, marginBottom: 32 },
+  navCard: { background: '#0F0F14', border: '1px solid #1C1C26', borderRadius: 12, padding: '18px 22px', textDecoration: 'none', color: '#EEEEF5', display: 'flex', alignItems: 'center', gap: 14, transition: 'border-color 0.2s' },
+  navCardIcon: { fontSize: 26, width: 40, textAlign: 'center' as const, flexShrink: 0 },
+  navCardTitle: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 17, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 2 },
+  navCardDesc: { fontSize: 12, color: '#6A6A82' },
+  navCardArrow: { marginLeft: 'auto' as const, color: '#39FF14', fontSize: 18, fontFamily: "'DM Mono', monospace", flexShrink: 0 },
+
+  descCard: { background: '#0F0F14', border: '1px solid #1C1C26', borderRadius: 12, padding: 24 },
+  descLabel: { fontSize: 11, color: '#6A6A82', textTransform: 'uppercase' as const, letterSpacing: 2, marginBottom: 8, fontFamily: "'DM Mono', monospace" },
+  descText: { fontSize: 15, color: '#EEEEF5', lineHeight: 1.6 },
 }

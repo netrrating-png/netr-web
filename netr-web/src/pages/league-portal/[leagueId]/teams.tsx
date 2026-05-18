@@ -57,6 +57,9 @@ export default function TeamsPage() {
   const [showNetrInfo, setShowNetrInfo] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
 
+  // Player search
+  const [playerSearch, setPlayerSearch] = useState('')
+
   // Divisions
   const [divisions, setDivisions]   = useState<LeagueDivision[]>([])
   const [divFilter, setDivFilter]   = useState<string>('all')
@@ -286,6 +289,13 @@ export default function TeamsPage() {
     setTimeout(() => setCopied(null), 2000)
   }
 
+  function copyTeamPage(teamId: string) {
+    const url = `${window.location.origin}/league/${league?.slug}/team/${teamId}`
+    navigator.clipboard.writeText(url)
+    setCopied(`page_${teamId}`)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
   async function assignTeamDivision(teamId: string, divisionId: string | null) {
     await supabase.from('league_teams').update({ division_id: divisionId }).eq('id', teamId)
     setTeams(prev => prev.map(t => t.id === teamId ? { ...t, division_id: divisionId } : t))
@@ -334,8 +344,67 @@ export default function TeamsPage() {
             </form>
           )}
 
+          {/* Player search */}
+          <div style={{ position: 'relative' as const, marginBottom: 16 }}>
+            <span style={{ position: 'absolute' as const, left: 14, top: '50%', transform: 'translateY(-50%)', color: '#6A6A82', fontSize: 16, pointerEvents: 'none' as const }}>🔍</span>
+            <input
+              type="text"
+              placeholder="Search players across all rosters…"
+              value={playerSearch}
+              onChange={e => setPlayerSearch(e.target.value)}
+              style={{ width: '100%', background: '#0F0F14', border: '1px solid #1C1C26', borderRadius: 10, padding: '12px 14px 12px 42px', color: '#EEEEF5', fontSize: 14, fontFamily: "'DM Sans', sans-serif", outline: 'none', boxSizing: 'border-box' as const }}
+            />
+            {playerSearch && (
+              <button onClick={() => setPlayerSearch('')} style={{ position: 'absolute' as const, right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6A6A82', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
+            )}
+          </div>
+
+          {/* Search results */}
+          {playerSearch.trim() && (() => {
+            const q = playerSearch.trim().toLowerCase()
+            const results: { player: LeaguePlayer & { netr_score?: number | null }; team: TeamWithPlayers }[] = []
+            for (const team of teams) {
+              for (const p of team.players) {
+                if (p.display_name.toLowerCase().includes(q) || (p.jersey_number && p.jersey_number.includes(q))) {
+                  results.push({ player: p as LeaguePlayer & { netr_score?: number | null }, team })
+                }
+              }
+            }
+            return (
+              <div style={{ background: '#0F0F14', border: '1px solid #1C1C26', borderRadius: 12, marginBottom: 20, overflow: 'hidden' }}>
+                <div style={{ padding: '12px 18px', borderBottom: '1px solid #14141C', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, textTransform: 'uppercase' as const, letterSpacing: 1, color: '#EEEEF5' }}>Search Results</span>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: '#6A6A82' }}>{results.length} player{results.length !== 1 ? 's' : ''}</span>
+                </div>
+                {results.length === 0 ? (
+                  <div style={{ padding: '28px 18px', textAlign: 'center' as const, color: '#6A6A82', fontSize: 14 }}>No players found matching &ldquo;{playerSearch}&rdquo;</div>
+                ) : (
+                  results.map(({ player, team }) => {
+                    const score = (player as LeaguePlayer & { netr_score?: number | null }).netr_score
+                    return (
+                      <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 18px', borderBottom: '1px solid #0D0D14' }}>
+                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: team.color, boxShadow: `0 0 5px ${team.color}66`, flexShrink: 0 }} />
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 16, textTransform: 'uppercase' as const, letterSpacing: 0.3 }}>
+                            {player.jersey_number && <span style={{ color: '#6A6A82', marginRight: 6, fontFamily: "'DM Mono', monospace", fontSize: 13 }}>#{player.jersey_number}</span>}
+                            {player.display_name}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: 12, color: '#6A6A82' }}>{team.name}</span>
+                        {score != null && (
+                          <span style={{ background: `${netrScoreColor(score)}22`, color: netrScoreColor(score), border: `1px solid ${netrScoreColor(score)}44`, borderRadius: 99, fontSize: 11, padding: '2px 8px', fontFamily: "'DM Mono', monospace" }}>{score.toFixed(1)}</span>
+                        )}
+                        {player.is_claimed && <span style={{ fontSize: 10, color: '#39FF14', fontFamily: "'DM Mono', monospace" }}>✓ claimed</span>}
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            )
+          })()}
+
           {/* Division filter tabs */}
-          {divisions.length > 0 && (
+          {!playerSearch.trim() && divisions.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 20 }}>
               {[{ id: 'all', name: 'All Teams' }, ...divisions].map(d => (
                 <button
@@ -454,7 +523,13 @@ export default function TeamsPage() {
                         onClick={e => { e.stopPropagation(); copyJoinLink(team.join_token) }}
                         style={S.shareBtn}
                       >
-                        {copied === team.join_token ? '✓ Copied!' : '🔗 Share Link'}
+                        {copied === team.join_token ? '✓ Copied!' : '🔗 Join Link'}
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); copyTeamPage(team.id) }}
+                        style={{ ...S.shareBtn, color: copied === `page_${team.id}` ? '#39FF14' : '#EEEEF5', borderColor: copied === `page_${team.id}` ? 'rgba(57,255,20,0.4)' : '#2E2E3A' }}
+                      >
+                        {copied === `page_${team.id}` ? '✓ Copied!' : '📤 Team Page'}
                       </button>
                       <span style={S.chevron}>{expandedTeam === team.id ? '▲' : '▼'}</span>
                     </div>

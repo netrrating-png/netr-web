@@ -66,6 +66,9 @@ export default function BoxScorePage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [cardMode, setCardMode] = useState(false)
+  const [cardTeam, setCardTeam] = useState<'home' | 'away'>('home')
+  const [cardIdx, setCardIdx] = useState(0)
 
   useEffect(() => {
     if (!leagueId || !gameId) return
@@ -282,18 +285,131 @@ export default function BoxScorePage() {
               {game.location && <div style={S.gameLocation}>📍 {game.location}</div>}
             </div>
 
-            {/* Tips bar */}
-            <div style={S.tipsBar}>
-              <span style={S.tipIcon}>💡</span>
-              <span style={S.tipText}>
-                Enter the final score above, then fill in each player&apos;s stats below. Hit <strong>Save Box Score</strong> when done — you can come back and edit anytime.
-                {(enabledSet.has('fg%') || enabledSet.has('3p%') || enabledSet.has('ft%')) && ' Shooting percentages calculate automatically.'}
-              </span>
+            {/* Tips bar + mode toggle */}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 20 }}>
+              <div style={{ ...S.tipsBar, flex: 1, marginBottom: 0 }}>
+                <span style={S.tipIcon}>💡</span>
+                <span style={S.tipText}>
+                  Enter the final score above, then fill in each player&apos;s stats below. Hit <strong>Save Box Score</strong> when done — you can come back and edit anytime.
+                  {(enabledSet.has('fg%') || enabledSet.has('3p%') || enabledSet.has('ft%')) && ' Shooting percentages calculate automatically.'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setCardMode(!cardMode); setCardIdx(0); setCardTeam('home') }}
+                style={{ ...S.modeToggle, ...(cardMode ? S.modeToggleActive : {}) }}
+                title={cardMode ? 'Switch to table view' : 'Switch to card view (mobile-friendly)'}
+              >
+                {cardMode ? '⊞ Table' : '📱 Card'}
+              </button>
             </div>
 
-            {/* Box scores */}
-            {homeTeam && <TeamTable team={homeTeam} rows={homeRows} setRows={setHomeRows} />}
-            {awayTeam && <TeamTable team={awayTeam} rows={awayRows} setRows={setAwayRows} />}
+            {/* Card mode — one player at a time, large touch targets */}
+            {cardMode && homeTeam && awayTeam && (() => {
+              const allPlayers: { team: LeagueTeam; rows: PlayerStatRow[]; setRows: (r: PlayerStatRow[]) => void; side: 'home' | 'away' }[] = [
+                { team: homeTeam, rows: homeRows, setRows: setHomeRows, side: 'home' },
+                { team: awayTeam, rows: awayRows, setRows: setAwayRows, side: 'away' },
+              ]
+              const current = allPlayers.find(t => t.side === cardTeam)!
+              const row = current.rows[cardIdx]
+              const totalHome = homeRows.length
+              const totalAway = awayRows.length
+              const globalIdx = cardTeam === 'home' ? cardIdx : totalHome + cardIdx
+              const totalPlayers = totalHome + totalAway
+
+              function cardNav(delta: number) {
+                let newGlobal = globalIdx + delta
+                if (newGlobal < 0) newGlobal = totalPlayers - 1
+                if (newGlobal >= totalPlayers) newGlobal = 0
+                if (newGlobal < totalHome) { setCardTeam('home'); setCardIdx(newGlobal) }
+                else { setCardTeam('away'); setCardIdx(newGlobal - totalHome) }
+              }
+
+              if (!row) return null
+
+              const hasData = rowHasData(row)
+
+              return (
+                <div style={S.cardView}>
+                  {/* Team selector tabs */}
+                  <div style={S.cardTeamTabs}>
+                    {allPlayers.map(t => (
+                      <button
+                        key={t.side}
+                        type="button"
+                        onClick={() => { setCardTeam(t.side); setCardIdx(0) }}
+                        style={{ ...S.cardTeamTab, ...(cardTeam === t.side ? { borderBottomColor: t.team.color, color: '#EEEEF5' } : {}) }}
+                      >
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: t.team.color, display: 'inline-block', marginRight: 6 }} />
+                        {t.team.name}
+                        <span style={{ marginLeft: 8, fontSize: 11, color: '#6A6A82' }}>
+                          {t.rows.filter(rowHasData).length}/{t.rows.length}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Player card */}
+                  <div style={S.playerCard}>
+                    <div style={S.cardPlayerHeader}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        {hasData && <span style={{ color: '#39FF14', fontSize: 18 }}>✓</span>}
+                        {row.player.jersey_number && <span style={S.cardJersey}>#{row.player.jersey_number}</span>}
+                        <span style={S.cardPlayerName}>{row.player.display_name}</span>
+                      </div>
+                      <span style={{ fontSize: 13, color: '#6A6A82', fontFamily: "'DM Mono', monospace" }}>
+                        {cardIdx + 1} / {current.rows.length}
+                      </span>
+                    </div>
+
+                    {/* Stats grid */}
+                    <div style={S.cardStatsGrid}>
+                      {allColFields.map((field, fi) => (
+                        <div key={field} style={S.cardStatCell}>
+                          <div style={S.cardStatLabel}>{allColLabels[fi]}</div>
+                          <div style={S.cardStepper}>
+                            <button
+                              type="button"
+                              onMouseDown={e => { e.preventDefault(); updateStat(current.rows, current.setRows, row.player.id, field, Math.max(0, getNum(row.stat, field) - 1)) }}
+                              style={S.cardStepBtn}
+                            >−</button>
+                            <span style={S.cardStepVal}>{getNum(row.stat, field)}</span>
+                            <button
+                              type="button"
+                              onMouseDown={e => { e.preventDefault(); updateStat(current.rows, current.setRows, row.player.id, field, getNum(row.stat, field) + 1) }}
+                              style={S.cardStepBtn}
+                            >+</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Navigation */}
+                  <div style={S.cardNav}>
+                    <button type="button" onClick={() => cardNav(-1)} style={S.cardNavBtn}>← Prev</button>
+                    <div style={S.cardProgress}>
+                      {Array.from({ length: totalPlayers }, (_, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            width: 6, height: 6, borderRadius: '50%',
+                            background: i === globalIdx ? '#39FF14' :
+                              (i < totalHome ? homeTeam.color : awayTeam.color) + '55',
+                            transition: 'background 0.2s',
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <button type="button" onClick={() => cardNav(1)} style={S.cardNavBtn}>Next →</button>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Table mode box scores */}
+            {!cardMode && homeTeam && <TeamTable team={homeTeam} rows={homeRows} setRows={setHomeRows} />}
+            {!cardMode && awayTeam && <TeamTable team={awayTeam} rows={awayRows} setRows={setAwayRows} />}
 
             {/* Save bar */}
             <div style={S.saveBar}>
@@ -500,4 +616,60 @@ const S: Record<string, React.CSSProperties> = {
     background: 'rgba(57,255,20,0.15)',
     color: '#39FF14',
   },
+
+  // Mode toggle
+  modeToggle: {
+    flexShrink: 0, background: '#14141C', border: '1px solid #2E2E3A', borderRadius: 8,
+    color: '#6A6A82', fontSize: 13, fontFamily: "'DM Mono', monospace",
+    padding: '10px 14px', cursor: 'pointer', whiteSpace: 'nowrap' as const,
+    alignSelf: 'flex-start',
+  },
+  modeToggleActive: { borderColor: 'rgba(57,255,20,0.4)', color: '#39FF14', background: 'rgba(57,255,20,0.08)' },
+
+  // Card mode
+  cardView: { marginBottom: 20 },
+  cardTeamTabs: { display: 'flex', borderBottom: '1px solid #1C1C26', marginBottom: 0 },
+  cardTeamTab: {
+    flex: 1, padding: '12px 16px', background: 'transparent', border: 'none',
+    borderBottom: '2px solid transparent', color: '#6A6A82', cursor: 'pointer',
+    fontSize: 14, fontFamily: "'DM Sans', sans-serif", fontWeight: 500,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    transition: 'color 0.15s',
+  },
+  playerCard: {
+    background: '#0F0F14', border: '1px solid #1C1C26', borderTop: 'none',
+    borderRadius: '0 0 14px 14px', padding: '20px',
+  },
+  cardPlayerHeader: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid #1C1C26',
+  },
+  cardJersey: { fontFamily: "'DM Mono', monospace", color: '#6A6A82', fontSize: 18 },
+  cardPlayerName: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 28, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
+  cardStatsGrid: {
+    display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 12,
+  },
+  cardStatCell: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 8 },
+  cardStatLabel: { fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace", textTransform: 'uppercase' as const, letterSpacing: 1 },
+  cardStepper: { display: 'flex', alignItems: 'center', gap: 6 },
+  cardStepBtn: {
+    width: 48, height: 48, background: '#14141C', border: '1px solid #2A2A38',
+    borderRadius: 10, color: '#EEEEF5', fontSize: 28, lineHeight: 1, cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontFamily: 'monospace', padding: 0, userSelect: 'none' as const,
+    WebkitTapHighlightColor: 'transparent',
+  },
+  cardStepVal: {
+    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 32,
+    minWidth: 40, textAlign: 'center' as const, color: '#EEEEF5',
+  },
+  cardNav: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '16px 0 0',
+  },
+  cardNavBtn: {
+    background: '#14141C', border: '1px solid #2E2E3A', borderRadius: 8, color: '#EEEEF5',
+    fontSize: 14, fontFamily: "'DM Mono', monospace", padding: '10px 20px', cursor: 'pointer',
+  },
+  cardProgress: { display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' as const, justifyContent: 'center', flex: 1, padding: '0 12px' },
 }

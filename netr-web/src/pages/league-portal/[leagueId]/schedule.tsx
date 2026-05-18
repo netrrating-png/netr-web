@@ -775,6 +775,26 @@ export default function SchedulePage() {
               {form.home_team_id === form.away_team_id && form.home_team_id && (
                 <div style={S.error}>Home and away team must be different.</div>
               )}
+              {/* Conflict detection */}
+              {form.scheduled_at && (form.home_team_id || form.away_team_id) && (() => {
+                const gameDate = new Date(form.scheduled_at).toDateString()
+                const conflicts = games.filter(g => g.status !== 'cancelled').filter(g => {
+                  const gd = new Date(g.scheduled_at).toDateString()
+                  if (gd !== gameDate) return false
+                  return (form.home_team_id && (g.home_team_id === form.home_team_id || g.away_team_id === form.home_team_id)) ||
+                         (form.away_team_id && (g.home_team_id === form.away_team_id || g.away_team_id === form.away_team_id))
+                })
+                if (conflicts.length === 0) return null
+                return (
+                  <div style={{ background: 'rgba(245,197,66,0.08)', border: '1px solid rgba(245,197,66,0.3)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: '#F5C542' }}>
+                    ⚠ Schedule conflict: {conflicts.map(c => {
+                      const ht = teams.find(t => t.id === c.home_team_id)?.name ?? '?'
+                      const at = teams.find(t => t.id === c.away_team_id)?.name ?? '?'
+                      return `${ht} vs ${at}`
+                    }).join(', ')} already scheduled on this date.
+                  </div>
+                )
+              })()}
               <div style={S.formActions}>
                 <button type="button" onClick={() => setShowForm(false)} style={S.cancelBtn}>Cancel</button>
                 <button type="submit" style={S.saveBtn} disabled={saving}>{saving ? 'Adding…' : 'Add Game'}</button>
@@ -841,76 +861,15 @@ export default function SchedulePage() {
                 </div>
               )}
 
-              {bracketTemplate && bracketTemplate.map(round => {
-                const roundGames = playoffGames.filter(g => g.playoff_round === round.roundNum)
-                const roundComplete = roundGames.length === round.games.length && roundGames.every(g => g.status === 'final')
-                return (
-                  <div key={round.roundNum} style={{ marginBottom:24 }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12 }}>
-                      <div style={S.sectionLabel}>Round {round.roundNum} — {round.name}</div>
-                      {roundComplete && <span style={{ background:'rgba(57,255,20,0.12)', color:'#39FF14', fontSize:11, fontFamily:"'DM Mono',monospace", padding:'2px 10px', borderRadius:99 }}>✓ Complete</span>}
-                      {!roundComplete && roundGames.length > 0 && <span style={{ background:'rgba(245,197,66,0.12)', color:'#F5C542', fontSize:11, fontFamily:"'DM Mono',monospace", padding:'2px 10px', borderRadius:99 }}>In Progress</span>}
-                    </div>
-                    <div style={{ display:'flex', flexDirection:'column' as const, gap:8 }}>
-                      {round.games.map(bg => {
-                        const dbg = playoffGames.find(g => g.playoff_bracket_slot === bg.slot)
-                        const homeName = dbg?.home_team?.name ?? (bg.prevHomeSlot === null ? `#${bg.homeSeed} Seed` : `W Game ${bg.prevHomeSlot}`)
-                        const awayName = dbg?.away_team?.name ?? (bg.prevAwaySlot === null ? `#${bg.awaySeed} Seed` : `W Game ${bg.prevAwaySlot}`)
-                        return (
-                          <div key={bg.slot} style={{ ...S.bracketRow, flexDirection: editingPlayoffSlot === bg.slot ? 'column' as const : 'row' as const, alignItems: editingPlayoffSlot === bg.slot ? 'stretch' : 'center' }}>
-                            {editingPlayoffSlot === bg.slot && dbg ? (
-                              <>
-                                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
-                                  <div>
-                                    <label style={S.label}>Date &amp; Time</label>
-                                    <input type="datetime-local" value={playoffEditForm.scheduled_at} onChange={e => setPlayoffEditForm(f => ({ ...f, scheduled_at: e.target.value }))} style={S.input} />
-                                  </div>
-                                  <div>
-                                    <label style={S.label}>Location</label>
-                                    <input type="text" value={playoffEditForm.location} onChange={e => setPlayoffEditForm(f => ({ ...f, location: e.target.value }))} style={S.input} placeholder="Gym or court name" />
-                                  </div>
-                                </div>
-                                <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
-                                  <button onClick={() => setEditingPlayoffSlot(null)} style={S.cancelBtn}>Cancel</button>
-                                  <button onClick={() => savePlayoffEdit(dbg.id)} style={S.saveBtn} disabled={savingPlayoffEdit || !playoffEditForm.scheduled_at}>{savingPlayoffEdit ? 'Saving…' : 'Save Changes'}</button>
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div style={{ flex:1 }}>
-                                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
-                                    {dbg?.home_team && <span style={{ width:8, height:8, borderRadius:'50%', background:dbg.home_team.color, display:'inline-block' }}/>}
-                                    <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:17, color: dbg?.status==='final' && (dbg.home_score??0) > (dbg.away_score??0) ? '#39FF14' : '#EEEEF5' }}>{homeName}</span>
-                                    {dbg?.status==='final' && <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:20, marginLeft:'auto', color:'#EEEEF5' }}>{dbg.home_score}</span>}
-                                  </div>
-                                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                                    {dbg?.away_team && <span style={{ width:8, height:8, borderRadius:'50%', background:dbg.away_team.color, display:'inline-block' }}/>}
-                                    <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:700, fontSize:17, color: dbg?.status==='final' && (dbg.away_score??0) > (dbg.home_score??0) ? '#39FF14' : '#EEEEF5' }}>{awayName}</span>
-                                    {dbg?.status==='final' && <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:20, marginLeft:'auto', color:'#EEEEF5' }}>{dbg.away_score}</span>}
-                                  </div>
-                                </div>
-                                <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
-                                  {!dbg && <span style={{ fontSize:11, color:'#6A6A82', fontFamily:"'DM Mono',monospace" }}>TBD</span>}
-                                  {dbg?.status==='scheduled' && <>
-                                    <span style={{ fontSize:12, color:'#6A6A82' }}>{new Date(dbg.scheduled_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
-                                    <a href={`/league-portal/${leagueId}/score/${dbg.id}`} style={S.scoreBtn}>Enter Score + Stats</a>
-                                    <button onClick={() => { setEditingPlayoffSlot(bg.slot); setPlayoffEditForm({ scheduled_at: dbg.scheduled_at.slice(0,16), location: dbg.location ?? '' }) }} style={S.cancelSmBtn}>Edit</button>
-                                  </>}
-                                  {dbg?.status==='final' && <>
-                                    <span style={S.finalBadge}>Final</span>
-                                    <a href={`/league-portal/${leagueId}/score/${dbg.id}`} style={S.boxBtn}>Box Score</a>
-                                  </>}
-                                  {dbg && <button onClick={() => deleteGame(dbg.id)} style={S.deleteSmBtn}>Delete</button>}
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })}
+              {bracketTemplate && (
+                <VisualBracket
+                  bracketTemplate={bracketTemplate}
+                  playoffGames={playoffGames}
+                  leagueName={league.name}
+                  accentColor={league.accent_color || '#39FF14'}
+                  leagueId={leagueId}
+                />
+              )}
 
               {!allRoundsComplete && (
                 <div style={{ ...S.inlineForm, marginTop:8 }}>
@@ -967,6 +926,40 @@ function GameRow({ game, teams = [], onCancel, onDelete, onEdit, leagueId, rsvpY
     away_team_id: game.away_team_id,
   })
   const [savingEdit, setSavingEdit] = useState(false)
+
+  // Quick score
+  const [quickMode, setQuickMode] = useState(false)
+  const [quickHome, setQuickHome] = useState('')
+  const [quickAway, setQuickAway] = useState('')
+  const [savingQuick, setSavingQuick] = useState(false)
+
+  // Commissioner notes (localStorage)
+  const noteKey = `game_note_${game.id}`
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [noteValue, setNoteValue] = useState<string>(() => {
+    if (typeof window === 'undefined') return ''
+    return localStorage.getItem(noteKey) ?? ''
+  })
+
+  function saveNote(val: string) {
+    setNoteValue(val)
+    if (typeof window !== 'undefined') {
+      if (val.trim()) localStorage.setItem(noteKey, val)
+      else localStorage.removeItem(noteKey)
+    }
+  }
+
+  async function saveQuickScore() {
+    const hs = parseInt(quickHome)
+    const as_ = parseInt(quickAway)
+    if (isNaN(hs) || isNaN(as_)) return
+    setSavingQuick(true)
+    const updates = { home_score: hs, away_score: as_, status: 'final' as const }
+    await supabase.from('league_games').update(updates).eq('id', game.id)
+    onEdit?.(game.id, updates)
+    setSavingQuick(false)
+    setQuickMode(false)
+  }
 
   async function saveEdit() {
     if (editForm.home_team_id === editForm.away_team_id) return
@@ -1030,53 +1023,364 @@ function GameRow({ game, teams = [], onCancel, onDelete, onEdit, leagueId, rsvpY
     )
   }
 
+  const isPastScheduled = game.status === 'scheduled' && new Date(game.scheduled_at) < new Date()
+
   return (
-    <div style={{ ...S.gameRow, opacity: game.status === 'cancelled' ? 0.45 : 1 }}>
-      <div style={S.gameDate}>
-        <div style={S.gameDateMain}>{dateStr}</div>
-        <div style={S.gameTime}>{timeStr}</div>
-        {game.location && <div style={S.gameLocation}>📍 {game.location}</div>}
+    <div style={{ background: '#0F0F14', border: `1px solid ${noteValue ? 'rgba(245,197,66,0.25)' : '#1C1C26'}`, borderRadius: 12, overflow: 'hidden', opacity: game.status === 'cancelled' ? 0.45 : 1 }}>
+      <div style={{ ...S.gameRow, border: 'none', borderRadius: 0, background: 'transparent' }}>
+        <div style={S.gameDate}>
+          <div style={{ ...S.gameDateMain, color: isPastScheduled ? '#FF453A' : '#EEEEF5' }}>{dateStr}</div>
+          <div style={S.gameTime}>{timeStr}</div>
+          {game.location && <div style={S.gameLocation}>📍 {game.location}</div>}
+        </div>
+
+        <div style={S.gameMatchup}>
+          <TeamChip team={game.home_team} score={game.home_score} won={game.status === 'final' && game.home_score! > game.away_score!} />
+          <span style={S.gameVs}>vs</span>
+          <TeamChip team={game.away_team} score={game.away_score} won={game.status === 'final' && game.away_score! > game.home_score!} />
+        </div>
+
+        <div style={S.gameActions}>
+          {game.status === 'scheduled' && rsvpYes > 0 && (
+            <span style={{ fontSize: 12, color: '#39FF14', fontFamily: "'DM Mono', monospace", background: 'rgba(57,255,20,0.08)', border: '1px solid rgba(57,255,20,0.2)', borderRadius: 99, padding: '3px 10px' }}>
+              ✓ {rsvpYes} in
+            </span>
+          )}
+          {isPastScheduled && <span style={{ fontSize: 11, color: '#FF453A', fontFamily: "'DM Mono', monospace", background: 'rgba(255,69,58,0.1)', border: '1px solid rgba(255,69,58,0.25)', borderRadius: 99, padding: '3px 10px' }}>needs score</span>}
+          {game.status === 'final' && <span style={S.finalBadge}>Final</span>}
+          {game.status === 'cancelled' && <span style={{ ...S.finalBadge, background: 'rgba(255,69,58,0.1)', color: '#FF453A' }}>Cancelled</span>}
+          {game.status === 'scheduled' && !quickMode && (
+            <button onClick={() => { setQuickMode(true); setQuickHome(''); setQuickAway('') }} style={S.scoreBtn}>
+              {isPastScheduled ? '⚡ Quick Score' : 'Enter Score'}
+            </button>
+          )}
+          {game.status === 'final' && (
+            <a href={`/league-portal/${leagueId}/score/${game.id}`} style={S.editBtn}>Box Score</a>
+          )}
+          {/* Notes toggle */}
+          <button
+            onClick={() => setNoteOpen(o => !o)}
+            style={{ ...S.cancelSmBtn, color: noteValue ? '#F5C542' : '#6A6A82', borderColor: noteValue ? 'rgba(245,197,66,0.3)' : '#2E2E3A', fontSize: 14 }}
+            title="Commissioner note"
+          >
+            {noteValue ? '📝' : '📝'}
+          </button>
+          {game.status === 'scheduled' && onEdit && !quickMode && (
+            <button onClick={() => setEditing(true)} style={S.cancelSmBtn}>Edit</button>
+          )}
+          {game.status === 'scheduled' && onCancel && !quickMode && (
+            <button onClick={onCancel} style={S.cancelSmBtn}>Cancel</button>
+          )}
+          {onDelete && !confirmDelete && !quickMode && (
+            <button onClick={() => setConfirmDelete(true)} style={S.deleteSmBtn}>Del</button>
+          )}
+          {onDelete && confirmDelete && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 12, color: '#FF453A' }}>Delete?</span>
+              <button onClick={onDelete} style={{ ...S.cancelSmBtn, color: '#FF453A', borderColor: '#FF453A' }}>Yes</button>
+              <button onClick={() => setConfirmDelete(false)} style={S.cancelSmBtn}>No</button>
+            </span>
+          )}
+        </div>
       </div>
 
-      <div style={S.gameMatchup}>
-        <TeamChip team={game.home_team} score={game.home_score} won={game.status === 'final' && game.home_score! > game.away_score!} />
-        <span style={S.gameVs}>vs</span>
-        <TeamChip team={game.away_team} score={game.away_score} won={game.status === 'final' && game.away_score! > game.home_score!} />
+      {/* Quick score panel */}
+      {quickMode && (
+        <div style={{ borderTop: '1px solid #1C1C26', padding: '14px 20px', background: '#0A0A0E', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' as const }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, flexWrap: 'wrap' as const }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: game.home_team!.color }} />
+              <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15 }}>{game.home_team!.name}</span>
+              <input
+                type="number"
+                min={0}
+                value={quickHome}
+                onChange={e => setQuickHome(e.target.value)}
+                placeholder="0"
+                style={{ width: 64, background: '#0F0F14', border: '1.5px solid #2E2E3A', borderRadius: 8, color: '#EEEEF5', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 24, padding: '6px 10px', outline: 'none', textAlign: 'center' as const, boxSizing: 'border-box' as const }}
+                autoFocus
+              />
+            </div>
+            <span style={{ color: '#4A4A5E', fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20 }}>—</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="number"
+                min={0}
+                value={quickAway}
+                onChange={e => setQuickAway(e.target.value)}
+                placeholder="0"
+                style={{ width: 64, background: '#0F0F14', border: '1.5px solid #2E2E3A', borderRadius: 8, color: '#EEEEF5', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 24, padding: '6px 10px', outline: 'none', textAlign: 'center' as const, boxSizing: 'border-box' as const }}
+              />
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: game.away_team!.color }} />
+              <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15 }}>{game.away_team!.name}</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setQuickMode(false)} style={S.cancelSmBtn}>Cancel</button>
+            <button onClick={saveQuickScore} disabled={savingQuick || quickHome === '' || quickAway === ''} style={S.saveBtn}>
+              {savingQuick ? 'Saving…' : '✓ Mark Final'}
+            </button>
+            <a href={`/league-portal/${leagueId}/score/${game.id}`} style={{ ...S.cancelSmBtn, textDecoration: 'none', fontSize: 11, color: '#6A6A82' }}>Full stats →</a>
+          </div>
+        </div>
+      )}
+
+      {/* Notes panel */}
+      {noteOpen && (
+        <div style={{ borderTop: '1px solid rgba(245,197,66,0.15)', padding: '12px 20px', background: 'rgba(245,197,66,0.03)' }}>
+          <div style={{ fontSize: 11, color: '#F5C542', fontFamily: "'DM Mono', monospace", textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>Commissioner Note (private)</div>
+          <textarea
+            value={noteValue}
+            onChange={e => saveNote(e.target.value)}
+            placeholder="e.g. Gym closed — rescheduled. Forfeit. Makeup game."
+            rows={2}
+            style={{ width: '100%', background: '#0A0A0E', border: '1px solid rgba(245,197,66,0.2)', borderRadius: 8, color: '#EEEEF5', fontFamily: "'DM Sans', sans-serif", fontSize: 13, padding: '10px 12px', outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function VisualBracket({ bracketTemplate, playoffGames, leagueName, accentColor, leagueId }: {
+  bracketTemplate: ReturnType<typeof getPlayoffBracket>
+  playoffGames: GameWithTeams[]
+  leagueName: string
+  accentColor: string
+  leagueId: string
+}) {
+  const accent = accentColor || '#39FF14'
+  const [exportingImg, setExportingImg] = useState(false)
+
+  if (!bracketTemplate) return null
+
+  function getWinnerName(slot: number): string | null {
+    const g = playoffGames.find(g => g.playoff_bracket_slot === slot)
+    if (!g || g.status !== 'final' || g.home_score == null || g.away_score == null) return null
+    return g.home_score > g.away_score ? (g.home_team?.name ?? null) : (g.away_team?.name ?? null)
+  }
+  function getWinnerColor(slot: number): string {
+    const g = playoffGames.find(g => g.playoff_bracket_slot === slot)
+    if (!g || g.status !== 'final' || g.home_score == null || g.away_score == null) return '#6A6A82'
+    return g.home_score > g.away_score ? (g.home_team?.color ?? '#6A6A82') : (g.away_team?.color ?? '#6A6A82')
+  }
+
+  function exportBracketImage() {
+    setExportingImg(true)
+    const W = 1200, H = Math.max(600, bracketTemplate!.length * 280)
+    const canvas = document.createElement('canvas')
+    canvas.width = W; canvas.height = H
+    const ctx = canvas.getContext('2d')!
+    const [ar, ag, ab] = hexToRgb(accent)
+
+    // Background
+    const bg = ctx.createLinearGradient(0, 0, 0, H)
+    bg.addColorStop(0, '#07070F'); bg.addColorStop(1, '#020206')
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H)
+    ctx.fillStyle = accent; ctx.fillRect(0, 0, W, 8)
+
+    // Title
+    ctx.fillStyle = accent
+    ctx.font = '900 64px Impact, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(leagueName.toUpperCase(), W / 2, 80)
+    ctx.fillStyle = 'rgba(255,255,255,0.3)'
+    ctx.font = '400 22px "Courier New", monospace'
+    ctx.fillText('PLAYOFF BRACKET', W / 2, 112)
+
+    // Draw bracket columns
+    const numRounds = bracketTemplate!.length
+    const colW = (W - 80) / numRounds
+    const rowH = Math.min(100, (H - 160) / Math.max(bracketTemplate![0].games.length, 1))
+
+    bracketTemplate!.forEach((round, rIdx) => {
+      const x = 40 + rIdx * colW
+      const numGames = round.games.length
+      const spacing = (H - 160) / numGames
+
+      // Round label
+      ctx.fillStyle = `rgba(${ar},${ag},${ab},0.7)`
+      ctx.font = '700 16px "Courier New", monospace'
+      ctx.textAlign = 'center'
+      ctx.fillText(round.name.toUpperCase(), x + colW / 2, 145)
+
+      round.games.forEach((bg, gIdx) => {
+        const dbg = playoffGames.find(g => g.playoff_bracket_slot === bg.slot)
+        const cy = 160 + spacing * gIdx + spacing / 2
+        const bx = x + 10, bw = colW - 24, bh = 72
+
+        // Card background
+        ctx.fillStyle = '#0F0F14'
+        ctx.strokeStyle = dbg?.status === 'final' ? `${accent}55` : '#1C1C26'
+        ctx.lineWidth = 1.5
+        ctx.beginPath()
+        ;(ctx as CanvasRenderingContext2D & { roundRect?: (x:number,y:number,w:number,h:number,r:number)=>void }).roundRect?.(bx, cy - bh/2, bw, bh, 8) ?? ctx.rect(bx, cy - bh/2, bw, bh)
+        ctx.fill(); ctx.stroke()
+
+        const homeName = dbg?.home_team?.name ?? (bg.prevHomeSlot === null ? `#${bg.homeSeed} Seed` : `W Game ${bg.prevHomeSlot}`)
+        const awayName = dbg?.away_team?.name ?? (bg.prevAwaySlot === null ? `#${bg.awaySeed} Seed` : `W Game ${bg.prevAwaySlot}`)
+        const homeWon = dbg?.status === 'final' && (dbg.home_score ?? 0) > (dbg.away_score ?? 0)
+        const awayWon = dbg?.status === 'final' && (dbg.away_score ?? 0) > (dbg.home_score ?? 0)
+
+        // Team dots
+        if (dbg?.home_team?.color) { ctx.beginPath(); ctx.arc(bx + 12, cy - 11, 4, 0, Math.PI*2); ctx.fillStyle = dbg.home_team.color; ctx.fill() }
+        if (dbg?.away_team?.color) { ctx.beginPath(); ctx.arc(bx + 12, cy + 11, 4, 0, Math.PI*2); ctx.fillStyle = dbg.away_team.color; ctx.fill() }
+
+        ctx.font = `600 14px "Courier New", monospace`
+        ctx.textAlign = 'left'
+        ctx.fillStyle = homeWon ? accent : 'rgba(255,255,255,0.75)'
+        ctx.fillText(homeName.slice(0, 18), bx + 22, cy - 7)
+        ctx.fillStyle = awayWon ? accent : 'rgba(255,255,255,0.75)'
+        ctx.fillText(awayName.slice(0, 18), bx + 22, cy + 15)
+
+        if (dbg?.status === 'final') {
+          ctx.textAlign = 'right'
+          ctx.font = '700 16px Impact, sans-serif'
+          ctx.fillStyle = homeWon ? accent : 'rgba(255,255,255,0.4)'
+          ctx.fillText(String(dbg.home_score ?? ''), bx + bw - 8, cy - 5)
+          ctx.fillStyle = awayWon ? accent : 'rgba(255,255,255,0.4)'
+          ctx.fillText(String(dbg.away_score ?? ''), bx + bw - 8, cy + 17)
+        }
+
+        // Connector line to next round
+        if (rIdx < numRounds - 1) {
+          const nextSpacing = (H - 160) / Math.max(round.games.length / 2, 1)
+          const pairIdx = Math.floor(gIdx / 2)
+          const nextCy = 160 + nextSpacing * pairIdx + nextSpacing / 2
+          ctx.strokeStyle = `rgba(${ar},${ag},${ab},0.2)`
+          ctx.lineWidth = 1
+          ctx.beginPath()
+          ctx.moveTo(bx + bw, cy)
+          ctx.lineTo(bx + bw + (colW - bw - 10) / 2, cy)
+          ctx.lineTo(bx + bw + (colW - bw - 10) / 2, nextCy)
+          ctx.lineTo(bx + colW, nextCy)
+          ctx.stroke()
+        }
+      })
+    })
+
+    ctx.fillStyle = `rgba(${ar},${ag},${ab},0.5)`
+    ctx.font = '700 18px Impact, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText('NETR LEAGUES · netrrating.com', W / 2, H - 12)
+
+    const url = canvas.toDataURL('image/jpeg', 0.95)
+    const a = document.createElement('a')
+    a.href = url; a.download = `${leagueName}-bracket.jpg`; a.click()
+    setExportingImg(false)
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <button
+          onClick={exportBracketImage}
+          disabled={exportingImg}
+          style={{ background: `${accent}18`, border: `1px solid ${accent}55`, borderRadius: 8, color: accent, fontSize: 13, padding: '8px 16px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}
+        >
+          {exportingImg ? 'Generating…' : '📤 Export Bracket JPEG'}
+        </button>
       </div>
 
-      <div style={S.gameActions}>
-        {game.status === 'scheduled' && rsvpYes > 0 && (
-          <span style={{ fontSize: 12, color: '#39FF14', fontFamily: "'DM Mono', monospace", background: 'rgba(57,255,20,0.08)', border: '1px solid rgba(57,255,20,0.2)', borderRadius: 99, padding: '3px 10px' }}>
-            ✓ {rsvpYes} in
-          </span>
-        )}
-        {game.status === 'final' && <span style={S.finalBadge}>Final</span>}
-        {game.status === 'cancelled' && <span style={{ ...S.finalBadge, background: 'rgba(255,69,58,0.1)', color: '#FF453A' }}>Cancelled</span>}
-        {game.status === 'scheduled' && (
-          <a href={`/league-portal/${leagueId}/score/${game.id}`} style={S.scoreBtn}>Enter Score</a>
-        )}
-        {game.status === 'final' && (
-          <a href={`/league-portal/${leagueId}/score/${game.id}`} style={S.editBtn}>Box Score</a>
-        )}
-        {game.status === 'scheduled' && onEdit && (
-          <button onClick={() => setEditing(true)} style={S.cancelSmBtn}>Edit</button>
-        )}
-        {game.status === 'scheduled' && onCancel && (
-          <button onClick={onCancel} style={S.cancelSmBtn}>Cancel Game</button>
-        )}
-        {onDelete && !confirmDelete && (
-          <button onClick={() => setConfirmDelete(true)} style={S.deleteSmBtn}>Delete</button>
-        )}
-        {onDelete && confirmDelete && (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 12, color: '#FF453A' }}>Delete?</span>
-            <button onClick={onDelete} style={{ ...S.cancelSmBtn, color: '#FF453A', borderColor: '#FF453A' }}>Yes</button>
-            <button onClick={() => setConfirmDelete(false)} style={S.cancelSmBtn}>No</button>
-          </span>
-        )}
+      {/* Visual bracket — horizontal scroll on mobile */}
+      <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
+        <div style={{ display: 'flex', gap: 0, minWidth: bracketTemplate.length * 220, alignItems: 'stretch' }}>
+          {bracketTemplate.map((round, rIdx) => {
+            const numGames = round.games.length
+            const isLast = rIdx === bracketTemplate.length - 1
+            return (
+              <div key={round.roundNum} style={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column' as const }}>
+                {/* Round header */}
+                <div style={{ textAlign: 'center' as const, padding: '0 8px 12px', fontSize: 11, color: accent, fontFamily: "'DM Mono', monospace", textTransform: 'uppercase' as const, letterSpacing: 2 }}>
+                  {round.name}
+                </div>
+
+                {/* Games column — evenly spaced */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, justifyContent: 'space-around', padding: '0 8px', gap: 8 }}>
+                  {round.games.map((bg, gIdx) => {
+                    const dbg = playoffGames.find(g => g.playoff_bracket_slot === bg.slot)
+                    const homeName = dbg?.home_team?.name ?? (bg.prevHomeSlot === null ? `#${bg.homeSeed} Seed` : `Winner R${rIdx}G${bg.prevHomeSlot}`)
+                    const awayName = dbg?.away_team?.name ?? (bg.prevAwaySlot === null ? `#${bg.awaySeed} Seed` : `Winner R${rIdx}G${bg.prevAwaySlot}`)
+                    const homeWon = dbg?.status === 'final' && (dbg.home_score ?? 0) > (dbg.away_score ?? 0)
+                    const awayWon = dbg?.status === 'final' && (dbg.away_score ?? 0) > (dbg.home_score ?? 0)
+                    const isFinal = dbg?.status === 'final'
+
+                    // Connector: right side connects to next round via pseudo
+                    const connectorStyle: React.CSSProperties = !isLast ? {
+                      position: 'relative' as const,
+                    } : {}
+
+                    return (
+                      <div
+                        key={bg.slot}
+                        style={{ ...connectorStyle, display: 'flex', alignItems: 'center' }}
+                      >
+                        <div style={{ flex: 1, background: '#0F0F14', border: `1.5px solid ${isFinal ? accent + '44' : '#1C1C26'}`, borderRadius: 10, overflow: 'hidden', transition: 'border-color 0.2s' }}>
+                          {/* Home team row */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderBottom: '1px solid #14141C', background: homeWon ? `${accent}08` : 'transparent' }}>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: dbg?.home_team?.color ?? '#3A3A4E', flexShrink: 0 }} />
+                            <span style={{ flex: 1, fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, textTransform: 'uppercase' as const, color: homeWon ? '#EEEEF5' : '#A0A0B8', letterSpacing: 0.3 }}>{homeName}</span>
+                            {isFinal && <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 18, color: homeWon ? accent : '#6A6A82' }}>{dbg!.home_score}</span>}
+                          </div>
+                          {/* Away team row */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: awayWon ? `${accent}08` : 'transparent' }}>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: dbg?.away_team?.color ?? '#3A3A4E', flexShrink: 0 }} />
+                            <span style={{ flex: 1, fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, textTransform: 'uppercase' as const, color: awayWon ? '#EEEEF5' : '#A0A0B8', letterSpacing: 0.3 }}>{awayName}</span>
+                            {isFinal && <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 18, color: awayWon ? accent : '#6A6A82' }}>{dbg!.away_score}</span>}
+                          </div>
+                          {/* Card footer */}
+                          {dbg && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', background: '#0A0A0E', borderTop: '1px solid #14141C' }}>
+                              <span style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace", flex: 1 }}>
+                                {dbg.status === 'final' ? '✓ Final' : dbg.scheduled_at ? new Date(dbg.scheduled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'}
+                              </span>
+                              {dbg.status === 'scheduled' && (
+                                <a href={`/league-portal/${leagueId}/score/${dbg.id}`} style={{ fontSize: 11, color: accent, fontFamily: "'DM Mono', monospace", textDecoration: 'none' }}>Enter Score →</a>
+                              )}
+                              {dbg.status === 'final' && (
+                                <a href={`/league-portal/${leagueId}/score/${dbg.id}`} style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace", textDecoration: 'none' }}>Box Score →</a>
+                              )}
+                            </div>
+                          )}
+                          {!dbg && (
+                            <div style={{ padding: '6px 12px', background: '#0A0A0E', borderTop: '1px solid #14141C' }}>
+                              <span style={{ fontSize: 11, color: '#4A4A5E', fontFamily: "'DM Mono', monospace" }}>Not yet scheduled</span>
+                            </div>
+                          )}
+                        </div>
+                        {/* Connector line to next round */}
+                        {!isLast && (
+                          <div style={{ width: 16, height: '100%', position: 'relative' as const, flexShrink: 0, alignSelf: 'stretch' as const }}>
+                            <div style={{
+                              position: 'absolute' as const,
+                              top: '50%', right: 0,
+                              width: '50%',
+                              height: gIdx % 2 === 0 ? '50%' : '50%',
+                              borderTop: gIdx % 2 === 0 ? `1px solid ${accent}33` : 'none',
+                              borderBottom: gIdx % 2 === 1 ? `1px solid ${accent}33` : 'none',
+                              borderRight: `1px solid ${accent}33`,
+                            }} />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const clean = hex.replace('#', '')
+  const r = parseInt(clean.slice(0,2),16) || 57
+  const g = parseInt(clean.slice(2,4),16) || 255
+  const b = parseInt(clean.slice(4,6),16) || 20
+  return [r,g,b]
 }
 
 function TeamChip({ team, score, won }: { team: LeagueTeam; score: number | null; won: boolean }) {
