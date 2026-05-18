@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase, League, LeagueTeam, LeaguePlayer, LeagueDivision } from '../../../lib/supabase'
 import { PortalNav } from './index'
 
-type PlayerWithMeta = LeaguePlayer & { netr_score: number | null; profile_avatar: string | null }
+type PlayerWithMeta = LeaguePlayer & { netr_score: number | null; profile_avatar: string | null; profile_position: string | null }
 
 type TeamWithPlayers = LeagueTeam & { players: PlayerWithMeta[] }
 
@@ -93,7 +93,7 @@ export default function TeamsPage() {
       const [leagueRes, teamsRes, playersRes, divisionsRes] = await Promise.all([
         supabase.from('leagues').select('*').eq('id', leagueId).eq('owner_id', user.id).single(),
         supabase.from('league_teams').select('*').eq('league_id', leagueId).order('created_at'),
-        supabase.from('league_players').select('*, profiles(netr_score)').eq('league_id', leagueId),
+        supabase.from('league_players').select('*, profiles(netr_score, position)').eq('league_id', leagueId),
         supabase.from('league_divisions').select('*').eq('league_id', leagueId).order('display_order'),
       ])
 
@@ -105,10 +105,11 @@ export default function TeamsPage() {
         if (!playersByTeam[p.team_id]) playersByTeam[p.team_id] = []
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const netr_score = (p as any).profiles?.netr_score ?? null
+        const profile_position = (p as any).profiles?.position ?? null
         const profile_avatar = p.profile_id
           ? supabase.storage.from('avatars').getPublicUrl(`${p.profile_id}/avatar.jpg`).data.publicUrl
           : null
-        playersByTeam[p.team_id].push({ ...p, netr_score, profile_avatar })
+        playersByTeam[p.team_id].push({ ...p, netr_score, profile_avatar, profile_position })
       }
 
       setTeams((teamsRes.data ?? []).map(t => ({ ...t, players: playersByTeam[t.id] ?? [] })))
@@ -215,7 +216,7 @@ export default function TeamsPage() {
     setEditingPlayer(p)
     setEditPName(p.display_name)
     setEditPJersey(p.jersey_number ?? '')
-    setEditPPosition(p.position ?? '')
+    setEditPPosition(p.position ?? p.profile_position ?? '')
     setEditPPhotoFile(null)
     const src: 'app' | 'custom' = p.is_claimed && (p.photo_source === 'app' || !p.photo_url) ? 'app' : 'custom'
     setEditPSource(src)
@@ -247,7 +248,7 @@ export default function TeamsPage() {
     }
     const { data } = await supabase.from('league_players').update(updates).eq('id', editingPlayer.id).select().single()
     if (data) {
-      const updated: PlayerWithMeta = { ...editingPlayer, ...data, netr_score: editingPlayer.netr_score, profile_avatar: editingPlayer.profile_avatar }
+      const updated: PlayerWithMeta = { ...editingPlayer, ...data, netr_score: editingPlayer.netr_score, profile_avatar: editingPlayer.profile_avatar, profile_position: editingPlayer.profile_position }
       setTeams(prev => prev.map(t => t.id === editingPlayer.team_id ? { ...t, players: t.players.map(p => p.id === editingPlayer.id ? updated : p) } : t))
     }
     setEditPSaving(false)
@@ -328,17 +329,18 @@ export default function TeamsPage() {
 
     const [teamsRes, playersRes] = await Promise.all([
       supabase.from('league_teams').select('*').eq('league_id', leagueId).order('created_at'),
-      supabase.from('league_players').select('*, profiles(netr_score)').eq('league_id', leagueId),
+      supabase.from('league_players').select('*, profiles(netr_score, position)').eq('league_id', leagueId),
     ])
     const playersByTeam: Record<string, LeaguePlayer[]> = {}
     for (const p of (playersRes.data ?? [])) {
       if (!playersByTeam[p.team_id]) playersByTeam[p.team_id] = []
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const netr_score2 = (p as any).profiles?.netr_score ?? null
+      const profile_position2 = (p as any).profiles?.position ?? null
       const profile_avatar2 = p.profile_id
         ? supabase.storage.from('avatars').getPublicUrl(`${p.profile_id}/avatar.jpg`).data.publicUrl
         : null
-      playersByTeam[p.team_id].push({ ...p, netr_score: netr_score2, profile_avatar: profile_avatar2 })
+      playersByTeam[p.team_id].push({ ...p, netr_score: netr_score2, profile_avatar: profile_avatar2, profile_position: profile_position2 })
     }
     setTeams((teamsRes.data ?? []).map(t => ({ ...t, players: playersByTeam[t.id] ?? [] })))
     setImportDone(`Imported ${totalPlayers} players across ${csvPreview.length} teams.`)
@@ -864,7 +866,12 @@ export default function TeamsPage() {
               <input value={editPName} onChange={e => setEditPName(e.target.value)} style={{ ...S.input, flex: 2, marginBottom: 0 }} placeholder="Player name" />
               <input value={editPJersey} onChange={e => setEditPJersey(e.target.value)} style={{ ...S.input, flex: '0 0 60px', marginBottom: 0 }} placeholder="#" maxLength={3} />
             </div>
-            <input value={editPPosition} onChange={e => setEditPPosition(e.target.value)} style={{ ...S.input, marginBottom: 20 }} placeholder="Position (PG, SG, SF, PF, C…)" />
+            <div style={{ position: 'relative' as const, marginBottom: 20 }}>
+              <input value={editPPosition} onChange={e => setEditPPosition(e.target.value)} style={{ ...S.input, marginBottom: 0, width: '100%', boxSizing: 'border-box' as const }} placeholder="Position (PG, SG, SF, PF, C…)" />
+              {editingPlayer.profile_position && !editingPlayer.position && editPPosition === editingPlayer.profile_position && (
+                <span style={{ position: 'absolute' as const, right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: '#39FF14', fontFamily: "'DM Mono', monospace", letterSpacing: 0.5, pointerEvents: 'none' as const }}>from NETR</span>
+              )}
+            </div>
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setEditingPlayer(null)} style={{ ...S.cancelBtn, flex: 1 }}>Cancel</button>
