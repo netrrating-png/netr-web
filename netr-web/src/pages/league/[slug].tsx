@@ -407,8 +407,8 @@ export default function PublicLeaguePage() {
         </div>
       </div>
 
-      {/* Featured photo carousel */}
-      {(()=>{
+      {/* Featured photo carousel — overview tab only */}
+      {activeTab==='overview'&&(()=>{
         const featured=galleryPhotos.filter(p=>p.is_featured)
         if(featured.length===0) return null
         const cur=featured[Math.min(featuredIdx,featured.length-1)]
