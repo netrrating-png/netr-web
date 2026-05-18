@@ -111,7 +111,9 @@ export default function SettingsPage() {
   const [newSeasonCopyRosters, setNewSeasonCopyRosters] = useState(true)
   const [cloning, setCloning]                       = useState(false)
 
-  // Font & signup CTA
+  // Theme & font
+  const [leagueTheme, setLeagueTheme] = useState<'dark'|'light'>('dark')
+  const themeSave = useSaveState()
   const [leagueFont, setLeagueFont]   = useState('barlow')
   const [signupUrl, setSignupUrl]     = useState('')
   const [signupLabel, setSignupLabel] = useState('')
@@ -225,6 +227,7 @@ export default function SettingsPage() {
       setContactInfo(data.contact_info ?? '')
       setContactPhone(data.social_links?.phone ?? '')
       setSocialLinks(data.social_links ? Object.fromEntries(Object.entries(data.social_links).filter(([k]) => k !== 'phone')) as Record<string,string> : {})
+      setLeagueTheme((data.league_theme ?? 'dark') as 'dark'|'light')
       setCrossDivisionPlay(data.cross_division_play ?? true)
       setSeasonEndDate(data.season_end_date ?? '')
       setRulesSections(data.rules_sections ?? [])
@@ -816,6 +819,39 @@ export default function SettingsPage() {
             </div>
 
             <div style={S.hint}>⚠ Requires the <code style={{ fontFamily: "'DM Mono', monospace", fontSize: 11 }}>league-logos</code> storage bucket in Supabase.</div>
+          </div>
+
+          {/* ── Page Theme ── */}
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>Page Theme</div>
+                <div style={S.cardSub}>Choose between dark and light mode for your public league page.</div>
+              </div>
+              <SaveIndicator state={themeSave.state} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 4 }}>
+              {(['dark', 'light'] as const).map(t => {
+                const active = leagueTheme === t
+                const isDarkOption = t === 'dark'
+                return (
+                  <button key={t} type="button" onClick={() => {
+                    setLeagueTheme(t)
+                    themeSave.trigger(supabase.from('leagues').update({ league_theme: t }).eq('id', leagueId))
+                  }} style={{ background: active ? (isDarkOption ? '#0F0F18' : '#FFFFFF') : (isDarkOption ? '#090910' : '#F5F5FA'), border: `2px solid ${active ? '#39FF14' : '#2A2A38'}`, borderRadius: 14, padding: '18px 16px', cursor: 'pointer', textAlign: 'left' as const, position: 'relative' as const, overflow: 'hidden' as const }}>
+                    {/* Mini preview */}
+                    <div style={{ borderRadius: 8, overflow: 'hidden', marginBottom: 12, border: `1px solid ${isDarkOption ? '#1A1A28' : '#E0E0EC'}`, background: isDarkOption ? '#040406' : '#F2F2F7', padding: '8px 10px' }}>
+                      <div style={{ height: 8, borderRadius: 4, background: isDarkOption ? '#1C1C26' : '#E8E8F0', marginBottom: 6, width: '60%' }} />
+                      <div style={{ height: 6, borderRadius: 3, background: isDarkOption ? '#39FF14' : '#39FF14', marginBottom: 5, width: '40%' }} />
+                      <div style={{ height: 5, borderRadius: 3, background: isDarkOption ? '#2A2A38' : '#D0D0DC', width: '80%' }} />
+                    </div>
+                    <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 16, color: isDarkOption ? '#EEEEF5' : '#0A0A14', letterSpacing: 0.5, textTransform: 'uppercase' as const }}>{t === 'dark' ? 'Dark' : 'Light'}</div>
+                    <div style={{ fontSize: 11, color: isDarkOption ? '#6A6A82' : '#6A6A82', fontFamily: "'DM Mono', monospace", marginTop: 2 }}>{t === 'dark' ? 'Dark backgrounds, neon accent' : 'Clean white, high contrast'}</div>
+                    {active && <div style={{ position: 'absolute' as const, top: 10, right: 10, width: 18, height: 18, borderRadius: '50%', background: '#39FF14', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>✓</div>}
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
           {/* ── League Font ── */}

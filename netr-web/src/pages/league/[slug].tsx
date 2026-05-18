@@ -7,7 +7,7 @@ import { getFontFamily, getFontGF } from '../../lib/league-fonts'
 import { Globe, MapPin, Mail, X } from 'lucide-react'
 import type { InsightResult } from '../../lib/league-insights'
 
-type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null;league_font:string|null;signup_url:string|null;signup_label:string|null;rules_sections:{title:string;content:string}[]|null;about_sections:{title:string;content:string}[]|null;cross_division_play:boolean }
+type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null;league_font:string|null;signup_url:string|null;signup_label:string|null;rules_sections:{title:string;content:string}[]|null;about_sections:{title:string;content:string}[]|null;cross_division_play:boolean;league_theme:'dark'|'light'|null }
 type LeagueSeason = { id:string;league_id:string;name:string;start_date:string|null;end_date:string|null;champion_team_id:string|null;notes:string|null;display_order:number;created_at:string }
 type Sponsor = { id:string;name:string;logo_url:string|null;website_url:string|null }
 type GalleryPhoto = { id:string;photo_url:string;caption:string|null;is_featured:boolean }
@@ -191,6 +191,29 @@ export default function PublicLeaguePage() {
   if(loading) return <Spinner/>
   if(notFound||!league) return <NotFound/>
   const accent=league.accent_color||ACC
+  const isDark=league.league_theme!=='light'
+  const C={
+    pageBg:    isDark?'#040406'                  :'#F2F2F7',
+    cardBg:    isDark?'#0A0A0E'                  :'#FFFFFF',
+    cardBg2:   isDark?'#0D0D12'                  :'#F8F8FC',
+    cardBg3:   isDark?'#0F0F14'                  :'#F0F0F6',
+    inputBg:   isDark?'#080810'                  :'#FFFFFF',
+    track:     isDark?'#151520'                  :'#E4E4EE',
+    border:    isDark?'#1C1C26'                  :'#D8D8E8',
+    borderSub: isDark?'#1A1A28'                  :'#E0E0EC',
+    borderStr: isDark?'#2A2A38'                  :'#C4C4D4',
+    text:      isDark?'#EEEEF5'                  :'#0A0A14',
+    textSub:   isDark?'#C8C8D4'                  :'#2A2A3E',
+    textA0:    isDark?'#A0A0B8'                  :'#5A5A74',
+    textMuted: isDark?'#6A6A82'                  :'#5A5A72',
+    textDim:   isDark?'#3A3A4E'                  :'#9898B0',
+    textFaint: isDark?'#2E2E3A'                  :'#ADADC4',
+    elim:      isDark?'#4A4A5E'                  :'#AAAABC',
+    t75:       isDark?'rgba(238,238,245,0.75)'   :'rgba(10,10,20,0.75)',
+    t80:       isDark?'rgba(238,238,245,0.8)'    :'rgba(10,10,20,0.8)',
+    t85:       isDark?'rgba(238,238,245,0.85)'   :'rgba(10,10,20,0.85)',
+    t90:       isDark?'rgba(238,238,245,0.9)'    :'rgba(10,10,20,0.9)',
+  }
   const NetrBadge=({score}:{score:number|null|undefined})=>{
     if(score==null)return null
     const c=netrScoreColor(score)
@@ -258,23 +281,23 @@ export default function PublicLeaguePage() {
         }
       `}</style>
     </Head>
-    <div style={{minHeight:'100vh',background:'#040406',fontFamily:"'DM Sans',sans-serif",color:'#EEEEF5'}}>
+    <div style={{minHeight:'100vh',background:C.pageBg,fontFamily:"'DM Sans',sans-serif",color:C.text}}>
 
       {/* ── HERO ── */}
-      <div style={{position:'relative',minHeight:600,background:'#040406',overflow:'hidden',display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+      <div style={{position:'relative',minHeight:600,background:C.pageBg,overflow:'hidden',display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
         {/* Banner */}
         {league.banner_url
           ?<img src={league.banner_url} alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',objectPosition:'center top',display:'block'}}/>
           :<>
             {/* No-banner: rich layered background */}
-            <div style={{position:'absolute',inset:0,background:`linear-gradient(135deg,#060610 0%,#040406 50%,#06060C 100%)`}}/>
+            <div style={{position:'absolute',inset:0,background:`linear-gradient(135deg,${C.pageBg} 0%,${C.pageBg} 50%,${C.pageBg} 100%)`}}/>
             <div style={{position:'absolute',inset:0,backgroundImage:`radial-gradient(circle,${accent}18 1px,transparent 1px)`,backgroundSize:'32px 32px',opacity:0.35}}/>
           </>
         }
         {/* Gradient scrims */}
         <div style={{position:'absolute',inset:0,background:league.banner_url
-          ?`linear-gradient(to bottom, rgba(4,4,6,0.15) 0%, rgba(4,4,6,0.55) 35%, rgba(4,4,6,0.95) 75%, #040406 100%)`
-          :`linear-gradient(to bottom, transparent 0%, rgba(4,4,6,0.6) 60%, #040406 100%)`}}/>
+          ?`linear-gradient(to bottom, ${C.pageBg}26 0%, ${C.pageBg}8C 35%, ${C.pageBg}F2 75%, ${C.pageBg} 100%)`
+          :`linear-gradient(to bottom, transparent 0%, ${C.pageBg}99 60%, ${C.pageBg} 100%)`}}/>
         {/* Color glows */}
         <div style={{position:'absolute',bottom:0,left:0,width:'60%',height:'70%',background:`radial-gradient(ellipse at 0% 100%, ${accent}20 0%, transparent 65%)`,pointerEvents:'none'}}/>
         <div style={{position:'absolute',top:0,right:0,width:'40%',height:'50%',background:`radial-gradient(ellipse at 100% 0%, ${accent}08 0%, transparent 60%)`,pointerEvents:'none'}}/>
@@ -289,7 +312,7 @@ export default function PublicLeaguePage() {
               <span style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const}}>{league.is_active?'Active Season':league.sport||'League'}</span>
             </span>
             {league.season&&(
-              <span style={{display:'inline-flex',alignItems:'center',background:'rgba(0,0,0,0.55)',backdropFilter:'blur(8px)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:99,padding:'4px 12px',fontSize:10,color:'rgba(238,238,245,0.9)',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,fontWeight:600}}>
+              <span style={{display:'inline-flex',alignItems:'center',background:'rgba(0,0,0,0.55)',backdropFilter:'blur(8px)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:99,padding:'4px 12px',fontSize:10,color:C.t90,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,fontWeight:600}}>
                 {league.season}
               </span>
             )}
@@ -305,7 +328,7 @@ export default function PublicLeaguePage() {
                   src={league.logo_url}
                   alt={league.name}
                   className="hero-logo"
-                  style={{position:'relative',width:88,height:88,borderRadius:16,objectFit:'cover',background:'#0A0A0E',display:'block'}}
+                  style={{position:'relative',width:88,height:88,borderRadius:16,objectFit:'cover',background:C.cardBg,display:'block'}}
                 />
               </div>
             )}
@@ -347,20 +370,20 @@ export default function PublicLeaguePage() {
           {/* Meta + CTA */}
           <div className="chip-row" style={{display:'flex',alignItems:'center',flexWrap:'wrap' as const,gap:8}}>
             {league.location&&(
-              <span style={{display:'inline-flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:99,padding:'6px 14px',fontSize:12,color:'#9090A8',fontFamily:"'DM Sans',sans-serif"}}>
+              <span style={{display:'inline-flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:99,padding:'6px 14px',fontSize:12,color:C.textA0,fontFamily:"'DM Sans',sans-serif"}}>
                 <MapPin size={12} strokeWidth={2}/>{league.location}
               </span>
             )}
             {(league.contact_info||league.social_links?.phone)&&(
               <a href={league.contact_info?`mailto:${league.contact_info}`:`tel:${league.social_links!.phone}`}
-                style={{display:'inline-flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:99,padding:'6px 14px',fontSize:12,color:'#9090A8',fontFamily:"'DM Sans',sans-serif",textDecoration:'none',whiteSpace:'nowrap' as const}}>
+                style={{display:'inline-flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:99,padding:'6px 14px',fontSize:12,color:C.textA0,fontFamily:"'DM Sans',sans-serif",textDecoration:'none',whiteSpace:'nowrap' as const}}>
                 <Mail size={12} strokeWidth={2}/>Contact
               </a>
             )}
             {league.signup_url&&(
               <a href={league.signup_url} target="_blank" rel="noopener noreferrer"
                 className="signup-btn"
-                style={{display:'inline-flex',alignItems:'center',gap:8,background:accent,color:'#040406',fontFamily:displayFont,fontWeight:900,fontSize:15,textTransform:'uppercase' as const,letterSpacing:'1px',padding:'11px 28px',borderRadius:12,textDecoration:'none',flexShrink:0,boxShadow:`0 4px 28px ${accent}50,0 0 0 1px ${accent}`,whiteSpace:'nowrap' as const}}>
+                style={{display:'inline-flex',alignItems:'center',gap:8,background:accent,color:C.pageBg,fontFamily:displayFont,fontWeight:900,fontSize:15,textTransform:'uppercase' as const,letterSpacing:'1px',padding:'11px 28px',borderRadius:12,textDecoration:'none',flexShrink:0,boxShadow:`0 4px 28px ${accent}50,0 0 0 1px ${accent}`,whiteSpace:'nowrap' as const}}>
                 {league.signup_label||'Join the League'} →
               </a>
             )}
@@ -377,8 +400,8 @@ export default function PublicLeaguePage() {
               ...(standings[0]&&standings[0].wins>0?[{label:'League Leader',value:standings[0].team_name,accent:true}]:[]),
             ].map((item,i)=>(
               <div key={i} className="stats-strip-item" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'14px 28px',borderRight:`1px solid rgba(255,255,255,0.05)`,flexShrink:0}}>
-                <div className="stats-strip-value" style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:item.accent?15:24,color:item.accent?accent:'#EEEEF5',textTransform:'uppercase' as const,letterSpacing:item.accent?0.5:-0.5,lineHeight:1}}>{item.value}</div>
-                <div style={{fontSize:9,color:'#3A3A4E',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginTop:3}}>{item.label}</div>
+                <div className="stats-strip-value" style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:item.accent?15:24,color:item.accent?accent:C.text,textTransform:'uppercase' as const,letterSpacing:item.accent?0.5:-0.5,lineHeight:1}}>{item.value}</div>
+                <div style={{fontSize:9,color:C.textDim,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginTop:3}}>{item.label}</div>
               </div>
             ))}
           </div>
@@ -391,8 +414,8 @@ export default function PublicLeaguePage() {
         <div style={{background:`linear-gradient(90deg,${accent}18,${accent}10)`,borderBottom:`1px solid ${accent}30`,padding:'0 24px'}}>
           <div style={{maxWidth:980,margin:'0 auto',display:'flex',alignItems:'center',gap:14,padding:'13px 0'}}>
             <div style={{width:28,height:28,borderRadius:8,background:`${accent}20`,border:`1px solid ${accent}40`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:14}}>📢</div>
-            <span style={{flex:1,fontSize:13,lineHeight:1.6,color:'rgba(238,238,245,0.85)'}}>{league.announcement}</span>
-            <button onClick={()=>setDismissed(true)} style={{background:'none',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,color:'#C8C8D4',cursor:'pointer',width:26,height:26,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:14}}>
+            <span style={{flex:1,fontSize:13,lineHeight:1.6,color:C.t85}}>{league.announcement}</span>
+            <button onClick={()=>setDismissed(true)} style={{background:'none',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,color:C.textSub,cursor:'pointer',width:26,height:26,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:14}}>
               <X size={14} strokeWidth={2}/>
             </button>
           </div>
@@ -409,7 +432,7 @@ export default function PublicLeaguePage() {
             ...(galleryPhotos.length>0?[['gallery','Gallery']]:[] as [Tab,string][]),
             ...((league.about_sections?.some(s=>s.title||s.content)||league.contact_info||league.social_links?.phone||(league.social_links&&Object.entries(league.social_links).some(([k,v])=>k!=='phone'&&v)))?[['about','About']]:[] as [Tab,string][]),
           ] as [Tab,string][]).map(([t,label])=>(
-            <button key={t} onClick={()=>setTab(t)} className="tab-btn" style={{background:activeTab===t?`${accent}0D`:'none',border:'none',borderBottom:activeTab===t?`3px solid ${accent}`:'3px solid transparent',color:activeTab===t?accent:'#C8C8D4',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase',letterSpacing:1.5,padding:'16px 18px',cursor:'pointer',whiteSpace:'nowrap',flexShrink:0,transition:'all 0.2s',borderRadius:'8px 8px 0 0'}}>
+            <button key={t} onClick={()=>setTab(t)} className="tab-btn" style={{background:activeTab===t?`${accent}0D`:'none',border:'none',borderBottom:activeTab===t?`3px solid ${accent}`:'3px solid transparent',color:activeTab===t?accent:C.textSub,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase',letterSpacing:1.5,padding:'16px 18px',cursor:'pointer',whiteSpace:'nowrap',flexShrink:0,transition:'all 0.2s',borderRadius:'8px 8px 0 0'}}>
               {label}
             </button>
           ))}
@@ -422,7 +445,7 @@ export default function PublicLeaguePage() {
         if(featured.length===0) return null
         const cur=featured[Math.min(featuredIdx,featured.length-1)]
         return(
-          <div style={{position:'relative',width:'100%',background:'#060608',overflow:'hidden'}}>
+          <div style={{position:'relative',width:'100%',background:C.cardBg,overflow:'hidden'}}>
             {/* Photo */}
             <div
               onClick={()=>{
@@ -481,11 +504,11 @@ export default function PublicLeaguePage() {
               <div style={{display:'flex',flexWrap:'wrap' as const,gap:10,alignItems:'center'}}>
                 {sponsors.map(sp=>(
                   <a key={sp.id} href={sp.website_url??undefined} target="_blank" rel="noopener noreferrer"
-                    style={{display:'flex',alignItems:'center',gap:10,background:'#0D0D12',border:'1px solid #1A1A28',borderRadius:12,padding:'12px 18px',textDecoration:'none',transition:'border-color 0.15s'}}
+                    style={{display:'flex',alignItems:'center',gap:10,background:C.cardBg2,border:'1px solid #1A1A28',borderRadius:12,padding:'12px 18px',textDecoration:'none',transition:'border-color 0.15s'}}
                     onMouseEnter={e=>e.currentTarget.style.borderColor=accent+'55'}
-                    onMouseLeave={e=>e.currentTarget.style.borderColor='#1A1A28'}>
+                    onMouseLeave={e=>e.currentTarget.style.borderColor=C.borderSub}>
                     {sp.logo_url&&<img src={sp.logo_url} alt={sp.name} style={{height:28,maxWidth:72,objectFit:'contain',borderRadius:4,background:'#fff',padding:'2px 6px'}}/>}
-                    <span style={{fontFamily:displayFont,fontWeight:700,fontSize:15,textTransform:'uppercase' as const,color:'#EEEEF5'}}>{sp.name}</span>
+                    <span style={{fontFamily:displayFont,fontWeight:700,fontSize:15,textTransform:'uppercase' as const,color:C.text}}>{sp.name}</span>
                   </a>
                 ))}
               </div>
@@ -498,7 +521,7 @@ export default function PublicLeaguePage() {
             if(!potw)return null
             const team=tMap[potw.team_id]
             return(
-              <div style={{position:'relative',overflow:'hidden',background:'#0D0D12',border:`1px solid ${accent}40`,borderRadius:20,padding:'22px 28px',marginBottom:24,display:'flex',alignItems:'center',gap:20,flexWrap:'wrap' as const}}>
+              <div style={{position:'relative',overflow:'hidden',background:C.cardBg2,border:`1px solid ${accent}40`,borderRadius:20,padding:'22px 28px',marginBottom:24,display:'flex',alignItems:'center',gap:20,flexWrap:'wrap' as const}}>
                 <div style={{position:'absolute',inset:0,background:`linear-gradient(135deg,${accent}0A 0%,transparent 50%,${team?.color??accent}08 100%)`,pointerEvents:'none'}}/>
                 <div style={{position:'absolute',top:-20,right:12,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:180,color:`${accent}04`,lineHeight:1,userSelect:'none' as const,pointerEvents:'none',letterSpacing:-8}}>1</div>
                 <div style={{position:'relative',width:72,height:72,borderRadius:16,flexShrink:0,overflow:'hidden',boxShadow:`0 0 24px ${team?.color??accent}44`}}>
@@ -513,17 +536,17 @@ export default function PublicLeaguePage() {
                     <span style={{display:'inline-block',width:5,height:5,borderRadius:'50%',background:accent,animation:'countPulse 2s ease-in-out infinite',flexShrink:0}}/>
                     Player of the Week
                   </div>
-                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:'clamp(22px,4vw,32px)',textTransform:'uppercase' as const,color:'#EEEEF5',letterSpacing:0.5,lineHeight:1,marginBottom:8}}>{potw.display_name}</div>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:'clamp(22px,4vw,32px)',textTransform:'uppercase' as const,color:C.text,letterSpacing:0.5,lineHeight:1,marginBottom:8}}>{potw.display_name}</div>
                   <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' as const}}>
                     {team&&<span style={{width:6,height:6,borderRadius:'50%',background:team.color,display:'inline-block',flexShrink:0}}/>}
-                    <span style={{fontSize:11,color:'#C8C8D4',fontFamily:"'DM Mono',monospace"}}>{potw.team_name}</span>
+                    <span style={{fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace"}}>{potw.team_name}</span>
                     <NetrBadge score={pMap[potw.player_id]?.netr_score}/>
                   </div>
                 </div>
                 <div style={{position:'relative',flexShrink:0,textAlign:'center' as const,paddingLeft:20,borderLeft:'1px solid rgba(255,255,255,0.08)'}}>
                   <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:64,color:accent,lineHeight:1}}>{potw.ppg}</div>
                   <div style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2,marginBottom:6}}>PPG</div>
-                  <div style={{fontSize:10,color:'#6A6A82',fontFamily:"'DM Mono',monospace"}}>{potw.gp}GP · {potw.rpg}RPG · {potw.apg}APG</div>
+                  <div style={{fontSize:10,color:C.textMuted,fontFamily:"'DM Mono',monospace"}}>{potw.gp}GP · {potw.rpg}RPG · {potw.apg}APG</div>
                 </div>
               </div>
             )
@@ -543,13 +566,13 @@ export default function PublicLeaguePage() {
                   if(!leader) return null
                   const team=tMap[leader.team_id]
                   return(
-                    <div key={key} style={{position:'relative',overflow:'hidden',background:'#0D0D12',border:`1px solid ${team?.color??accent}33`,borderRadius:16,padding:'20px 22px'}}>
+                    <div key={key} style={{position:'relative',overflow:'hidden',background:C.cardBg2,border:`1px solid ${team?.color??accent}33`,borderRadius:16,padding:'20px 22px'}}>
                       <div style={{position:'absolute',top:0,right:0,width:80,height:80,borderRadius:'0 16px 0 80px',background:`${team?.color??accent}12`}}/>
-                      <div style={{fontSize:10,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:10}}>{icon} {label} Leader</div>
+                      <div style={{fontSize:10,color:C.textSub,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:10}}>{icon} {label} Leader</div>
                       <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:48,lineHeight:1,color:team?.color??accent,marginBottom:4}}>{leader[key]}</div>
-                      <div style={{fontSize:9,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",letterSpacing:2,marginBottom:10}}>{unit}</div>
-                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,textTransform:'uppercase' as const,color:'#EEEEF5'}}>{leader.display_name}</div>
-                      <div style={{fontSize:11,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",marginTop:2,display:'flex',alignItems:'center',gap:4}}>
+                      <div style={{fontSize:9,color:C.textSub,fontFamily:"'DM Mono',monospace",letterSpacing:2,marginBottom:10}}>{unit}</div>
+                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,textTransform:'uppercase' as const,color:C.text}}>{leader.display_name}</div>
+                      <div style={{fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace",marginTop:2,display:'flex',alignItems:'center',gap:4}}>
                         {team&&<span style={{width:6,height:6,borderRadius:'50%',background:team.color,display:'inline-block'}}/>}
                         {leader.team_name}
                       </div>
@@ -564,14 +587,14 @@ export default function PublicLeaguePage() {
           {league.announcement&&(
             <div style={{marginBottom:32}}>
               <SectionLabel accent={accent}>League Updates</SectionLabel>
-              <div style={{background:'#0D0D12',border:`1px solid ${accent}25`,borderRadius:16,overflow:'hidden'}}>
+              <div style={{background:C.cardBg2,border:`1px solid ${accent}25`,borderRadius:16,overflow:'hidden'}}>
                 <div style={{background:`linear-gradient(90deg,${accent}12,${accent}06,transparent)`,padding:'12px 20px',borderBottom:`1px solid ${accent}18`,display:'flex',alignItems:'center',gap:8}}>
                   <span style={{display:'inline-block',width:6,height:6,borderRadius:'50%',background:accent,boxShadow:`0 0 8px ${accent}`,animation:'countPulse 2s ease-in-out infinite',flexShrink:0}}/>
                   <span style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const}}>Latest Update</span>
                 </div>
                 <div style={{padding:'20px',display:'flex',alignItems:'flex-start',gap:16}}>
                   <div style={{width:40,height:40,borderRadius:10,background:`${accent}14`,border:`1px solid ${accent}30`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:18}}>📢</div>
-                  <p style={{fontSize:15,lineHeight:1.75,color:'rgba(238,238,245,0.9)',fontFamily:"'DM Sans',sans-serif",margin:0}}>{league.announcement}</p>
+                  <p style={{fontSize:15,lineHeight:1.75,color:C.t90,fontFamily:"'DM Sans',sans-serif",margin:0}}>{league.announcement}</p>
                 </div>
               </div>
             </div>
@@ -615,26 +638,26 @@ export default function PublicLeaguePage() {
               <section>
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
                   <SectionLabel accent={accent} noMargin>Standings</SectionLabel>
-                  <button onClick={()=>setTab('schedule')} style={{background:'none',border:'none',color:'#C8C8D4',fontSize:11,fontFamily:"'DM Mono',monospace",cursor:'pointer',letterSpacing:1}}>Full →</button>
+                  <button onClick={()=>setTab('schedule')} style={{background:'none',border:'none',color:C.textSub,fontSize:11,fontFamily:"'DM Mono',monospace",cursor:'pointer',letterSpacing:1}}>Full →</button>
                 </div>
-                <div style={{background:'#0D0D12',border:'1px solid #1A1A28',borderRadius:14,overflow:'hidden'}}>
+                <div style={{background:C.cardBg2,border:'1px solid #1A1A28',borderRadius:14,overflow:'hidden'}}>
                   {standings.slice(0,6).map((s,i)=>{
                     const gp=s.wins+s.losses,pct=gp>0?s.wins/gp:0,top=i===0&&s.wins>0
                     return(
-                      <button key={s.team_id} onClick={()=>setTeamModalId(s.team_id)} style={{width:'100%',background:'none',border:'none',borderBottom:'1px solid #12121C',padding:'10px 14px',cursor:'pointer',textAlign:'left' as const,display:'flex',alignItems:'center',gap:10}}
-                        onMouseEnter={e=>e.currentTarget.style.background='#12121C'}
+                      <button key={s.team_id} onClick={()=>setTeamModalId(s.team_id)} style={{width:'100%',background:'none',border:'none',borderBottom:`1px solid ${C.borderSub}`,padding:'10px 14px',cursor:'pointer',textAlign:'left' as const,display:'flex',alignItems:'center',gap:10}}
+                        onMouseEnter={e=>e.currentTarget.style.background=C.borderSub}
                         onMouseLeave={e=>e.currentTarget.style.background='none'}>
-                        <span style={{width:18,fontFamily:"'DM Mono',monospace",fontSize:11,color:top?accent:'#3A3A4E',flexShrink:0}}>{top?'🏆':i+1}</span>
+                        <span style={{width:18,fontFamily:"'DM Mono',monospace",fontSize:11,color:top?accent:C.textDim,flexShrink:0}}>{top?'🏆':i+1}</span>
                         {tMap[s.team_id]?.logo_url
                           ?<img src={tMap[s.team_id]?.logo_url||''} alt={s.team_name} style={{width:24,height:24,borderRadius:4,objectFit:'cover',flexShrink:0,border:`1px solid ${s.color}44`}}/>
                           :<div style={{width:8,height:8,borderRadius:'50%',background:s.color,flexShrink:0}}/>}
                         <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase' as const,color:top?'#EEEEF5':'#C8C8D4',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{s.team_name}</div>
-                          <div style={{height:3,background:'#1A1A28',borderRadius:2,marginTop:4,overflow:'hidden'}}>
+                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase' as const,color:top?C.text:C.textSub,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{s.team_name}</div>
+                          <div style={{height:3,background:C.borderSub,borderRadius:2,marginTop:4,overflow:'hidden'}}>
                             <div style={{height:'100%',width:`${pct*100}%`,background:top?accent:s.color,borderRadius:2,transition:'width 0.5s'}}/>
                           </div>
                         </div>
-                        <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,color:top?accent:'#C8C8D4',flexShrink:0}}>{s.wins}–{s.losses}</span>
+                        <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,color:top?accent:C.textSub,flexShrink:0}}>{s.wins}–{s.losses}</span>
                       </button>
                     )
                   })}
@@ -660,41 +683,41 @@ export default function PublicLeaguePage() {
           {standings.length>0&&(
             <section style={{marginBottom:40}}>
               <SecTitle accent={accent}>Standings</SecTitle>
-              <div style={{background:'#0D0D12',border:'1px solid #1A1A28',borderRadius:16,overflow:'hidden'}}>
+              <div style={{background:C.cardBg2,border:'1px solid #1A1A28',borderRadius:16,overflow:'hidden'}}>
                 {standings.map((s,i)=>{
                   const gp=s.wins+s.losses,pct=gp>0?(s.wins/gp).toFixed(3).replace(/^0/,''):'.000',diff=s.pts_for-s.pts_against,top=i===0&&s.wins>0,winPct=gp>0?s.wins/gp:0
                   return(
                     <div key={s.team_id} onClick={()=>setTeamModalId(s.team_id)} style={{display:'grid',gridTemplateColumns:'40px 1fr auto',alignItems:'center',borderBottom:'1px solid #0F0F18',padding:'14px 18px',cursor:'pointer',background:top?`${accent}06`:'transparent',gap:12,transition:'background 0.1s'}}
-                      onMouseEnter={e=>e.currentTarget.style.background=top?`${accent}10`:'#0F0F18'}
+                      onMouseEnter={e=>e.currentTarget.style.background=top?`${accent}10`:C.cardBg3}
                       onMouseLeave={e=>e.currentTarget.style.background=top?`${accent}06`:'transparent'}>
-                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,color:top?accent:'#2E2E3A',textAlign:'center' as const}}>{top?'🏆':i+1}</div>
+                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,color:top?accent:C.textFaint,textAlign:'center' as const}}>{top?'🏆':i+1}</div>
                       <div style={{minWidth:0}}>
                         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
                           {tMap[s.team_id]?.logo_url
                             ?<img src={tMap[s.team_id]?.logo_url||''} alt={s.team_name} style={{width:36,height:36,borderRadius:6,objectFit:'cover',flexShrink:0,border:`1.5px solid ${s.color}55`}}/>
                             :s.color&&<div style={{width:10,height:10,borderRadius:'50%',background:s.color,flexShrink:0,boxShadow:`0 0 6px ${s.color}88`}}/>}
-                          <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase' as const,color:top?'#EEEEF5':'#C8C8D4',letterSpacing:0.5}}>{s.team_name}</span>
+                          <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase' as const,color:top?C.text:C.textSub,letterSpacing:0.5}}>{s.team_name}</span>
                         </div>
-                        <div style={{height:4,background:'#151520',borderRadius:2,overflow:'hidden'}}>
+                        <div style={{height:4,background:C.track,borderRadius:2,overflow:'hidden'}}>
                           <div style={{height:'100%',width:`${winPct*100}%`,background:top?`linear-gradient(90deg,${accent},${accent}88)`:`linear-gradient(90deg,${s.color},${s.color}66)`,borderRadius:2}}/>
                         </div>
                       </div>
                       <div style={{display:'flex',gap:20,alignItems:'center',flexShrink:0}}>
                         <div style={{textAlign:'center' as const}}>
-                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:24,color:top?accent:'#EEEEF5',lineHeight:1}}>{s.wins}</div>
-                          <div style={{fontSize:9,color:'#3A3A4E',fontFamily:"'DM Mono',monospace",letterSpacing:1}}>W</div>
+                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:24,color:top?accent:C.text,lineHeight:1}}>{s.wins}</div>
+                          <div style={{fontSize:9,color:C.textDim,fontFamily:"'DM Mono',monospace",letterSpacing:1}}>W</div>
                         </div>
                         <div style={{textAlign:'center' as const}}>
-                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:24,color:'#3A3A4E',lineHeight:1}}>{s.losses}</div>
-                          <div style={{fontSize:9,color:'#3A3A4E',fontFamily:"'DM Mono',monospace",letterSpacing:1}}>L</div>
+                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:24,color:C.textDim,lineHeight:1}}>{s.losses}</div>
+                          <div style={{fontSize:9,color:C.textDim,fontFamily:"'DM Mono',monospace",letterSpacing:1}}>L</div>
                         </div>
                         <div style={{textAlign:'center' as const,minWidth:36}}>
-                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:13,color:'#C8C8D4',lineHeight:1}}>{pct}</div>
-                          <div style={{fontSize:9,color:'#3A3A4E',fontFamily:"'DM Mono',monospace",letterSpacing:1}}>PCT</div>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:13,color:C.textSub,lineHeight:1}}>{pct}</div>
+                          <div style={{fontSize:9,color:C.textDim,fontFamily:"'DM Mono',monospace",letterSpacing:1}}>PCT</div>
                         </div>
                         <div style={{textAlign:'center' as const,minWidth:36}}>
-                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:13,color:diff>0?accent:diff<0?'#FF453A':'#C8C8D4',lineHeight:1}}>{diff>0?'+':''}{diff}</div>
-                          <div style={{fontSize:9,color:'#3A3A4E',fontFamily:"'DM Mono',monospace",letterSpacing:1}}>DIFF</div>
+                          <div style={{fontFamily:"'DM Mono',monospace",fontSize:13,color:diff>0?accent:diff<0?'#FF453A':C.textSub,lineHeight:1}}>{diff>0?'+':''}{diff}</div>
+                          <div style={{fontSize:9,color:C.textDim,fontFamily:"'DM Mono',monospace",letterSpacing:1}}>DIFF</div>
                         </div>
                         {iMap[s.team_id]&&(()=>{
                           const ins=iMap[s.team_id]
@@ -703,8 +726,8 @@ export default function PublicLeaguePage() {
                           const isClinched=ins.magic_number===0
                           return(
                             <div style={{textAlign:'center' as const,minWidth:44}}>
-                              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,color:isElim?'#3A3A4E':isClinched||allMakePlayoffs?accent:s.color,lineHeight:1}}>{Math.round(pct*100)}%</div>
-                              <div style={{fontSize:9,color:'#3A3A4E',fontFamily:"'DM Mono',monospace",letterSpacing:1}}>{allMakePlayoffs?'CHAMP':'PLAYOFF'}</div>
+                              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,color:isElim?C.textDim:isClinched||allMakePlayoffs?accent:s.color,lineHeight:1}}>{Math.round(pct*100)}%</div>
+                              <div style={{fontSize:9,color:C.textDim,fontFamily:"'DM Mono',monospace",letterSpacing:1}}>{allMakePlayoffs?'CHAMP':'PLAYOFF'}</div>
                             </div>
                           )
                         })()}
@@ -715,8 +738,8 @@ export default function PublicLeaguePage() {
               </div>
             </section>
           )}
-          <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:10,padding:'14px 16px',marginBottom:20}}>
-            <div style={{fontSize:12,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",marginBottom:10,textTransform:'uppercase' as const,letterSpacing:1}}>
+          <div style={{background:C.cardBg,border:'1px solid #1C1C26',borderRadius:10,padding:'14px 16px',marginBottom:20}}>
+            <div style={{fontSize:12,color:C.textSub,fontFamily:"'DM Mono',monospace",marginBottom:10,textTransform:'uppercase' as const,letterSpacing:1}}>
               {myTeamId?`Subscribe to ${teams.find(t=>t.id===myTeamId)?.name??'Your Team'}'s games`:'Subscribe — auto-updates when schedule changes'}
             </div>
             <CalendarButtons slug={league.slug} teamId={myTeamId??undefined} size="lg"/>
@@ -742,20 +765,20 @@ export default function PublicLeaguePage() {
                     {sorted.map((p,i)=>{
                       const team=tMap[p.team_id]
                       return(
-                        <div key={p.player_id} onClick={()=>setTeamModalId(p.team_id)} style={{position:'relative',overflow:'hidden',background:'#0D0D12',border:`1px solid ${i===0?accent+'44':'#1A1A28'}`,borderRadius:16,padding:'20px',cursor:'pointer',transition:'transform 0.15s'}}
+                        <div key={p.player_id} onClick={()=>setTeamModalId(p.team_id)} style={{position:'relative',overflow:'hidden',background:C.cardBg2,border:`1px solid ${i===0?accent+'44':C.borderSub}`,borderRadius:16,padding:'20px',cursor:'pointer',transition:'transform 0.15s'}}
                           onMouseEnter={e=>e.currentTarget.style.transform='translateY(-2px)'}
                           onMouseLeave={e=>e.currentTarget.style.transform='translateY(0)'}>
                           <div style={{position:'absolute',top:0,right:0,fontSize:48,opacity:0.06,lineHeight:1,userSelect:'none' as const}}>{medals[i]}</div>
                           <div style={{fontSize:20,marginBottom:8}}>{medals[i]}</div>
-                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:sizes[i],color:i===0?accent:'#EEEEF5',lineHeight:1,marginBottom:4}}>{p[sortBy]}</div>
-                          <div style={{fontSize:9,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",letterSpacing:2,marginBottom:10}}>{{ppg:'PTS/G',rpg:'REB/G',apg:'AST/G',spg:'STL/G',bpg:'BLK/G'}[sortBy]}</div>
+                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:sizes[i],color:i===0?accent:C.text,lineHeight:1,marginBottom:4}}>{p[sortBy]}</div>
+                          <div style={{fontSize:9,color:C.textSub,fontFamily:"'DM Mono',monospace",letterSpacing:2,marginBottom:10}}>{{ppg:'PTS/G',rpg:'REB/G',apg:'AST/G',spg:'STL/G',bpg:'BLK/G'}[sortBy]}</div>
                           <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' as const}}>
-                            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase' as const,color:'#EEEEF5'}}>{p.display_name}</div>
+                            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase' as const,color:C.text}}>{p.display_name}</div>
                             <NetrBadge score={pMap[p.player_id]?.netr_score}/>
                           </div>
                           <div style={{display:'flex',alignItems:'center',gap:4,marginTop:3}}>
                             {team&&<span style={{width:6,height:6,borderRadius:'50%',background:team.color,display:'inline-block'}}/>}
-                            <span style={{fontSize:10,color:'#C8C8D4',fontFamily:"'DM Mono',monospace"}}>{p.team_name}</span>
+                            <span style={{fontSize:10,color:C.textSub,fontFamily:"'DM Mono',monospace"}}>{p.team_name}</span>
                           </div>
                         </div>
                       )
@@ -766,41 +789,41 @@ export default function PublicLeaguePage() {
               {/* Sort tabs */}
               <div style={{display:'flex',gap:6,marginBottom:16,flexWrap:'wrap' as const}}>
                 {(['ppg','rpg','apg','spg','bpg'] as SortKey[]).map(k=>(
-                  <button key={k} onClick={()=>setSortBy(k)} style={{background:sortBy===k?`${accent}18`:'#0D0D12',border:`1px solid ${sortBy===k?accent+'55':'#1A1A28'}`,borderRadius:8,color:sortBy===k?accent:'#C8C8D4',fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:1.5,padding:'6px 14px',cursor:'pointer',textTransform:'uppercase' as const,transition:'all 0.15s'}}>
+                  <button key={k} onClick={()=>setSortBy(k)} style={{background:sortBy===k?`${accent}18`:C.cardBg2,border:`1px solid ${sortBy===k?accent+'55':C.borderSub}`,borderRadius:8,color:sortBy===k?accent:C.textSub,fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:1.5,padding:'6px 14px',cursor:'pointer',textTransform:'uppercase' as const,transition:'all 0.15s'}}>
                     {{ppg:'Points',rpg:'Rebounds',apg:'Assists',spg:'Steals',bpg:'Blocks'}[k]}
                   </button>
                 ))}
               </div>
               {/* Full table */}
-              <div style={{background:'#0D0D12',border:'1px solid #1A1A28',borderRadius:14,overflow:'hidden',overflowX:'auto'}}>
+              <div style={{background:C.cardBg2,border:'1px solid #1A1A28',borderRadius:14,overflow:'hidden',overflowX:'auto'}}>
                 <table style={{width:'100%',borderCollapse:'collapse',minWidth:480}}>
-                  <thead><tr style={{background:'#080810',borderBottom:'1px solid #1A1A28'}}>
+                  <thead><tr style={{background:C.inputBg,borderBottom:'1px solid #1A1A28'}}>
                     <th style={{...TH,textAlign:'left'}}>Player</th>
                     <th style={TH}>GP</th>
                     {(['ppg','rpg','apg','spg','bpg'] as SortKey[]).map(k=>(
-                      <th key={k} style={{...TH,cursor:'pointer',color:sortBy===k?accent:'#C8C8D4'}} onClick={()=>setSortBy(k)}>
+                      <th key={k} style={{...TH,cursor:'pointer',color:sortBy===k?accent:C.textSub}} onClick={()=>setSortBy(k)}>
                         {{ppg:'PTS',rpg:'REB',apg:'AST',spg:'STL',bpg:'BLK'}[k]}{sortBy===k?' ▾':''}
                       </th>
                     ))}
                   </tr></thead>
                   <tbody>{[...pStats].sort((a,b)=>b[sortBy]-a[sortBy]).map((p,i)=>(
-                    <tr key={p.player_id} onClick={()=>setTeamModalId(p.team_id)} style={{borderBottom:'1px solid #0A0A12',cursor:'pointer'}} onMouseEnter={e=>(e.currentTarget.style.background='#0F0F18')} onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
+                    <tr key={p.player_id} onClick={()=>setTeamModalId(p.team_id)} style={{borderBottom:'1px solid #0A0A12',cursor:'pointer'}} onMouseEnter={e=>(e.currentTarget.style.background=C.cardBg3)} onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                       <td style={{...TD,textAlign:'left',paddingLeft:16}}>
                         <div style={{display:'flex',alignItems:'center',gap:8}}>
-                          <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:'#2E2E3A',width:18,flexShrink:0}}>{i+1}</span>
-                          {eplPhoto(p)?<img src={eplPhoto(p)!} alt={p.display_name} style={{width:30,height:30,borderRadius:'50%',objectFit:'cover',flexShrink:0,border:`1.5px solid ${p.team_color}55`}}/>:<div style={{width:30,height:30,borderRadius:'50%',background:'#1C1C26',border:'1.5px solid #2E2E3A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><span style={{fontSize:11,color:'#6A6A82',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700}}>{p.display_name.slice(0,1).toUpperCase()}</span></div>}
+                          <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:C.textFaint,width:18,flexShrink:0}}>{i+1}</span>
+                          {eplPhoto(p)?<img src={eplPhoto(p)!} alt={p.display_name} style={{width:30,height:30,borderRadius:'50%',objectFit:'cover',flexShrink:0,border:`1.5px solid ${p.team_color}55`}}/>:<div style={{width:30,height:30,borderRadius:'50%',background:C.border,border:'1.5px solid #2E2E3A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><span style={{fontSize:11,color:C.textMuted,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700}}>{p.display_name.slice(0,1).toUpperCase()}</span></div>}
                           <div>
                             <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' as const}}>
                               <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase' as const}}>{p.display_name}</span>
                               <NetrBadge score={pMap[p.player_id]?.netr_score}/>
                             </div>
-                            <div style={{fontSize:10,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",display:'flex',alignItems:'center',gap:4,marginTop:1}}><span style={{display:'inline-block',width:5,height:5,borderRadius:'50%',background:p.team_color}}/>{p.team_name}</div>
+                            <div style={{fontSize:10,color:C.textSub,fontFamily:"'DM Mono',monospace",display:'flex',alignItems:'center',gap:4,marginTop:1}}><span style={{display:'inline-block',width:5,height:5,borderRadius:'50%',background:p.team_color}}/>{p.team_name}</div>
                           </div>
                         </div>
                       </td>
-                      <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:'#3A3A4E'}}>{p.gp}</td>
+                      <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:C.textDim}}>{p.gp}</td>
                       {(['ppg','rpg','apg','spg','bpg'] as SortKey[]).map(k=>(
-                        <td key={k} style={{...TD,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:sortBy===k?700:400,fontSize:sortBy===k?20:15,color:sortBy===k?(i===0?accent:'#EEEEF5'):'#C8C8D4'}}>{p[k]}</td>
+                        <td key={k} style={{...TD,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:sortBy===k?700:400,fontSize:sortBy===k?20:15,color:sortBy===k?(i===0?accent:C.text):C.textSub}}>{p[k]}</td>
                       ))}
                     </tr>
                   ))}</tbody>
@@ -820,7 +843,7 @@ export default function PublicLeaguePage() {
           const TeamCard=({t,isLeader}:{t:Team,isLeader:boolean})=>{
             const s=sMap[t.id],cnt=players.filter(p=>p.team_id===t.id).length
             return(
-              <button key={t.id} onClick={()=>setTeamModalId(t.id)} style={{position:'relative',overflow:'hidden',background:'#0D0D12',border:`1px solid ${isLeader?t.color+'55':'#1A1A28'}`,borderRadius:16,padding:'20px',cursor:'pointer',textAlign:'left' as const,width:'100%',transition:'transform 0.15s,box-shadow 0.15s'}}
+              <button key={t.id} onClick={()=>setTeamModalId(t.id)} style={{position:'relative',overflow:'hidden',background:C.cardBg2,border:`1px solid ${isLeader?t.color+'55':C.borderSub}`,borderRadius:16,padding:'20px',cursor:'pointer',textAlign:'left' as const,width:'100%',transition:'transform 0.15s,box-shadow 0.15s'}}
                 onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=`0 8px 28px ${t.color}22`}}
                 onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none'}}>
                 <div style={{position:'absolute',inset:0,background:`linear-gradient(135deg,${t.color}12 0%,transparent 60%)`,pointerEvents:'none'}}/>
@@ -832,15 +855,15 @@ export default function PublicLeaguePage() {
                       <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,color:'rgba(255,255,255,0.9)',textTransform:'uppercase' as const}}>{t.name.slice(0,2)}</span>
                     </div>}
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:20,textTransform:'uppercase' as const,color:'#EEEEF5',letterSpacing:0.5,lineHeight:1.1,marginBottom:6}}>{t.name}</div>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:20,textTransform:'uppercase' as const,color:C.text,letterSpacing:0.5,lineHeight:1.1,marginBottom:6}}>{t.name}</div>
                     <div style={{display:'flex',gap:12,alignItems:'center'}}>
                       {s&&s.wins+s.losses>0&&(
                         <>
-                          <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,color:isLeader?accent:'#EEEEF5'}}>{s.wins}–{s.losses}</span>
-                          <span style={{fontSize:10,color:isLeader?accent+'88':'#3A3A4E',fontFamily:"'DM Mono',monospace"}}>{((s.wins/(s.wins+s.losses))*100).toFixed(0)}%WIN</span>
+                          <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,color:isLeader?accent:C.text}}>{s.wins}–{s.losses}</span>
+                          <span style={{fontSize:10,color:isLeader?accent+'88':C.textDim,fontFamily:"'DM Mono',monospace"}}>{((s.wins/(s.wins+s.losses))*100).toFixed(0)}%WIN</span>
                         </>
                       )}
-                      <span style={{fontSize:10,color:'#3A3A4E',fontFamily:"'DM Mono',monospace"}}>{cnt} players</span>
+                      <span style={{fontSize:10,color:C.textDim,fontFamily:"'DM Mono',monospace"}}>{cnt} players</span>
                     </div>
                     {isLeader&&s&&s.wins>0&&<div style={{marginTop:6,fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2}}>🏆 DIVISION LEADER</div>}
                   </div>
@@ -858,12 +881,12 @@ export default function PublicLeaguePage() {
                 <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
                   <SectionLabel accent={accent} noMargin>{label??'Power Rankings'}</SectionLabel>
                   {divInsights[0]?.low_confidence&&(
-                    <span style={{fontSize:10,color:'#6A6A82',fontFamily:"'DM Mono',monospace",background:'#0A0A0E',border:'1px solid #2A2A38',borderRadius:6,padding:'3px 8px',letterSpacing:1,textTransform:'uppercase' as const}}>Early Season</span>
+                    <span style={{fontSize:10,color:C.textMuted,fontFamily:"'DM Mono',monospace",background:C.cardBg,border:'1px solid #2A2A38',borderRadius:6,padding:'3px 8px',letterSpacing:1,textTransform:'uppercase' as const}}>Early Season</span>
                   )}
                 </div>
                 {insightsLoading&&divInsights.length===0&&(
                   <div style={{display:'flex',flexDirection:'column' as const,gap:12}}>
-                    {[0,1,2,3].map(i=><div key={i} style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:14,padding:'18px 20px',height:90,opacity:0.5+i*0.1}}/>)}
+                    {[0,1,2,3].map(i=><div key={i} style={{background:C.cardBg,border:'1px solid #1C1C26',borderRadius:14,padding:'18px 20px',height:90,opacity:0.5+i*0.1}}/>)}
                   </div>
                 )}
                 <div style={{display:'flex',flexDirection:'column' as const,gap:12}}>
@@ -872,30 +895,30 @@ export default function PublicLeaguePage() {
                     const isClinched=ins.magic_number===0
                     const pct=allPlayoffs?ins.championship_probability:ins.playoff_probability
                     const trendIcon=ins.trend==='UP'?'↑':ins.trend==='DOWN'?'↓':'→'
-                    const trendColor=ins.trend==='UP'?accent:ins.trend==='DOWN'?'#FF453A':'#6A6A82'
+                    const trendColor=ins.trend==='UP'?accent:ins.trend==='DOWN'?'#FF453A':C.textMuted
                     return(
-                      <div key={ins.team_id} style={{background:'#0A0A0E',border:`1px solid ${isClinched?accent+'44':isElim?'#1A1A28':'#1C1C26'}`,borderRadius:14,padding:'18px 20px'}}>
+                      <div key={ins.team_id} style={{background:C.cardBg,border:`1px solid ${isClinched?accent+'44':isElim?C.borderSub:C.border}`,borderRadius:14,padding:'18px 20px'}}>
                         <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12,flexWrap:'wrap' as const}}>
-                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,color:idx===0?accent:'#3A3A4E',minWidth:24,flexShrink:0}}>{isClinched?'✓':isElim?'—':idx+1}</div>
+                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,color:idx===0?accent:C.textDim,minWidth:24,flexShrink:0}}>{isClinched?'✓':isElim?'—':idx+1}</div>
                           {ins.logo_url
                             ?<img src={ins.logo_url} alt={ins.team_name} style={{width:32,height:32,borderRadius:6,objectFit:'cover' as const,flexShrink:0,border:`1px solid ${ins.color}44`}}/>
                             :<div style={{width:10,height:10,borderRadius:'50%',background:ins.color,flexShrink:0}}/>}
                           <div style={{flex:1,minWidth:120}}>
                             <div style={{display:'flex',alignItems:'center',gap:8}}>
-                              <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase' as const,color:'#EEEEF5'}}>{ins.team_name}</span>
+                              <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase' as const,color:C.text}}>{ins.team_name}</span>
                               <span style={{fontSize:14,color:trendColor,fontWeight:700,flexShrink:0}}>{trendIcon}</span>
                             </div>
-                            <div style={{fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace"}}>{ins.wins}–{ins.losses}{ins.magic_number!=null&&ins.magic_number>0?` · Magic #${ins.magic_number}`:''}{isClinched?' · Clinched':''}{isElim?' · Eliminated':''}</div>
+                            <div style={{fontSize:11,color:C.textMuted,fontFamily:"'DM Mono',monospace"}}>{ins.wins}–{ins.losses}{ins.magic_number!=null&&ins.magic_number>0?` · Magic #${ins.magic_number}`:''}{isClinched?' · Clinched':''}{isElim?' · Eliminated':''}</div>
                           </div>
                           <div style={{textAlign:'center' as const,flexShrink:0}}>
-                            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:24,color:isElim?'#3A3A4E':isClinched?accent:ins.color,lineHeight:1}}>{Math.round(pct*100)}%</div>
-                            <div style={{fontSize:9,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:1,textTransform:'uppercase' as const}}>{allPlayoffs?'Champ':'Playoff'}</div>
+                            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:24,color:isElim?C.textDim:isClinched?accent:ins.color,lineHeight:1}}>{Math.round(pct*100)}%</div>
+                            <div style={{fontSize:9,color:C.textMuted,fontFamily:"'DM Mono',monospace",letterSpacing:1,textTransform:'uppercase' as const}}>{allPlayoffs?'Champ':'Playoff'}</div>
                           </div>
                         </div>
-                        <div style={{height:3,background:'#1A1A28',borderRadius:2,marginBottom:12,overflow:'hidden'}}>
-                          <div style={{height:'100%',width:`${Math.round(pct*100)}%`,background:isElim?'#2A2A38':isClinched?accent:ins.color,borderRadius:2,transition:'width 0.6s'}}/>
+                        <div style={{height:3,background:C.borderSub,borderRadius:2,marginBottom:12,overflow:'hidden'}}>
+                          <div style={{height:'100%',width:`${Math.round(pct*100)}%`,background:isElim?C.borderStr:isClinched?accent:ins.color,borderRadius:2,transition:'width 0.6s'}}/>
                         </div>
-                        <p style={{margin:0,fontSize:13,lineHeight:1.7,color:isElim?'#4A4A5E':'rgba(238,238,245,0.75)',fontFamily:"'DM Sans',sans-serif"}}>{ins.insight_text}</p>
+                        <p style={{margin:0,fontSize:13,lineHeight:1.7,color:isElim?C.elim:C.t75,fontFamily:"'DM Sans',sans-serif"}}>{ins.insight_text}</p>
                       </div>
                     )
                   })}
@@ -911,14 +934,14 @@ export default function PublicLeaguePage() {
           const DivisionPills=()=>hasDivisions?(
             <div style={{display:'flex',gap:8,flexWrap:'wrap' as const,marginBottom:24}}>
               <button onClick={()=>setSelectedDivisionId(null)}
-                style={{padding:'6px 16px',borderRadius:20,border:`1px solid ${selectedDivisionId===null?accent:'#2A2A38'}`,background:selectedDivisionId===null?`${accent}18`:'transparent',color:selectedDivisionId===null?accent:'#6A6A82',fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:1,textTransform:'uppercase' as const,cursor:'pointer',transition:'all 0.15s'}}>
+                style={{padding:'6px 16px',borderRadius:20,border:`1px solid ${selectedDivisionId===null?accent:C.borderStr}`,background:selectedDivisionId===null?`${accent}18`:'transparent',color:selectedDivisionId===null?accent:C.textMuted,fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:1,textTransform:'uppercase' as const,cursor:'pointer',transition:'all 0.15s'}}>
                 All
               </button>
               {divisions.map(div=>{
                 const active=selectedDivisionId===div.id
                 return(
                   <button key={div.id} onClick={()=>setSelectedDivisionId(div.id)}
-                    style={{padding:'6px 16px',borderRadius:20,border:`1px solid ${active?accent:'#2A2A38'}`,background:active?`${accent}18`:'transparent',color:active?accent:'#6A6A82',fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:1,textTransform:'uppercase' as const,cursor:'pointer',transition:'all 0.15s'}}>
+                    style={{padding:'6px 16px',borderRadius:20,border:`1px solid ${active?accent:C.borderStr}`,background:active?`${accent}18`:'transparent',color:active?accent:C.textMuted,fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:1,textTransform:'uppercase' as const,cursor:'pointer',transition:'all 0.15s'}}>
                     {div.name}
                   </button>
                 )
@@ -953,7 +976,7 @@ export default function PublicLeaguePage() {
                 })}
                 {unassigned.length>0&&(
                   <div style={{marginBottom:48}}>
-                    <div style={{fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const,marginBottom:14}}>Other</div>
+                    <div style={{fontSize:11,color:C.textMuted,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const,marginBottom:14}}>Other</div>
                     <div className="team-cards" style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}}>
                       {unassigned.map(t=><TeamCard key={t.id} t={t} isLeader={false}/>)}
                     </div>
@@ -1005,7 +1028,7 @@ export default function PublicLeaguePage() {
                   <img src={p.photo_url} alt={p.caption??''} style={{width:'100%',display:'block',borderRadius:10,transition:'transform 0.2s'}}
                     onMouseEnter={e=>(e.currentTarget.style.transform='scale(1.02)')}
                     onMouseLeave={e=>(e.currentTarget.style.transform='scale(1)')}/>
-                  {p.caption&&<div style={{position:'absolute',bottom:0,left:0,right:0,background:'linear-gradient(transparent,rgba(0,0,0,0.75))',padding:'24px 12px 10px',fontSize:12,color:'#EEEEF5',fontFamily:"'DM Sans',sans-serif"}}>{p.caption}</div>}
+                  {p.caption&&<div style={{position:'absolute',bottom:0,left:0,right:0,background:'linear-gradient(transparent,rgba(0,0,0,0.75))',padding:'24px 12px 10px',fontSize:12,color:C.text,fontFamily:"'DM Sans',sans-serif"}}>{p.caption}</div>}
                 </div>
               ))}
             </div>
@@ -1018,13 +1041,13 @@ export default function PublicLeaguePage() {
           {(!league.rules_sections||league.rules_sections.length===0)?<Empty>No rules posted yet.</Empty>:(
             <div style={{display:'flex',flexDirection:'column',gap:24}}>
               {league.rules_sections.map((sec,i)=>(
-                <div key={i} style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:12,overflow:'hidden'}}>
+                <div key={i} style={{background:C.cardBg,border:'1px solid #1C1C26',borderRadius:12,overflow:'hidden'}}>
                   {sec.title&&(
-                    <div style={{padding:'14px 20px',borderBottom:'1px solid #1C1C26',background:'#0F0F14'}}>
+                    <div style={{padding:'14px 20px',borderBottom:'1px solid #1C1C26',background:C.cardBg3}}>
                       <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,textTransform:'uppercase',letterSpacing:0.5,color:accent}}>{sec.title}</span>
                     </div>
                   )}
-                  <div style={{padding:'16px 20px',fontSize:14,lineHeight:1.75,color:'rgba(238,238,245,0.85)',whiteSpace:'pre-wrap' as const,fontFamily:"'DM Sans',sans-serif"}}>
+                  <div style={{padding:'16px 20px',fontSize:14,lineHeight:1.75,color:C.t85,whiteSpace:'pre-wrap' as const,fontFamily:"'DM Sans',sans-serif"}}>
                     {sec.content}
                   </div>
                 </div>
@@ -1040,9 +1063,9 @@ export default function PublicLeaguePage() {
 
             {/* Custom about sections */}
             {league.about_sections?.filter(s=>s.title||s.content).map((sec,idx)=>(
-              <div key={idx} style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:14,padding:'24px 28px'}}>
+              <div key={idx} style={{background:C.cardBg,border:'1px solid #1C1C26',borderRadius:14,padding:'24px 28px'}}>
                 {sec.title&&<div style={{fontSize:11,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:14}}>{sec.title}</div>}
-                <p style={{fontSize:16,lineHeight:1.8,color:'rgba(238,238,245,0.9)',fontFamily:"'DM Sans',sans-serif",margin:0,whiteSpace:'pre-wrap' as const}}>{sec.content}</p>
+                <p style={{fontSize:16,lineHeight:1.8,color:C.t90,fontFamily:"'DM Sans',sans-serif",margin:0,whiteSpace:'pre-wrap' as const}}>{sec.content}</p>
               </div>
             ))}
 
@@ -1050,20 +1073,20 @@ export default function PublicLeaguePage() {
             {(league.location||league.season||league.sport)&&(
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:12}}>
                 {league.sport&&(
-                  <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:12,padding:'16px 18px'}}>
-                    <div style={{fontSize:10,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:6}}>Sport</div>
+                  <div style={{background:C.cardBg,border:'1px solid #1C1C26',borderRadius:12,padding:'16px 18px'}}>
+                    <div style={{fontSize:10,color:C.textMuted,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:6}}>Sport</div>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:20,textTransform:'uppercase' as const}}>{league.sport}</div>
                   </div>
                 )}
                 {league.season&&(
-                  <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:12,padding:'16px 18px'}}>
-                    <div style={{fontSize:10,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:6}}>Current Season</div>
+                  <div style={{background:C.cardBg,border:'1px solid #1C1C26',borderRadius:12,padding:'16px 18px'}}>
+                    <div style={{fontSize:10,color:C.textMuted,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:6}}>Current Season</div>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:20,textTransform:'uppercase' as const}}>{league.season}</div>
                   </div>
                 )}
                 {league.location&&(
-                  <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:12,padding:'16px 18px'}}>
-                    <div style={{fontSize:10,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:6}}>Location</div>
+                  <div style={{background:C.cardBg,border:'1px solid #1C1C26',borderRadius:12,padding:'16px 18px'}}>
+                    <div style={{fontSize:10,color:C.textMuted,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:6}}>Location</div>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:20,textTransform:'uppercase' as const}}>📍 {league.location}</div>
                   </div>
                 )}
@@ -1072,16 +1095,16 @@ export default function PublicLeaguePage() {
 
             {/* Social links */}
             {league.social_links&&Object.values(league.social_links).some(Boolean)&&(
-              <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:14,padding:'20px 24px'}}>
-                <div style={{fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:14}}>Follow Us</div>
+              <div style={{background:C.cardBg,border:'1px solid #1C1C26',borderRadius:14,padding:'20px 24px'}}>
+                <div style={{fontSize:11,color:C.textMuted,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:14}}>Follow Us</div>
                 <SocialIcons links={league.social_links} accent={accent}/>
               </div>
             )}
 
             {/* Contact */}
             {(league.contact_info||league.social_links?.phone)&&(
-              <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:14,padding:'20px 24px'}}>
-                <div style={{fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:14}}>Get In Touch</div>
+              <div style={{background:C.cardBg,border:'1px solid #1C1C26',borderRadius:14,padding:'20px 24px'}}>
+                <div style={{fontSize:11,color:C.textMuted,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:14}}>Get In Touch</div>
                 <div style={{display:'flex',flexWrap:'wrap' as const,gap:10}}>
                   {league.contact_info&&(
                     <a href={`mailto:${league.contact_info}`}
@@ -1091,7 +1114,7 @@ export default function PublicLeaguePage() {
                   )}
                   {league.social_links?.phone&&(
                     <a href={`tel:${league.social_links.phone}`}
-                      style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',color:'#EEEEF5',borderRadius:10,padding:'10px 20px',textDecoration:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase' as const,letterSpacing:0.5}}>
+                      style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',color:C.text,borderRadius:10,padding:'10px 20px',textDecoration:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase' as const,letterSpacing:0.5}}>
                       📞 {league.social_links.phone}
                     </a>
                   )}
@@ -1109,7 +1132,7 @@ export default function PublicLeaguePage() {
                   Join the league and get in the game.
                 </div>
                 <a href={league.signup_url} target="_blank" rel="noreferrer"
-                  style={{display:'inline-block',background:accent,color:'#040406',borderRadius:10,padding:'12px 32px',textDecoration:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase' as const,letterSpacing:1}}>
+                  style={{display:'inline-block',background:accent,color:C.pageBg,borderRadius:10,padding:'12px 32px',textDecoration:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase' as const,letterSpacing:1}}>
                   {league.signup_label||'Sign Up Now'}
                 </a>
               </div>
@@ -1126,29 +1149,29 @@ export default function PublicLeaguePage() {
                 const champ=tMap[s.champion_team_id??'']
                 const isOpen=selectedSeasonId===s.id
                 return(
-                  <div key={s.id} style={{background:'#0A0A0E',border:`1px solid ${isOpen?accent+'44':'#1C1C26'}`,borderRadius:12,overflow:'hidden',transition:'border-color 0.2s'}}>
+                  <div key={s.id} style={{background:C.cardBg,border:`1px solid ${isOpen?accent+'44':C.border}`,borderRadius:12,overflow:'hidden',transition:'border-color 0.2s'}}>
                     <button onClick={()=>{if(isOpen){setSelectedSeasonId(null)}else{loadSeason(s.id)}}}
                       style={{width:'100%',background:'none',border:'none',padding:'18px 20px',cursor:'pointer',display:'flex',alignItems:'center',gap:14,textAlign:'left' as const}}>
                       <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:20,textTransform:'uppercase',color:'#EEEEF5',letterSpacing:0.5}}>{s.name}</div>
-                        <div style={{display:'flex',gap:12,flexWrap:'wrap' as const,marginTop:4,fontSize:12,color:'#C8C8D4',fontFamily:"'DM Mono',monospace"}}>
+                        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:20,textTransform:'uppercase',color:C.text,letterSpacing:0.5}}>{s.name}</div>
+                        <div style={{display:'flex',gap:12,flexWrap:'wrap' as const,marginTop:4,fontSize:12,color:C.textSub,fontFamily:"'DM Mono',monospace"}}>
                           {s.start_date&&s.end_date&&<span>{s.start_date.slice(0,7)} → {s.end_date.slice(0,7)}</span>}
                           {champ&&<span style={{color:'#F5C542'}}>🏆 {champ.name}</span>}
                           {s.notes&&<span>{s.notes}</span>}
                         </div>
                       </div>
-                      <span style={{color:isOpen?accent:'#2E2E3A',fontSize:18,transition:'transform 0.2s',display:'inline-block',transform:isOpen?'rotate(90deg)':'rotate(0deg)'}}>›</span>
+                      <span style={{color:isOpen?accent:C.textFaint,fontSize:18,transition:'transform 0.2s',display:'inline-block',transform:isOpen?'rotate(90deg)':'rotate(0deg)'}}>›</span>
                     </button>
                     {isOpen&&(
                       <div style={{borderTop:'1px solid #1C1C26',padding:'20px'}}>
-                        {loadingSeason?<div style={{textAlign:'center',padding:'24px 0',color:'#C8C8D4',fontFamily:"'DM Mono',monospace",fontSize:13}}>Loading…</div>:(
+                        {loadingSeason?<div style={{textAlign:'center',padding:'24px 0',color:C.textSub,fontFamily:"'DM Mono',monospace",fontSize:13}}>Loading…</div>:(
                           <>
                             {champ&&(
                               <div style={{display:'flex',alignItems:'center',gap:12,background:`${accent}10`,border:`1px solid ${accent}30`,borderRadius:10,padding:'12px 16px',marginBottom:20}}>
                                 <span style={{fontSize:24}}>🏆</span>
                                 <div>
                                   <div style={{fontSize:11,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:2}}>Champion</div>
-                                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,textTransform:'uppercase',color:'#EEEEF5'}}>{champ.name}</div>
+                                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,textTransform:'uppercase',color:C.text}}>{champ.name}</div>
                                 </div>
                               </div>
                             )}
@@ -1158,17 +1181,17 @@ export default function PublicLeaguePage() {
                               if(std.length===0) return <Empty>No final games recorded for this season.</Empty>
                               return(
                                 <div style={{marginBottom:20}}>
-                                  <div style={{fontSize:12,fontWeight:600,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",textTransform:'uppercase' as const,letterSpacing:1,marginBottom:10}}>Standings</div>
+                                  <div style={{fontSize:12,fontWeight:600,color:C.textSub,fontFamily:"'DM Mono',monospace",textTransform:'uppercase' as const,letterSpacing:1,marginBottom:10}}>Standings</div>
                                   <div style={{overflowX:'auto'}}>
                                     <table style={{width:'100%',borderCollapse:'collapse',minWidth:320}}>
                                       <thead><tr style={{borderBottom:'1px solid #1C1C26'}}>
-                                        <th style={{textAlign:'left' as const,padding:'6px 10px',fontSize:11,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",fontWeight:400}}>#</th>
-                                        <th style={{textAlign:'left' as const,padding:'6px 10px',fontSize:11,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",fontWeight:400}}>Team</th>
-                                        <th style={{textAlign:'center' as const,padding:'6px 10px',fontSize:11,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",fontWeight:400}}>W</th>
-                                        <th style={{textAlign:'center' as const,padding:'6px 10px',fontSize:11,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",fontWeight:400}}>L</th>
-                                        <th style={{textAlign:'center' as const,padding:'6px 10px',fontSize:11,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",fontWeight:400}}>PCT</th>
-                                        <th style={{textAlign:'center' as const,padding:'6px 10px',fontSize:11,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",fontWeight:400}}>PF</th>
-                                        <th style={{textAlign:'center' as const,padding:'6px 10px',fontSize:11,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",fontWeight:400}}>PA</th>
+                                        <th style={{textAlign:'left' as const,padding:'6px 10px',fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace",fontWeight:400}}>#</th>
+                                        <th style={{textAlign:'left' as const,padding:'6px 10px',fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace",fontWeight:400}}>Team</th>
+                                        <th style={{textAlign:'center' as const,padding:'6px 10px',fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace",fontWeight:400}}>W</th>
+                                        <th style={{textAlign:'center' as const,padding:'6px 10px',fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace",fontWeight:400}}>L</th>
+                                        <th style={{textAlign:'center' as const,padding:'6px 10px',fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace",fontWeight:400}}>PCT</th>
+                                        <th style={{textAlign:'center' as const,padding:'6px 10px',fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace",fontWeight:400}}>PF</th>
+                                        <th style={{textAlign:'center' as const,padding:'6px 10px',fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace",fontWeight:400}}>PA</th>
                                       </tr></thead>
                                       <tbody>
                                         {std.map((row,ri)=>{
@@ -1176,17 +1199,17 @@ export default function PublicLeaguePage() {
                                           const pct=gp>0?(row.wins/gp).toFixed(3):'—'
                                           const isChamp=row.team_id===s.champion_team_id
                                           return(<tr key={row.team_id} style={{borderBottom:'1px solid #0F0F14',background:isChamp?`${accent}08`:'transparent'}}>
-                                            <td style={{padding:'8px 10px',fontSize:13,color:'#C8C8D4',fontFamily:"'DM Mono',monospace"}}>{ri+1}</td>
+                                            <td style={{padding:'8px 10px',fontSize:13,color:C.textSub,fontFamily:"'DM Mono',monospace"}}>{ri+1}</td>
                                             <td style={{padding:'8px 10px',display:'flex',alignItems:'center',gap:8}}>
                                               <span style={{width:8,height:8,borderRadius:'50%',background:row.color,display:'inline-block',flexShrink:0}}/>
-                                              <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase',color:isChamp?accent:'#EEEEF5'}}>{row.team_name}</span>
+                                              <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase',color:isChamp?accent:C.text}}>{row.team_name}</span>
                                               {isChamp&&<span style={{fontSize:12}}>🏆</span>}
                                             </td>
                                             <td style={{textAlign:'center' as const,padding:'8px 10px',fontFamily:"'DM Mono',monospace",fontSize:13,color:accent,fontWeight:600}}>{row.wins}</td>
-                                            <td style={{textAlign:'center' as const,padding:'8px 10px',fontFamily:"'DM Mono',monospace",fontSize:13,color:'#C8C8D4'}}>{row.losses}</td>
-                                            <td style={{textAlign:'center' as const,padding:'8px 10px',fontFamily:"'DM Mono',monospace",fontSize:13,color:'#EEEEF5'}}>{pct}</td>
-                                            <td style={{textAlign:'center' as const,padding:'8px 10px',fontFamily:"'DM Mono',monospace",fontSize:13,color:'#C8C8D4'}}>{row.pts_for}</td>
-                                            <td style={{textAlign:'center' as const,padding:'8px 10px',fontFamily:"'DM Mono',monospace",fontSize:13,color:'#C8C8D4'}}>{row.pts_against}</td>
+                                            <td style={{textAlign:'center' as const,padding:'8px 10px',fontFamily:"'DM Mono',monospace",fontSize:13,color:C.textSub}}>{row.losses}</td>
+                                            <td style={{textAlign:'center' as const,padding:'8px 10px',fontFamily:"'DM Mono',monospace",fontSize:13,color:C.text}}>{pct}</td>
+                                            <td style={{textAlign:'center' as const,padding:'8px 10px',fontFamily:"'DM Mono',monospace",fontSize:13,color:C.textSub}}>{row.pts_for}</td>
+                                            <td style={{textAlign:'center' as const,padding:'8px 10px',fontFamily:"'DM Mono',monospace",fontSize:13,color:C.textSub}}>{row.pts_against}</td>
                                           </tr>)
                                         })}
                                       </tbody>
@@ -1202,15 +1225,15 @@ export default function PublicLeaguePage() {
                               const top5=sp.slice().sort((a,b)=>b.ppg-a.ppg).slice(0,5)
                               return(
                                 <div>
-                                  <div style={{fontSize:12,fontWeight:600,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",textTransform:'uppercase' as const,letterSpacing:1,marginBottom:10}}>Top Scorers</div>
+                                  <div style={{fontSize:12,fontWeight:600,color:C.textSub,fontFamily:"'DM Mono',monospace",textTransform:'uppercase' as const,letterSpacing:1,marginBottom:10}}>Top Scorers</div>
                                   {top5.map((p,pi)=>(
                                     <div key={p.player_id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid #0F0F14'}}>
-                                      <span style={{width:22,textAlign:'center' as const,fontFamily:"'DM Mono',monospace",fontSize:12,color:'#C8C8D4'}}>{pi+1}</span>
+                                      <span style={{width:22,textAlign:'center' as const,fontFamily:"'DM Mono',monospace",fontSize:12,color:C.textSub}}>{pi+1}</span>
                                       <span style={{width:8,height:8,borderRadius:'50%',background:p.team_color,display:'inline-block',flexShrink:0}}/>
-                                      <span style={{flex:1,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,textTransform:'uppercase',color:'#EEEEF5'}}>{p.display_name}</span>
+                                      <span style={{flex:1,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,textTransform:'uppercase',color:C.text}}>{p.display_name}</span>
                                       <NetrBadge score={pMap[p.player_id]?.netr_score}/>
                                       <span style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:accent,fontWeight:600}}>{p.ppg.toFixed(1)}</span>
-                                      <span style={{fontSize:11,color:'#C8C8D4',fontFamily:"'DM Mono',monospace"}}>PPG</span>
+                                      <span style={{fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace"}}>PPG</span>
                                     </div>
                                   ))}
                                 </div>
@@ -1230,7 +1253,7 @@ export default function PublicLeaguePage() {
 
       </main>
       <footer style={{borderTop:'1px solid #12121C',marginTop:40,padding:'32px 24px',textAlign:'center' as const}}>
-        <div style={{fontSize:10,color:'#2E2E3A',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const}}>
+        <div style={{fontSize:10,color:C.textFaint,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const}}>
           Powered by <a href="https://www.netr.pro" style={{color:accent,textDecoration:'none',fontWeight:700}}>NETR</a> · The Modern League Platform
         </div>
       </footer>
@@ -1242,8 +1265,8 @@ export default function PublicLeaguePage() {
             style={{position:'absolute',left:20,top:'50%',transform:'translateY(-50%)',background:'rgba(255,255,255,0.1)',border:'none',color:'#fff',fontSize:28,width:48,height:48,borderRadius:'50%',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:12,maxWidth:'90vw'}}>
             <img src={galleryPhotos[lightboxIdx].photo_url} alt={galleryPhotos[lightboxIdx].caption??''} onClick={e=>e.stopPropagation()} style={{maxHeight:'82vh',maxWidth:'90vw',objectFit:'contain',borderRadius:10,boxShadow:'0 0 60px rgba(0,0,0,0.8)'}}/>
-            {galleryPhotos[lightboxIdx].caption&&<div style={{fontSize:14,color:'#C8C8D4',fontFamily:"'DM Sans',sans-serif",textAlign:'center'}}>{galleryPhotos[lightboxIdx].caption}</div>}
-            <div style={{fontSize:12,color:'#C8C8D4',fontFamily:"'DM Mono',monospace"}}>{lightboxIdx+1} / {galleryPhotos.length}</div>
+            {galleryPhotos[lightboxIdx].caption&&<div style={{fontSize:14,color:C.textSub,fontFamily:"'DM Sans',sans-serif",textAlign:'center'}}>{galleryPhotos[lightboxIdx].caption}</div>}
+            <div style={{fontSize:12,color:C.textSub,fontFamily:"'DM Mono',monospace"}}>{lightboxIdx+1} / {galleryPhotos.length}</div>
           </div>
           <button onClick={e=>{e.stopPropagation();setLightboxIdx(i=>i!==null&&i<galleryPhotos.length-1?i+1:0)}}
             style={{position:'absolute',right:20,top:'50%',transform:'translateY(-50%)',background:'rgba(255,255,255,0.1)',border:'none',color:'#fff',fontSize:28,width:48,height:48,borderRadius:'50%',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>›</button>
@@ -1254,15 +1277,15 @@ export default function PublicLeaguePage() {
       {boxGame&&(
         <Modal onClose={()=>setBoxGameId(null)}>
           <div style={{textAlign:'center',marginBottom:20,paddingBottom:20,borderBottom:'1px solid #1C1C26'}}>
-            <div style={{fontSize:11,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",marginBottom:10}}>{fmtDate(boxGame.scheduled_at)} · Final</div>
+            <div style={{fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace",marginBottom:10}}>{fmtDate(boxGame.scheduled_at)} · Final</div>
             <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:16}}>
-              <div style={{textAlign:'right',minWidth:110,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase',color:(boxGame.home_score??0)>(boxGame.away_score??0)?'#EEEEF5':'#A0A0B8'}}>{tMap[boxGame.home_team_id]?.name??'—'}</div>
+              <div style={{textAlign:'right',minWidth:110,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase',color:(boxGame.home_score??0)>(boxGame.away_score??0)?C.text:C.textA0}}>{tMap[boxGame.home_team_id]?.name??'—'}</div>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:44,fontWeight:900,display:'flex',alignItems:'center',gap:10}}>
-                <span style={{color:(boxGame.home_score??0)>(boxGame.away_score??0)?accent:'#C8C8D4'}}>{boxGame.home_score??0}</span>
-                <span style={{color:'#2E2E3A',fontSize:24}}>–</span>
-                <span style={{color:(boxGame.away_score??0)>(boxGame.home_score??0)?accent:'#C8C8D4'}}>{boxGame.away_score??0}</span>
+                <span style={{color:(boxGame.home_score??0)>(boxGame.away_score??0)?accent:C.textSub}}>{boxGame.home_score??0}</span>
+                <span style={{color:C.textFaint,fontSize:24}}>–</span>
+                <span style={{color:(boxGame.away_score??0)>(boxGame.home_score??0)?accent:C.textSub}}>{boxGame.away_score??0}</span>
               </div>
-              <div style={{textAlign:'left',minWidth:110,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase',color:(boxGame.away_score??0)>(boxGame.home_score??0)?'#EEEEF5':'#A0A0B8'}}>{tMap[boxGame.away_team_id]?.name??'—'}</div>
+              <div style={{textAlign:'left',minWidth:110,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase',color:(boxGame.away_score??0)>(boxGame.home_score??0)?C.text:C.textA0}}>{tMap[boxGame.away_team_id]?.name??'—'}</div>
             </div>
           </div>
           {[boxGame.home_team_id,boxGame.away_team_id].map(tid=>{
@@ -1271,7 +1294,7 @@ export default function PublicLeaguePage() {
             if(!team) return null
             return(<div key={tid} style={{marginBottom:20}}>
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}><div style={{width:10,height:10,borderRadius:'50%',background:team.color}}/><span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:15,textTransform:'uppercase'}}>{team.name}</span></div>
-              {tStats.length===0?<div style={{fontSize:13,color:'#C8C8D4'}}>No stats entered.</div>:(
+              {tStats.length===0?<div style={{fontSize:13,color:C.textSub}}>No stats entered.</div>:(
                 <div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',minWidth:hasShooting?460:320}}>
                   <thead><tr style={{borderBottom:'1px solid #1C1C26'}}>
                     <th style={{...TH,textAlign:'left',fontSize:9}}>Player</th>
@@ -1281,14 +1304,14 @@ export default function PublicLeaguePage() {
                   <tbody>{tStats.map(s=>{
                     const pl=pMap[s.player_id]
                     return(<tr key={s.player_id} style={{borderBottom:'1px solid #0D0D12'}}>
-                      <td style={{...TD,textAlign:'left'}}><div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap' as const}}><span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase'}}>{pl?.display_name??'—'}</span>{pl?.jersey_number&&<span style={{color:'#C8C8D4',fontFamily:"'DM Mono',monospace",fontSize:11}}>#{pl.jersey_number}</span>}<NetrBadge score={pl?.netr_score}/></div></td>
-                      <td style={{...TD,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,color:s.points>0?accent:'#C8C8D4'}}>{s.points}</td>
+                      <td style={{...TD,textAlign:'left'}}><div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap' as const}}><span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase'}}>{pl?.display_name??'—'}</span>{pl?.jersey_number&&<span style={{color:C.textSub,fontFamily:"'DM Mono',monospace",fontSize:11}}>#{pl.jersey_number}</span>}<NetrBadge score={pl?.netr_score}/></div></td>
+                      <td style={{...TD,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,color:s.points>0?accent:C.textSub}}>{s.points}</td>
                       <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:13}}>{s.rebounds}</td>
                       <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:13}}>{s.assists}</td>
                       <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:13}}>{s.steals}</td>
                       <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:13}}>{s.blocks}</td>
-                      <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:13,color:s.turnovers>3?'#FF453A':'#A0A0B8'}}>{s.turnovers}</td>
-                      {hasShooting&&<><td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:'#EEEEF5'}}>{s.field_goals_made}/{s.field_goals_attempted}</td><td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:'#EEEEF5'}}>{s.three_pointers_made}/{s.three_pointers_attempted}</td><td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:'#EEEEF5'}}>{s.free_throws_made}/{s.free_throws_attempted}</td></>}
+                      <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:13,color:s.turnovers>3?'#FF453A':C.textA0}}>{s.turnovers}</td>
+                      {hasShooting&&<><td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:C.text}}>{s.field_goals_made}/{s.field_goals_attempted}</td><td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:C.text}}>{s.three_pointers_made}/{s.three_pointers_attempted}</td><td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:C.text}}>{s.free_throws_made}/{s.free_throws_attempted}</td></>}
                     </tr>)
                   })}</tbody>
                 </table></div>
@@ -1306,8 +1329,8 @@ export default function PublicLeaguePage() {
             <div>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:26,textTransform:'uppercase',lineHeight:1,marginBottom:8}}>{modalTeam.name}</div>
               {sMap[modalTeam.id]&&<div style={{display:'flex',gap:16}}>
-                {[['WINS',sMap[modalTeam.id].wins,accent],['LOSSES',sMap[modalTeam.id].losses,'#C8C8D4'],['PF',sMap[modalTeam.id].pts_for,'#EEEEF5']].map(([lbl,val,col])=>(
-                  <div key={String(lbl)} style={{textAlign:'center'}}><div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:26,color:String(col),lineHeight:1}}>{val}</div><div style={{fontSize:10,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",letterSpacing:1}}>{lbl}</div></div>
+                {[['WINS',sMap[modalTeam.id].wins,accent],['LOSSES',sMap[modalTeam.id].losses,C.textSub],['PF',sMap[modalTeam.id].pts_for,C.text]].map(([lbl,val,col])=>(
+                  <div key={String(lbl)} style={{textAlign:'center'}}><div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:26,color:String(col),lineHeight:1}}>{val}</div><div style={{fontSize:10,color:C.textSub,fontFamily:"'DM Mono',monospace",letterSpacing:1}}>{lbl}</div></div>
                 ))}
               </div>}
             </div>
@@ -1315,8 +1338,8 @@ export default function PublicLeaguePage() {
           <div style={{marginBottom:16}}>
             <CalendarButtons slug={league.slug} teamId={modalTeam.id} size="sm"/>
           </div>
-          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,textTransform:'uppercase',letterSpacing:1,color:'#C8C8D4',marginBottom:10}}>Roster</div>
-          {modalPlayers.length===0?<div style={{fontSize:13,color:'#C8C8D4'}}>No players yet.</div>:(
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,textTransform:'uppercase',letterSpacing:1,color:C.textSub,marginBottom:10}}>Roster</div>
+          {modalPlayers.length===0?<div style={{fontSize:13,color:C.textSub}}>No players yet.</div>:(
             <div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',minWidth:modalPStats.length>0?400:200}}>
               <thead><tr style={{borderBottom:'1px solid #1C1C26'}}>
                 <th style={{...TH,fontSize:9,width:36}}>#</th>
@@ -1326,11 +1349,11 @@ export default function PublicLeaguePage() {
               <tbody>{modalPlayers.map(p=>{
                 const ps=modalPStats.find(s=>s.player_id===p.id)
                 return(<tr key={p.id} style={{borderBottom:'1px solid #0D0D12'}}>
-                  <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:'#C8C8D4'}}>{p.jersey_number??'—'}</td>
-                  <td style={{...TD,textAlign:'left'}}><div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap' as const}}>{eplPhoto(p)?<img src={eplPhoto(p)!} alt={p.display_name} style={{width:28,height:28,borderRadius:'50%',objectFit:'cover',flexShrink:0,border:'1.5px solid #2E2E3A'}}/>:<div style={{width:28,height:28,borderRadius:'50%',background:'#1C1C26',border:'1.5px solid #2E2E3A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><span style={{fontSize:11,color:'#6A6A82',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700}}>{p.display_name.slice(0,1).toUpperCase()}</span></div>}<span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase'}}>{p.display_name}</span><NetrBadge score={p.netr_score}/></div>{p.position&&<div style={{fontSize:10,color:'#C8C8D4',fontFamily:"'DM Mono',monospace"}}>{p.position}</div>}</td>
+                  <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:C.textSub}}>{p.jersey_number??'—'}</td>
+                  <td style={{...TD,textAlign:'left'}}><div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap' as const}}>{eplPhoto(p)?<img src={eplPhoto(p)!} alt={p.display_name} style={{width:28,height:28,borderRadius:'50%',objectFit:'cover',flexShrink:0,border:'1.5px solid #2E2E3A'}}/>:<div style={{width:28,height:28,borderRadius:'50%',background:C.border,border:'1.5px solid #2E2E3A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><span style={{fontSize:11,color:C.textMuted,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700}}>{p.display_name.slice(0,1).toUpperCase()}</span></div>}<span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase'}}>{p.display_name}</span><NetrBadge score={p.netr_score}/></div>{p.position&&<div style={{fontSize:10,color:C.textSub,fontFamily:"'DM Mono',monospace"}}>{p.position}</div>}</td>
                   {modalPStats.length>0&&<>
-                    <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:'#C8C8D4'}}>{ps?.gp??0}</td>
-                    <td style={{...TD,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:17,color:ps?.ppg?accent:'#3A3A4E'}}>{ps?.ppg??'—'}</td>
+                    <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:C.textSub}}>{ps?.gp??0}</td>
+                    <td style={{...TD,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:17,color:ps?.ppg?accent:C.textDim}}>{ps?.ppg??'—'}</td>
                     <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:13}}>{ps?.rpg??'—'}</td>
                     <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:13}}>{ps?.apg??'—'}</td>
                     <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:13}}>{ps?.spg??'—'}</td>
@@ -1348,17 +1371,17 @@ export default function PublicLeaguePage() {
         <Modal onClose={()=>setShowNetrInfo(false)}>
           <div style={{textAlign:'center',paddingBottom:24,marginBottom:24,borderBottom:'1px solid #1C1C26'}}>
             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:42,color:'#39FF14',letterSpacing:3,lineHeight:1,marginBottom:6}}>NETR</div>
-            <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:'#6A6A82',letterSpacing:2,textTransform:'uppercase' as const}}>The Modern Rating System</div>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:C.textMuted,letterSpacing:2,textTransform:'uppercase' as const}}>The Modern Rating System</div>
           </div>
-          <h2 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:24,color:'#EEEEF5',marginBottom:12,textTransform:'uppercase' as const,letterSpacing:0.5}}>What&apos;s a NETR Rating?</h2>
-          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:15,color:'#C8C8D4',lineHeight:1.7,marginBottom:14}}>
+          <h2 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:24,color:C.text,marginBottom:12,textTransform:'uppercase' as const,letterSpacing:0.5}}>What&apos;s a NETR Rating?</h2>
+          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:15,color:C.textSub,lineHeight:1.7,marginBottom:14}}>
             NETR is basketball&apos;s first peer-to-peer skill rating system. Every player earns their score from real feedback — given by the people they actually played with, after every run. No self-reporting. No algorithms. Just honest ratings from real players.
           </p>
-          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:15,color:'#C8C8D4',lineHeight:1.7,marginBottom:28}}>
+          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:15,color:C.textSub,lineHeight:1.7,marginBottom:28}}>
             The number next to a player&apos;s name is their verified NETR score — built from real games, real courts, real competition. The higher the number, the more the players they run with back it up.
           </p>
           <a href="https://apps.apple.com/us/app/netr-rating/id6761962317" target="_blank" rel="noopener noreferrer"
-            style={{display:'block',background:'#39FF14',color:'#040406',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:20,letterSpacing:1.5,textTransform:'uppercase' as const,textAlign:'center' as const,padding:'18px 24px',borderRadius:12,textDecoration:'none',boxShadow:'0 0 24px rgba(57,255,20,0.3)'}}>
+            style={{display:'block',background:'#39FF14',color:C.pageBg,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:20,letterSpacing:1.5,textTransform:'uppercase' as const,textAlign:'center' as const,padding:'18px 24px',borderRadius:12,textDecoration:'none',boxShadow:'0 0 24px rgba(57,255,20,0.3)'}}>
             Download NETR — Free on the App Store
           </a>
         </Modal>
@@ -1435,22 +1458,22 @@ function CalendarButtons({slug,teamId,size}:{slug:string;teamId?:string;size:'sm
   const qs=teamId?`?team=${teamId}`:''
   const pad=size==='lg'?'9px 16px':'7px 12px'
   const fs=size==='lg'?13:12
-  const btn:React.CSSProperties={display:'inline-flex',alignItems:'center',gap:5,background:'#0F0F14',border:'1px solid #2E2E3A',borderRadius:8,color:'#EEEEF5',fontSize:fs,fontFamily:"'DM Sans',sans-serif",padding:pad,textDecoration:'none',whiteSpace:'nowrap'}
+  const btn:React.CSSProperties={display:'inline-flex',alignItems:'center',gap:5,background:C.cardBg3,border:'1px solid #2E2E3A',borderRadius:8,color:C.text,fontSize:fs,fontFamily:"'DM Sans',sans-serif",padding:pad,textDecoration:'none',whiteSpace:'nowrap'}
   return(
     <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
       <a href={`webcal://${host}/api/league/${slug}/calendar${qs}`} style={btn}>🍎 iPhone / Apple</a>
       <a href={`https://calendar.google.com/calendar/r?cid=https://${host}/api/league/${slug}/calendar${qs}`} target="_blank" rel="noopener noreferrer" style={btn}>📆 Google</a>
-      <a href={`/api/league/${slug}/calendar${qs}`} target="_blank" rel="noopener noreferrer" style={{...btn,background:'transparent',border:'1px solid #1C1C26',color:'#C8C8D4'}}>↓ .ics</a>
+      <a href={`/api/league/${slug}/calendar${qs}`} target="_blank" rel="noopener noreferrer" style={{...btn,background:'transparent',border:'1px solid #1C1C26',color:C.textSub}}>↓ .ics</a>
     </div>
   )
 }
 
 function RsvpRow({gameId,myStatus,accent,onRsvp}:{gameId:string;myStatus:'yes'|'no'|'maybe'|null;accent:string;onRsvp:(id:string,s:'yes'|'no'|'maybe')=>void}) {
   return(
-    <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 16px 10px',background:'#0A0A0D',borderRadius:'0 0 10px 10px',borderLeft:'1px solid #1C1C26',borderRight:'1px solid #1C1C26',borderBottom:'1px solid #1C1C26',marginTop:-2}}>
-      <span style={{fontSize:11,color:'#C8C8D4',fontFamily:"'DM Mono',monospace",marginRight:4}}>RSVP:</span>
+    <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 16px 10px',background:C.cardBg,borderRadius:'0 0 10px 10px',borderLeft:'1px solid #1C1C26',borderRight:'1px solid #1C1C26',borderBottom:'1px solid #1C1C26',marginTop:-2}}>
+      <span style={{fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace",marginRight:4}}>RSVP:</span>
       {(['yes','no','maybe'] as const).map(s=>(
-        <button key={s} onClick={()=>onRsvp(gameId,s)} style={{background:myStatus===s?(s==='yes'?`${accent}22`:s==='no'?'rgba(255,68,85,0.15)':'rgba(245,197,66,0.15)'):'transparent',border:`1px solid ${myStatus===s?(s==='yes'?accent:s==='no'?'#FF4455':'#F5C542'):'#2E2E3A'}`,borderRadius:99,color:myStatus===s?(s==='yes'?accent:s==='no'?'#FF4455':'#F5C542'):'#6A6A82',fontSize:11,fontFamily:"'DM Mono',monospace",padding:'3px 10px',cursor:'pointer'}}>
+        <button key={s} onClick={()=>onRsvp(gameId,s)} style={{background:myStatus===s?(s==='yes'?`${accent}22`:s==='no'?'rgba(255,68,85,0.15)':'rgba(245,197,66,0.15)'):'transparent',border:`1px solid ${myStatus===s?(s==='yes'?accent:s==='no'?'#FF4455':'#F5C542'):C.textFaint}`,borderRadius:99,color:myStatus===s?(s==='yes'?accent:s==='no'?'#FF4455':'#F5C542'):C.textMuted,fontSize:11,fontFamily:"'DM Mono',monospace",padding:'3px 10px',cursor:'pointer'}}>
           {s==='yes'?'✓ In':s==='no'?'✗ Out':'? Maybe'}
         </button>
       ))}
@@ -1469,14 +1492,14 @@ function GCard({g,tMap,accent,onClick,showLoc,rsvpCount}:{g:Game;tMap:Record<str
       onMouseEnter={e=>{if(onClick){e.currentTarget.style.transform='translateY(-1px)';e.currentTarget.style.boxShadow=`0 8px 32px ${accent}20`}}}
       onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none'}}>
       {/* Subtle team color washes */}
-      <div style={{position:'absolute',inset:0,background:`linear-gradient(135deg,${home?.color??'#1C1C26'}18 0%,transparent 45%,${away?.color??'#1C1C26'}18 100%)`,pointerEvents:'none'}}/>
-      <div style={{position:'relative',display:'grid',gridTemplateColumns:'1fr auto 1fr',alignItems:'center',background:'#0D0D12',border:`1px solid ${fin?accent+'22':'#1C1C26'}`,borderRadius:14,overflow:'hidden'}}>
+      <div style={{position:'absolute',inset:0,background:`linear-gradient(135deg,${home?.color??C.border}18 0%,transparent 45%,${away?.color??C.border}18 100%)`,pointerEvents:'none'}}/>
+      <div style={{position:'relative',display:'grid',gridTemplateColumns:'1fr auto 1fr',alignItems:'center',background:C.cardBg2,border:`1px solid ${fin?accent+'22':C.border}`,borderRadius:14,overflow:'hidden'}}>
         {/* Home */}
         <div style={{padding:'16px 14px 16px 18px',display:'flex',flexDirection:'column',gap:4}}>
           {home?.logo_url
             ?<img src={home.logo_url} alt={home.name} style={{width:32,height:32,borderRadius:6,objectFit:'cover',marginBottom:4}}/>
-            :<div style={{width:32,height:32,borderRadius:8,background:home?.color??'#2E2E3A',boxShadow:`0 0 12px ${home?.color??'#2E2E3A'}55`,marginBottom:4,flexShrink:0}}/>}
-          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:17,textTransform:'uppercase',lineHeight:1.1,color:fin?(homeWon?'#EEEEF5':'#A0A0B8'):'#EEEEF5'}}>{home?.name??'TBD'}</div>
+            :<div style={{width:32,height:32,borderRadius:8,background:home?.color??C.textFaint,boxShadow:`0 0 12px ${home?.color??C.textFaint}55`,marginBottom:4,flexShrink:0}}/>}
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:17,textTransform:'uppercase',lineHeight:1.1,color:fin?(homeWon?C.text:C.textA0):C.text}}>{home?.name??'TBD'}</div>
           {fin&&homeWon&&<div style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase'}}>WINNER</div>}
         </div>
         {/* Center */}
@@ -1484,9 +1507,9 @@ function GCard({g,tMap,accent,onClick,showLoc,rsvpCount}:{g:Game;tMap:Record<str
           {fin?(
             <>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:36,lineHeight:1,display:'flex',alignItems:'center',gap:6}}>
-                <span style={{color:homeWon?accent:'#3A3A4E'}}>{g.home_score??0}</span>
-                <span style={{color:'#1C1C26',fontSize:18}}>–</span>
-                <span style={{color:!homeWon?accent:'#3A3A4E'}}>{g.away_score??0}</span>
+                <span style={{color:homeWon?accent:C.textDim}}>{g.home_score??0}</span>
+                <span style={{color:C.border,fontSize:18}}>–</span>
+                <span style={{color:!homeWon?accent:C.textDim}}>{g.away_score??0}</span>
               </div>
               <div style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2,marginTop:2}}>FINAL{onClick&&' · TAP'}</div>
             </>
@@ -1494,9 +1517,9 @@ function GCard({g,tMap,accent,onClick,showLoc,rsvpCount}:{g:Game;tMap:Record<str
             <div style={{fontSize:11,color:'#FF4455',fontFamily:"'DM Mono',monospace",letterSpacing:1,textAlign:'center'}}>CANCELLED</div>
           ):(
             <>
-              <div style={{fontSize:9,color:'#EEEEF5',fontFamily:"'DM Mono',monospace",letterSpacing:1}}>{dayStr}</div>
+              <div style={{fontSize:9,color:C.text,fontFamily:"'DM Mono',monospace",letterSpacing:1}}>{dayStr}</div>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:28,color:'#FFFFFF',lineHeight:1,WebkitTextStroke:`1px ${accent}`,textShadow:`0 0 8px ${accent}40`}}>{dateNum}</div>
-              <div style={{fontSize:10,color:'#EEEEF5',fontFamily:"'DM Mono',monospace"}}>{timeStr}</div>
+              <div style={{fontSize:10,color:C.text,fontFamily:"'DM Mono',monospace"}}>{timeStr}</div>
               {rsvpCount!=null&&rsvpCount>0&&<div style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",marginTop:2}}>✓{rsvpCount}</div>}
             </>
           )}
@@ -1505,12 +1528,12 @@ function GCard({g,tMap,accent,onClick,showLoc,rsvpCount}:{g:Game;tMap:Record<str
         <div style={{padding:'16px 18px 16px 14px',display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4}}>
           {away?.logo_url
             ?<img src={away.logo_url} alt={away.name} style={{width:32,height:32,borderRadius:6,objectFit:'cover',marginBottom:4}}/>
-            :<div style={{width:32,height:32,borderRadius:8,background:away?.color??'#2E2E3A',boxShadow:`0 0 12px ${away?.color??'#2E2E3A'}55`,marginBottom:4,flexShrink:0}}/>}
-          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:17,textTransform:'uppercase',lineHeight:1.1,textAlign:'right',color:fin?(!homeWon?'#EEEEF5':'#A0A0B8'):'#EEEEF5'}}>{away?.name??'TBD'}</div>
+            :<div style={{width:32,height:32,borderRadius:8,background:away?.color??C.textFaint,boxShadow:`0 0 12px ${away?.color??C.textFaint}55`,marginBottom:4,flexShrink:0}}/>}
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:17,textTransform:'uppercase',lineHeight:1.1,textAlign:'right',color:fin?(!homeWon?C.text:C.textA0):C.text}}>{away?.name??'TBD'}</div>
           {fin&&!homeWon&&<div style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase'}}>WINNER</div>}
         </div>
       </div>
-      {showLoc&&g.location&&<div style={{background:'#080810',borderLeft:`1px solid #1C1C26`,borderRight:'1px solid #1C1C26',borderBottom:'1px solid #1C1C26',borderRadius:'0 0 14px 14px',padding:'5px 18px',fontSize:11,color:'#C8C8D4',fontFamily:"'DM Mono',monospace"}}>📍 {g.location}</div>}
+      {showLoc&&g.location&&<div style={{background:C.inputBg,borderLeft:`1px solid #1C1C26`,borderRight:'1px solid #1C1C26',borderBottom:'1px solid #1C1C26',borderRadius:'0 0 14px 14px',padding:'5px 18px',fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace"}}>📍 {g.location}</div>}
     </div>
   )
 }
@@ -1518,15 +1541,15 @@ function GCard({g,tMap,accent,onClick,showLoc,rsvpCount}:{g:Game;tMap:Record<str
 function Modal({children,onClose}:{children:React.ReactNode;onClose:()=>void}) {
   useEffect(()=>{const h=(e:KeyboardEvent)=>{if(e.key==='Escape')onClose()};document.addEventListener('keydown',h);return()=>document.removeEventListener('keydown',h)},[onClose])
   return(<div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px 16px',overflowY:'auto'}} onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
-    <div style={{background:'#0F0F14',border:'1px solid #2E2E3A',borderRadius:16,padding:'28px 24px',width:'100%',maxWidth:660,position:'relative',maxHeight:'90vh',overflowY:'auto'}}>
-      <button onClick={onClose} style={{position:'absolute',top:14,right:14,background:'none',border:'1px solid #2E2E3A',borderRadius:8,color:'#C8C8D4',fontSize:16,width:32,height:32,cursor:'pointer'}}>✕</button>
+    <div style={{background:C.cardBg3,border:'1px solid #2E2E3A',borderRadius:16,padding:'28px 24px',width:'100%',maxWidth:660,position:'relative',maxHeight:'90vh',overflowY:'auto'}}>
+      <button onClick={onClose} style={{position:'absolute',top:14,right:14,background:'none',border:'1px solid #2E2E3A',borderRadius:8,color:C.textSub,fontSize:16,width:32,height:32,cursor:'pointer'}}>✕</button>
       {children}
     </div>
   </div>)
 }
 
 function SecTitle({children,accent,noMargin}:{children:React.ReactNode;accent:string;noMargin?:boolean}) {
-  return(<h2 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:26,textTransform:'uppercase',letterSpacing:1,marginBottom:noMargin?0:18,color:'#EEEEF5',display:'flex',alignItems:'center',gap:12}}>
+  return(<h2 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:26,textTransform:'uppercase',letterSpacing:1,marginBottom:noMargin?0:18,color:C.text,display:'flex',alignItems:'center',gap:12}}>
     <span style={{display:'inline-block',width:4,height:22,background:accent,borderRadius:2,flexShrink:0,boxShadow:`0 0 8px ${accent}88`}}/>{children}
   </h2>)
 }
@@ -1539,20 +1562,20 @@ function SectionLabel({children,accent,noMargin}:{children:string;accent:string;
   )
 }
 function Chip({children,style}:{children:React.ReactNode;style?:React.CSSProperties}) {
-  return<span style={{background:'rgba(255,255,255,0.06)',color:'#EEEEF5',fontSize:11,padding:'5px 12px',borderRadius:99,fontFamily:"'DM Mono',monospace",border:'1px solid rgba(255,255,255,0.08)',...style}}>{children}</span>
+  return<span style={{background:'rgba(255,255,255,0.06)',color:C.text,fontSize:11,padding:'5px 12px',borderRadius:99,fontFamily:"'DM Mono',monospace",border:'1px solid rgba(255,255,255,0.08)',...style}}>{children}</span>
 }
 function Empty({children}:{children:React.ReactNode}) {
-  return<div style={{color:'#3A3A4E',fontSize:13,padding:'32px 0',textAlign:'center' as const,fontFamily:"'DM Mono',monospace",letterSpacing:1}}>{children}</div>
+  return<div style={{color:C.textDim,fontSize:13,padding:'32px 0',textAlign:'center' as const,fontFamily:"'DM Mono',monospace",letterSpacing:1}}>{children}</div>
 }
 function Spinner() {
-  return<div style={{minHeight:'100vh',background:'#040406',display:'flex',alignItems:'center',justifyContent:'center'}}>
+  return<div style={{minHeight:'100vh',background:C.pageBg,display:'flex',alignItems:'center',justifyContent:'center'}}>
     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,color:'#39FF14',letterSpacing:4,textTransform:'uppercase' as const,opacity:0.8}}>Loading…</div>
   </div>
 }
 function NotFound() {
-  return<div style={{minHeight:'100vh',background:'#040406',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',fontFamily:"'DM Sans',sans-serif",color:'#EEEEF5',padding:24}}>
-    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:96,color:'#0F0F14',fontWeight:900,lineHeight:1}}>404</div>
-    <div style={{fontSize:16,color:'#C8C8D4',marginTop:8,fontFamily:"'DM Mono',monospace",letterSpacing:2}}>LEAGUE NOT FOUND</div>
+  return<div style={{minHeight:'100vh',background:C.pageBg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',fontFamily:"'DM Sans',sans-serif",color:C.text,padding:24}}>
+    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:96,color:C.cardBg3,fontWeight:900,lineHeight:1}}>404</div>
+    <div style={{fontSize:16,color:C.textSub,marginTop:8,fontFamily:"'DM Mono',monospace",letterSpacing:2}}>LEAGUE NOT FOUND</div>
     <a href="https://netrrating.com" style={{color:'#39FF14',fontSize:12,marginTop:24,fontFamily:"'DM Mono',monospace",textDecoration:'none',letterSpacing:2}}>← NETR.PRO</a>
   </div>
 }
@@ -1566,12 +1589,12 @@ function computeStats(stats:RawStat[],pMap:Record<string,Player>,tMap:Record<str
   return Object.entries(agg).map(([pid,a])=>{
     const p=pMap[pid],t=p?tMap[p.team_id]:null
     const r=(n:number)=>Math.round(n*10)/10
-    return{player_id:pid,display_name:p?.display_name??'—',team_id:p?.team_id??'',team_name:t?.name??'—',team_color:t?.color??'#6A6A82',gp:a.gp,ppg:r(a.pts/a.gp),rpg:r(a.reb/a.gp),apg:r(a.ast/a.gp),spg:r(a.stl/a.gp),bpg:r(a.blk/a.gp),photo_url:p?.photo_url??null,photo_source:p?.photo_source??null,profile_avatar:p?.profile_avatar??null}
+    return{player_id:pid,display_name:p?.display_name??'—',team_id:p?.team_id??'',team_name:t?.name??'—',team_color:t?.color??C.textMuted,gp:a.gp,ppg:r(a.pts/a.gp),rpg:r(a.reb/a.gp),apg:r(a.ast/a.gp),spg:r(a.stl/a.gp),bpg:r(a.blk/a.gp),photo_url:p?.photo_url??null,photo_source:p?.photo_source??null,profile_avatar:p?.profile_avatar??null}
   })
 }
 
 function eplPhoto(p:{photo_url:string|null;photo_source:string|null;profile_avatar:string|null}|null|undefined):string|null{if(!p)return null;return(p.photo_source==='app'&&p.profile_avatar)?p.profile_avatar:p.photo_url??null}
 function fmtDate(iso:string){return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
 function fmtDateTime(iso:string){return new Date(iso).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}
-const TH:React.CSSProperties={textAlign:'center',fontSize:10,color:'#C8C8D4',textTransform:'uppercase',letterSpacing:2,fontFamily:"'DM Mono',monospace",fontWeight:400,padding:'10px 10px'}
+const TH:React.CSSProperties={textAlign:'center',fontSize:10,color:C.textSub,textTransform:'uppercase',letterSpacing:2,fontFamily:"'DM Mono',monospace",fontWeight:400,padding:'10px 10px'}
 const TD:React.CSSProperties={padding:'10px 10px',textAlign:'center',fontSize:14}
