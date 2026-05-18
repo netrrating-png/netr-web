@@ -69,6 +69,7 @@ export default function PublicLeaguePage() {
   const [seasonGames,setSeasonGames] = useState<Game[]>([])
   const [seasonStats,setSeasonStats] = useState<RawStat[]>([])
   const [loadingSeason,setLoadingSeason] = useState(false)
+  const [selectedDivisionId,setSelectedDivisionId] = useState<string|null>(null)
   const [countdownStr,setCountdownStr] = useState<string|null>(null)
   const [insights,setInsights] = useState<InsightResult[]|null>(null)
   const [insightsLoading,setInsightsLoading] = useState(false)
@@ -906,26 +907,47 @@ export default function PublicLeaguePage() {
           const hasDivisions=divisions.length>0
           const splitByDivision=hasDivisions&&!league.cross_division_play
 
+          // Division filter pills — shown whenever there are divisions
+          const DivisionPills=()=>hasDivisions?(
+            <div style={{display:'flex',gap:8,flexWrap:'wrap' as const,marginBottom:24}}>
+              <button onClick={()=>setSelectedDivisionId(null)}
+                style={{padding:'6px 16px',borderRadius:20,border:`1px solid ${selectedDivisionId===null?accent:'#2A2A38'}`,background:selectedDivisionId===null?`${accent}18`:'transparent',color:selectedDivisionId===null?accent:'#6A6A82',fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:1,textTransform:'uppercase' as const,cursor:'pointer',transition:'all 0.15s'}}>
+                All
+              </button>
+              {divisions.map(div=>{
+                const active=selectedDivisionId===div.id
+                return(
+                  <button key={div.id} onClick={()=>setSelectedDivisionId(div.id)}
+                    style={{padding:'6px 16px',borderRadius:20,border:`1px solid ${active?accent:'#2A2A38'}`,background:active?`${accent}18`:'transparent',color:active?accent:'#6A6A82',fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:1,textTransform:'uppercase' as const,cursor:'pointer',transition:'all 0.15s'}}>
+                    {div.name}
+                  </button>
+                )
+              })}
+            </div>
+          ):null
+
+          // Which divisions to actually render
+          const visibleDivisions=selectedDivisionId
+            ? divisions.filter(d=>d.id===selectedDivisionId)
+            : divisions
+
           if(splitByDivision){
-            // Group teams by division; teams with no division_id go into an "Other" bucket
-            const divGroups=divisions.map(div=>({
-              div,
-              teamList:teams.filter(t=>t.division_id===div.id)
-            })).filter(g=>g.teamList.length>0)
-            const unassigned=teams.filter(t=>!t.division_id)
+            const unassigned=selectedDivisionId?[]:teams.filter(t=>!t.division_id)
             return(
               <section>
                 <SecTitle accent={accent}>Teams</SecTitle>
-                {divGroups.map(({div,teamList})=>{
+                <DivisionPills/>
+                {visibleDivisions.map(div=>{
+                  const teamList=teams.filter(t=>t.division_id===div.id)
+                  if(teamList.length===0) return null
                   const leader=divLeader(teamList)
-                  const divTeamIds=teamList.map(t=>t.id)
                   return(
                     <div key={div.id} style={{marginBottom:48}}>
-                      <div style={{fontSize:11,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const,marginBottom:14,paddingBottom:8,borderBottom:`1px solid ${accent}22`}}>{div.name}</div>
+                      {!selectedDivisionId&&<div style={{fontSize:11,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const,marginBottom:14,paddingBottom:8,borderBottom:`1px solid ${accent}22`}}>{div.name}</div>}
                       <div className="team-cards" style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}}>
                         {teamList.map(t=><TeamCard key={t.id} t={t} isLeader={leader?.id===t.id&&(sMap[t.id]?.wins??0)>0}/>)}
                       </div>
-                      <PowerRankings teamIds={divTeamIds} label="Power Rankings"/>
+                      <PowerRankings teamIds={teamList.map(t=>t.id)} label="Power Rankings"/>
                     </div>
                   )
                 })}
@@ -941,18 +963,22 @@ export default function PublicLeaguePage() {
             )
           }
 
-          // No division split — show all teams + single Power Rankings
-          const overallLeader=divLeader(teams)
+          // Cross-division play ON — teams compete together, one Power Rankings
+          const visibleTeams=selectedDivisionId
+            ? teams.filter(t=>t.division_id===selectedDivisionId)
+            : teams
+          const overallLeader=divLeader(visibleTeams)
           return(
             <section>
               <SecTitle accent={accent}>Teams</SecTitle>
-              {hasDivisions&&divisions.map(div=>{
+              <DivisionPills/>
+              {hasDivisions&&visibleDivisions.map(div=>{
                 const teamList=teams.filter(t=>t.division_id===div.id)
                 if(teamList.length===0) return null
                 const leader=divLeader(teamList)
                 return(
                   <div key={div.id} style={{marginBottom:32}}>
-                    <div style={{fontSize:11,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const,marginBottom:14,paddingBottom:8,borderBottom:`1px solid ${accent}22`}}>{div.name}</div>
+                    {!selectedDivisionId&&<div style={{fontSize:11,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const,marginBottom:14,paddingBottom:8,borderBottom:`1px solid ${accent}22`}}>{div.name}</div>}
                     <div className="team-cards" style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}}>
                       {teamList.map(t=><TeamCard key={t.id} t={t} isLeader={leader?.id===t.id&&(sMap[t.id]?.wins??0)>0}/>)}
                     </div>
@@ -961,10 +987,10 @@ export default function PublicLeaguePage() {
               })}
               {!hasDivisions&&(
                 <div className="team-cards" style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}}>
-                  {teams.map(t=><TeamCard key={t.id} t={t} isLeader={overallLeader?.id===t.id&&(sMap[t.id]?.wins??0)>0}/>)}
+                  {visibleTeams.map(t=><TeamCard key={t.id} t={t} isLeader={overallLeader?.id===t.id&&(sMap[t.id]?.wins??0)>0}/>)}
                 </div>
               )}
-              <PowerRankings teamIds={teams.map(t=>t.id)} label="Power Rankings"/>
+              <PowerRankings teamIds={visibleTeams.map(t=>t.id)} label="Power Rankings"/>
             </section>
           )
         })()}
