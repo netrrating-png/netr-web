@@ -45,10 +45,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!ownedLeague) return res.status(403).json({ error: 'Forbidden' })
     }
 
-    if (!process.env.ANTHROPIC_API_KEY) {
-      return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
-    }
-
     try {
       const insights: InsightResult[] = await generateLeagueInsights(leagueId)
       return res.status(200).json({ insights, generated: true, generated_at: new Date().toISOString() })

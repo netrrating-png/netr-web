@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js'
-import Anthropic from '@anthropic-ai/sdk'
 
 // Number of Monte Carlo simulation iterations — 500 is accurate enough for rec leagues
 const SIMULATIONS = 500
@@ -256,7 +255,9 @@ function getTrend(teamId: string, newProb: number, old: RawInsight[]): 'UP' | 'D
 
 // ─── Step 6: Claude API — generate plain-English insights ────────────────────
 
-async function generateInsightTexts(
+// ─── Step 6: Template-based insight generation (no external API needed) ───────
+
+function generateInsightTexts(
   teams: TeamData[],
   playoffProb: Record<string, number>,
   champProb: Record<string, number>,
@@ -264,63 +265,96 @@ async function generateInsightTexts(
   trends: Record<string, 'UP' | 'DOWN' | 'STABLE'>,
   playoffSpots: number,
   lowConfidence: boolean
-): Promise<Record<string, string>> {
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+): Record<string, string> {
+  const results: Record<string, string> = {}
 
-  const sorted = [...teams].sort((a, b) => b.wins - a.wins)
+  // Use wins count as a lightweight variation seed so same-tier teams don't sound identical
+  const v = (t: TeamData, options: string[]) => options[t.wins % options.length]
 
-  const teamInputs = sorted.map(t => {
-    const mn = magicNumbers[t.team_id]
-    return {
-      team:               t.team_name,
-      record:             `${t.wins}-${t.losses}`,
-      point_diff:         t.pts_for - t.pts_against > 0 ? `+${t.pts_for - t.pts_against}` : String(t.pts_for - t.pts_against),
-      recent_form:        `${Math.round(t.recent_form * 100)}% win rate (last 5 games)`,
-      avg_roster_netr:    t.avg_netr.toFixed(1),
-      games_remaining:    t.games_remaining,
-      playoff_spots_total: playoffSpots,
-      playoff_probability: `${Math.round(playoffProb[t.team_id] * 100)}%`,
-      championship_probability: `${Math.round(champProb[t.team_id] * 100)}%`,
-      status:             mn === null ? 'mathematically eliminated' : mn === 0 ? 'clinched playoff spot' : `magic number: ${mn}`,
-      trend:              trends[t.team_id],
+  for (const t of teams) {
+    const pProb      = playoffProb[t.team_id]  ?? 0
+    const cProb      = champProb[t.team_id]    ?? 0
+    const mn         = magicNumbers[t.team_id]
+    const trend      = trends[t.team_id]       ?? 'STABLE'
+    const gp         = t.wins + t.losses
+    const ptDiff     = t.pts_for - t.pts_against
+    const ptDiffStr  = ptDiff >= 0 ? `+${ptDiff}` : String(ptDiff)
+    const pPct       = Math.round(pProb * 100)
+    const cPct       = Math.round(cProb * 100)
+    const formPct    = Math.round(t.recent_form * 100)
+    const netr       = t.avg_netr.toFixed(1)
+    const name       = t.team_name
+
+    const trendLine  = trend === 'UP'   ? 'and their trajectory is pointing up'
+                     : trend === 'DOWN' ? 'though momentum has slipped recently'
+                     :                   'and holding steady'
+
+    const formLine   = formPct >= 70 ? `They've been hot lately, winning ${formPct}% of their last five games.`
+                     : formPct <= 35 ? `Recent form has been a concern — ${formPct}% in their last five games.`
+                     :                `Their ${formPct}% recent win rate keeps them in the mix.`
+
+    const netrLine   = parseFloat(netr) >= 6.5 ? `Their roster NETR average of ${netr} is among the highest in the league.`
+                     : parseFloat(netr) >= 5.0 ? `A ${netr} roster NETR average gives them a solid talent base.`
+                     :                           `Developing roster depth will be key — their ${netr} NETR average leaves room to grow.`
+
+    // ── Early season ──────────────────────────────────────────────────────────
+    if (lowConfidence) {
+      results[name] = v(t, [
+        `Only ${gp} game${gp !== 1 ? 's' : ''} in, so treat these numbers as directional rather than definitive — the playoff picture won't sharpen for a few more weeks. ${name} sits at ${t.wins}-${t.losses}, but with this small a sample, every upcoming game carries outsized weight. Check back once the league hits five or six games played.`,
+        `It's early days for ${name} at ${t.wins}-${t.losses}, and the ${pPct}% playoff odds will swing dramatically with each result. Small sample sizes make any projection low-confidence right now. The real story starts to emerge around game five or six.`,
+      ])
+      continue
     }
-  })
 
-  const confidenceWarning = lowConfidence
-    ? ' IMPORTANT: Fewer than 4 games have been played. Flag every insight as early-season, low-confidence. Use language like "too early to tell" or "small sample size."'
-    : ''
+    // ── Clinched ──────────────────────────────────────────────────────────────
+    if (mn === 0) {
+      const champFocus = cPct >= 40 ? `At ${cPct}% championship odds, they're the team to beat in the postseason.`
+                       : cPct >= 20 ? `Their ${cPct}% championship odds make them a legitimate title contender.`
+                       :              `The ${cPct}% championship probability means the postseason bracket will define their legacy this season.`
+      results[name] = `${name} has clinched their playoff spot at ${t.wins}-${t.losses} — the regular season grind is done. ${champFocus} ${netrLine}`
+      continue
+    }
 
-  const systemPrompt = `You are a sharp basketball analyst writing team insights for NETR, a peer-rated recreational league app. Your writing is direct, confident, and specific — you sound like a knowledgeable friend watching the games, not a generic AI.${confidenceWarning}`
+    // ── Eliminated ────────────────────────────────────────────────────────────
+    if (mn === null && gp > 0) {
+      results[name] = v(t, [
+        `The playoff door has closed for ${name} this season at ${t.wins}-${t.losses}. ${ptDiff >= 0 ? `The ${ptDiffStr} point differential shows they can compete on any given night` : `Tightening that ${ptDiffStr} point differential needs to be the offseason priority`} — the remaining games are a chance to finish with pride and set the tone for next year.`,
+        `${name} is out of the playoff race at ${t.wins}-${t.losses}, but that doesn't make the remaining games meaningless. ${formLine} Playing spoiler and finishing above .500 would be a strong way to close out the season.`,
+      ])
+      continue
+    }
 
-  const userPrompt = `Write a 2–3 sentence plain-English insight for each team below. Rules:
-- Reference their actual numbers naturally (don't say "you have X%", say "their 73% playoff odds")
-- Vary tone by situation: high probability = confident/exciting, low = honest/measured, eliminated = acknowledge it then pivot to pride/stats
-- Teams that have clinched their spot: shift focus entirely to championship contention
-- Do NOT use lists, headers, or bullet points — pure prose only
-- Sound specific, not generic ("three of their next four games are against losing teams" not "keep playing hard")
-- Return ONLY valid JSON: {"Team Name": "2-3 sentence insight", ...}
+    // ── High probability (≥ 70%) ──────────────────────────────────────────────
+    if (pProb >= 0.70) {
+      const mnNote = mn !== null && mn <= 2 ? `A magic number of ${mn} means they're on the edge of clinching — one big week could seal it.`
+                   : mn !== null && mn <= 5  ? `With a magic number of ${mn}, they control their own fate.`
+                   :                           `They control their own destiny with ${t.games_remaining} games left to play.`
+      results[name] = v(t, [
+        `${name} is in the driver's seat at ${pPct}% playoff odds, ${trendLine} at ${t.wins}-${t.losses}. ${mnNote} At ${cPct}% to win it all, they're not just making the playoffs — they're built to make a run.`,
+        `With a ${t.wins}-${t.losses} record and ${ptDiffStr} point differential, ${name} looks like a genuine contender ${trendLine}. ${formLine} Their ${pPct}% playoff odds reflect a team that has figured out how to win in this league.`,
+      ])
+      continue
+    }
 
-Teams to analyze:
-${JSON.stringify(teamInputs, null, 2)}`
+    // ── Medium probability (40–69%) ───────────────────────────────────────────
+    if (pProb >= 0.40) {
+      const mnNote = mn !== null ? `Their magic number of ${mn} means there's no room for a losing streak.`
+                   :               `The standings are tight, and every game matters.`
+      results[name] = v(t, [
+        `${name} is right on the playoff bubble at ${pPct}%, ${trendLine} with a ${t.wins}-${t.losses} record. ${mnNote} ${formLine}`,
+        `At ${pPct}% playoff odds, ${name} has built something real at ${t.wins}-${t.losses} — but the margin for error is thin. ${netrLine} ${trend === 'UP' ? 'The momentum is there; keep pushing.' : trend === 'DOWN' ? 'Steadying the ship in the next few games is critical.' : 'Consistency down the stretch will determine whether they make it.'}`,
+      ])
+      continue
+    }
 
-  const msg = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 1200,
-    system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
-    messages: [{ role: 'user', content: userPrompt }],
-  })
-
-  const block = msg.content[0]
-  if (block.type !== 'text') return {}
-
-  const match = block.text.match(/\{[\s\S]*\}/)
-  if (!match) return {}
-
-  try {
-    return JSON.parse(match[0]) as Record<string, string>
-  } catch {
-    return {}
+    // ── Low probability (< 40%) ───────────────────────────────────────────────
+    results[name] = v(t, [
+      `${name} is facing an uphill climb at ${pPct}% playoff odds and a ${t.wins}-${t.losses} record. ${t.games_remaining > 0 ? `With ${t.games_remaining} game${t.games_remaining !== 1 ? 's' : ''} left, a strong run could still move the needle` : 'The remaining games are a chance to finish on a high note'}. ${formLine}`,
+      `The path to the playoffs is narrow for ${name} at ${pPct}%, but the season isn't over. ${ptDiff > 0 ? `Their ${ptDiffStr} point differential shows they can compete` : `Cleaning up the ${ptDiffStr} point differential would go a long way`} — ${t.games_remaining > 0 ? 'it just has to translate into wins from here.' : 'the effort has been there even when the results weren\'t.'}`,
+    ])
   }
+
+  return results
 }
 
 // ─── Step 7: Main orchestrator ────────────────────────────────────────────────
@@ -349,7 +383,7 @@ export async function generateLeagueInsights(leagueId: string): Promise<InsightR
     trends[t.team_id] = getTrend(t.team_id, playoffProb[t.team_id] ?? 0, oldInsights)
   }
 
-  const insightTexts = await generateInsightTexts(teamData, playoffProb, champProb, magicNumbers, trends, playoffSpots, lowConfidence)
+  const insightTexts = generateInsightTexts(teamData, playoffProb, champProb, magicNumbers, trends, playoffSpots, lowConfidence)
 
   const now     = new Date().toISOString()
   const results = teamData.map(t => ({
