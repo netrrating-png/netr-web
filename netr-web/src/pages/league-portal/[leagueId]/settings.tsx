@@ -94,7 +94,15 @@ export default function SettingsPage() {
   const [defaultCourtId, setDefaultCourtId] = useState<string | null>(null)
 
   // Settings tab
-  const [sTab, setSTab] = useState<'general'|'about'|'appearance'|'website'|'schedule'|'danger'>('general')
+  const [sTab, setSTab] = useState<'general'|'about'|'appearance'|'website'|'schedule'|'app'|'danger'>('general')
+
+  // NETR App account
+  const [appAccountId, setAppAccountId]           = useState<string | null>(null)
+  const [appEmail, setAppEmail]                   = useState('')
+  const [appPassword, setAppPassword]             = useState('')
+  const [appCreating, setAppCreating]             = useState(false)
+  const [appCreateError, setAppCreateError]       = useState('')
+  const [appCreateSuccess, setAppCreateSuccess]   = useState(false)
 
   // Divisions
   const [divisions, setDivisions]             = useState<LeagueDivision[]>([])
@@ -230,6 +238,7 @@ export default function SettingsPage() {
       setLeagueTheme((data.league_theme ?? 'dark') as 'dark'|'light')
       setCrossDivisionPlay(data.cross_division_play ?? true)
       setSeasonEndDate(data.season_end_date ?? '')
+      setAppAccountId((data as any).app_account_id ?? null)
       setRulesSections(data.rules_sections ?? [])
 
       const [sponsorsRes, galleryRes, courtsRes, divisionsRes, teamsCountRes, seasonsRes, teamsRes] = await Promise.all([
@@ -685,6 +694,33 @@ export default function SettingsPage() {
     router.replace('/league-portal')
   }
 
+  async function createAppAccount(e: React.FormEvent) {
+    e.preventDefault()
+    if (!league) return
+    setAppCreating(true)
+    setAppCreateError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) throw new Error('Not authenticated')
+      const res = await fetch(`/api/league/${league.slug}/create-app-account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email: appEmail.trim(), password: appPassword }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Failed to create account')
+      setAppAccountId(json.profile_id)
+      setAppCreateSuccess(true)
+      setAppEmail('')
+      setAppPassword('')
+    } catch (err: any) {
+      setAppCreateError(err.message ?? 'Something went wrong')
+    } finally {
+      setAppCreating(false)
+    }
+  }
+
   if (loading || !league) return <LoadingScreen />
 
   return (
@@ -708,6 +744,7 @@ export default function SettingsPage() {
                 ['appearance','🎨 Look & Feel'],
                 ['website',   '🌐 Website'],
                 ['schedule',  '📅 Stats & Schedule'],
+                ['app',       '📱 NETR App'],
                 ['danger',    '⚠'],
               ] as const).map(([key, label]) => (
                 <button key={key} type="button" onClick={() => setSTab(key)} style={{
@@ -1944,6 +1981,109 @@ export default function SettingsPage() {
               style={{ ...S.cancelBtn, width: '100%', textAlign: 'center' as const, marginTop: 4 }}>
               + Add Section
             </button>
+          </div>
+          </>}
+
+          {sTab === 'app' && <>
+          {/* ── NETR App Account ── */}
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>NETR App Account</div>
+                <div style={S.cardSub}>
+                  Create a dedicated league account for the NETR app. This account has its own experience — schedule, teams, standings, and stats — and sends automated game reminders to your players' crews.
+                </div>
+              </div>
+            </div>
+
+            {appAccountId ? (
+              /* ── Already created ── */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', background: '#39FF1410', border: '1px solid #39FF1430', borderRadius: 10 }}>
+                  <span style={{ fontSize: 22 }}>✅</span>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: '#39FF14' }}>App account is active</div>
+                    <div style={{ fontSize: 12, color: '#6A6A82', marginTop: 2 }}>
+                      Username: <code style={{ color: '#C8C8D4' }}>league_{league.slug}</code>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ padding: '14px 18px', background: '#0A0A0E', border: '1px solid #1C1C26', borderRadius: 10 }}>
+                  <div style={{ fontSize: 13, color: '#6A6A82', marginBottom: 10, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 1, fontSize: 11 }}>What happens automatically</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {[
+                      ['🏀', 'A private crew is created for each team when you add them'],
+                      ['👤', 'Players are added to their team\'s crew when they claim their roster spot'],
+                      ['🔔', 'Game reminders are sent into each crew chat 3 days before tip-off'],
+                      ['📊', 'After games, teammates can rate each other directly from the app'],
+                    ].map(([icon, text]) => (
+                      <div key={text} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: 16, flexShrink: 0 }}>{icon}</span>
+                        <span style={{ fontSize: 13, color: '#A0A0B8', lineHeight: 1.5 }}>{text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: '#3A3A4E', fontFamily: "'DM Mono', monospace" }}>
+                  Account ID: {appAccountId}
+                </div>
+              </div>
+            ) : (
+              /* ── Creation form ── */
+              <form onSubmit={createAppAccount} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div style={{ padding: '14px 18px', background: '#39FF1408', border: '1px solid #39FF1420', borderRadius: 10 }}>
+                  <div style={{ fontSize: 13, color: '#A0A0B8', lineHeight: 1.6 }}>
+                    Choose an email and password for your league's app account. Sign in on the NETR app with these credentials to access your league dashboard, manage games, and message your teams.
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={S.label}>League account email</label>
+                  <input
+                    type="email"
+                    required
+                    value={appEmail}
+                    onChange={e => setAppEmail(e.target.value)}
+                    placeholder="e.g. mycoach@gmail.com (different from your personal account)"
+                    style={S.input}
+                  />
+                  <div style={{ fontSize: 11, color: '#6A6A82' }}>Use an email not already registered on NETR</div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={S.label}>Password</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={appPassword}
+                    onChange={e => setAppPassword(e.target.value)}
+                    placeholder="Min. 8 characters"
+                    style={S.input}
+                  />
+                </div>
+
+                {appCreateError && (
+                  <div style={{ padding: '10px 14px', background: '#FF445518', border: '1px solid #FF445540', borderRadius: 8, fontSize: 13, color: '#FF4455' }}>
+                    {appCreateError}
+                  </div>
+                )}
+
+                {appCreateSuccess && (
+                  <div style={{ padding: '10px 14px', background: '#39FF1418', border: '1px solid #39FF1440', borderRadius: 8, fontSize: 13, color: '#39FF14' }}>
+                    ✓ Account created! Download the NETR app and sign in with these credentials.
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={appCreating || !appEmail || !appPassword}
+                  style={{ ...S.saveBtn, opacity: appCreating || !appEmail || !appPassword ? 0.5 : 1 }}
+                >
+                  {appCreating ? 'Creating account…' : 'Create League App Account'}
+                </button>
+              </form>
+            )}
           </div>
           </>}
 
