@@ -626,25 +626,6 @@ export default function PublicLeaguePage() {
             </section>
           )}
 
-          {/* Gallery strip */}
-          {galleryPhotos.length>0&&(
-            <section style={{marginBottom:48}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,flexWrap:'wrap' as const,gap:8}}>
-                <SectionLabel accent={accent} noMargin>Gallery</SectionLabel>
-                <button onClick={()=>setTab('gallery')} style={{background:'none',border:'none',color:accent,fontSize:11,fontFamily:"'DM Mono',monospace",cursor:'pointer',letterSpacing:1,textTransform:'uppercase' as const,padding:0}}>All {galleryPhotos.length} →</button>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:8}}>
-                {galleryPhotos.slice(0,6).map((p,i)=>(
-                  <div key={p.id} onClick={()=>{setTab('gallery');setTimeout(()=>setLightboxIdx(i),50)}}
-                    style={{aspectRatio:'4/3',borderRadius:10,overflow:'hidden',cursor:'pointer',border:'1px solid #1C1C26'}}>
-                    <img src={p.photo_url} alt={p.caption??''} style={{width:'100%',height:'100%',objectFit:'cover',transition:'transform 0.3s'}}
-                      onMouseEnter={e=>e.currentTarget.style.transform='scale(1.06)'}
-                      onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}/>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
 
           {/* Sponsors */}
           {sponsors.length>0&&(
