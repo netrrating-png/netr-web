@@ -1120,6 +1120,17 @@ export default function SettingsPage() {
                 />
                 <div style={S.hint}>Optional. Shows on each team's payment status in the Teams page.</div>
               </div>
+              <div style={{ ...S.field, gridColumn: '1 / -1' }}>
+                <label style={S.label}>Short Description</label>
+                <textarea
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  rows={3}
+                  style={{ ...S.input, resize: 'vertical' as const, lineHeight: 1.6 }}
+                  placeholder="A one or two sentence tagline shown at the top of your public league page."
+                />
+                <div style={S.hint}>Keep it short — 1–2 sentences. For longer content like your mission statement, use the About Page tab.</div>
+              </div>
             </div>
 
             <div style={S.cardFoot}>
