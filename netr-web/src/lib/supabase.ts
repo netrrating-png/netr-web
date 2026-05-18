@@ -108,6 +108,7 @@ export type LeagueGalleryPhoto = {
   league_id: string
   photo_url: string
   caption: string | null
+  is_featured: boolean
   created_at: string
 }
 

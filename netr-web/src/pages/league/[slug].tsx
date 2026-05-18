@@ -10,7 +10,7 @@ import type { InsightResult } from '../../lib/league-insights'
 type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null;league_font:string|null;signup_url:string|null;signup_label:string|null;rules_sections:{title:string;content:string}[]|null;about_sections:{title:string;content:string}[]|null }
 type LeagueSeason = { id:string;league_id:string;name:string;start_date:string|null;end_date:string|null;champion_team_id:string|null;notes:string|null;display_order:number;created_at:string }
 type Sponsor = { id:string;name:string;logo_url:string|null;website_url:string|null }
-type GalleryPhoto = { id:string;photo_url:string;caption:string|null }
+type GalleryPhoto = { id:string;photo_url:string;caption:string|null;is_featured:boolean }
 type Team = { id:string;name:string;color:string;logo_url:string|null }
 type Player = { id:string;display_name:string;jersey_number:string|null;position:string|null;team_id:string;netr_score:number|null;photo_url:string|null;photo_source:string|null;profile_avatar:string|null }
 
@@ -54,6 +54,7 @@ export default function PublicLeaguePage() {
   const [sponsors,setSponsors] = useState<Sponsor[]>([])
   const [galleryPhotos,setGalleryPhotos] = useState<GalleryPhoto[]>([])
   const [lightboxIdx,setLightboxIdx] = useState<number|null>(null)
+  const [featuredIdx,setFeaturedIdx] = useState(0)
   const VALID_TABS = ['overview','schedule','stats','teams','gallery','rules','history','about']
   const activeTab:Tab = (VALID_TABS.includes(tabParam as string)?tabParam:'overview') as Tab
   const setTab = (t:Tab) => {
@@ -405,6 +406,59 @@ export default function PublicLeaguePage() {
           ))}
         </div>
       </div>
+
+      {/* Featured photo carousel */}
+      {(()=>{
+        const featured=galleryPhotos.filter(p=>p.is_featured)
+        if(featured.length===0) return null
+        const cur=featured[Math.min(featuredIdx,featured.length-1)]
+        return(
+          <div style={{position:'relative',width:'100%',background:'#000',overflow:'hidden'}}>
+            {/* Photo */}
+            <div
+              onClick={()=>{
+                const allIdx=galleryPhotos.findIndex(p=>p.id===cur.id)
+                if(allIdx!==-1) setLightboxIdx(allIdx)
+              }}
+              style={{cursor:'pointer',width:'100%',height:'clamp(260px,50vw,520px)',position:'relative',overflow:'hidden'}}
+            >
+              <img
+                src={cur.photo_url}
+                alt={cur.caption??''}
+                style={{width:'100%',height:'100%',objectFit:'cover',display:'block',transition:'opacity 0.3s'}}
+              />
+              <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(0,0,0,0.55) 0%,transparent 50%)',pointerEvents:'none'}}/>
+              {cur.caption&&(
+                <div style={{position:'absolute',bottom:52,left:0,right:0,textAlign:'center' as const,padding:'0 60px',fontFamily:"'DM Sans',sans-serif",fontSize:15,color:'rgba(255,255,255,0.9)',textShadow:'0 1px 8px rgba(0,0,0,0.8)',pointerEvents:'none'}}>
+                  {cur.caption}
+                </div>
+              )}
+            </div>
+            {/* Prev arrow */}
+            {featured.length>1&&(
+              <button
+                onClick={()=>setFeaturedIdx(i=>(i-1+featured.length)%featured.length)}
+                style={{position:'absolute',top:'50%',left:14,transform:'translateY(-50%)',background:'rgba(0,0,0,0.55)',border:'2px solid rgba(255,255,255,0.25)',borderRadius:12,color:'#fff',width:44,height:44,fontSize:22,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' as const,backdropFilter:'blur(6px)',flexShrink:0}}
+              >‹</button>
+            )}
+            {/* Next arrow */}
+            {featured.length>1&&(
+              <button
+                onClick={()=>setFeaturedIdx(i=>(i+1)%featured.length)}
+                style={{position:'absolute',top:'50%',right:14,transform:'translateY(-50%)',background:'rgba(0,0,0,0.55)',border:'2px solid rgba(255,255,255,0.25)',borderRadius:12,color:'#fff',width:44,height:44,fontSize:22,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' as const,backdropFilter:'blur(6px)',flexShrink:0}}
+              >›</button>
+            )}
+            {/* Dot indicators */}
+            {featured.length>1&&(
+              <div style={{position:'absolute',bottom:16,left:0,right:0,display:'flex',justifyContent:'center' as const,gap:7,pointerEvents:'none'}}>
+                {featured.map((_,i)=>(
+                  <div key={i} style={{width:i===Math.min(featuredIdx,featured.length-1)?22:7,height:7,borderRadius:4,background:i===Math.min(featuredIdx,featured.length-1)?accent:'rgba(255,255,255,0.4)',transition:'all 0.25s',flexShrink:0}}/>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       <main className="page-main" style={{maxWidth:960,margin:'0 auto',padding:'32px 16px 80px'}}>
 

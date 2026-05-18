@@ -477,6 +477,13 @@ export default function SettingsPage() {
     setGalleryPhotos(prev => prev.filter(p => p.id !== id))
   }
 
+  async function toggleFeatured(id: string, current: boolean) {
+    const featured = galleryPhotos.filter(p => p.is_featured)
+    if (!current && featured.length >= 3) return
+    await supabase.from('league_gallery_photos').update({ is_featured: !current }).eq('id', id)
+    setGalleryPhotos(prev => prev.map(p => p.id === id ? { ...p, is_featured: !current } : p))
+  }
+
   async function saveSlug(e: React.FormEvent) {
     e.preventDefault()
     if (!league) return
@@ -1716,14 +1723,30 @@ export default function SettingsPage() {
               </div>
             </div>
             {galleryPhotos.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(100px,1fr))', gap: 8, marginBottom: 16 }}>
-                {galleryPhotos.map(p => (
-                  <div key={p.id} style={{ position: 'relative' as const, borderRadius: 8, overflow: 'hidden', aspectRatio: '1' }}>
-                    <img src={p.photo_url} alt={p.caption ?? ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    <button onClick={() => removePhoto(p.id)} style={{ position: 'absolute' as const, top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: 14, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' as const }}>×</button>
-                  </div>
-                ))}
-              </div>
+              <>
+                <div style={{ fontSize: 12, color: '#6A6A82', fontFamily: "'DM Sans', sans-serif", marginBottom: 10 }}>
+                  ⭐ Star up to 3 photos to feature them in a carousel at the top of your public page.
+                  {galleryPhotos.filter(p => p.is_featured).length >= 3 && <span style={{ color: '#39FF14', marginLeft: 6 }}>3/3 selected</span>}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(100px,1fr))', gap: 8, marginBottom: 16 }}>
+                  {galleryPhotos.map(p => {
+                    const featuredCount = galleryPhotos.filter(x => x.is_featured).length
+                    const canFeature = p.is_featured || featuredCount < 3
+                    return (
+                      <div key={p.id} style={{ position: 'relative' as const, borderRadius: 8, overflow: 'hidden', aspectRatio: '1', border: p.is_featured ? '2px solid #39FF14' : '2px solid transparent' }}>
+                        <img src={p.photo_url} alt={p.caption ?? ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <button
+                          onClick={() => toggleFeatured(p.id, p.is_featured)}
+                          title={p.is_featured ? 'Remove from featured' : canFeature ? 'Feature this photo' : '3 photos already featured'}
+                          style={{ position: 'absolute' as const, top: 4, left: 4, background: p.is_featured ? '#39FF14' : 'rgba(0,0,0,0.7)', border: 'none', borderRadius: '50%', width: 22, height: 22, cursor: canFeature ? 'pointer' : 'not-allowed', fontSize: 12, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' as const, opacity: canFeature ? 1 : 0.4 }}>
+                          {p.is_featured ? '★' : '☆'}
+                        </button>
+                        <button onClick={() => removePhoto(p.id)} style={{ position: 'absolute' as const, top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: 14, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' as const }}>×</button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
             )}
             <form onSubmit={addPhoto} style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
               <div>
