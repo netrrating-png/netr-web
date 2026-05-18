@@ -164,6 +164,16 @@ export default function SchedulePage() {
     setPreviewConflicts(conflicts)
   }
 
+  function triggerInsights() {
+    if (!league?.slug) return
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      fetch(`/api/league/${league!.slug}/insights`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
+      }).catch(() => {})
+    })
+  }
+
   async function handleSaveSchedule() {
     if (!preview) return
     setSavingSchedule(true)
@@ -807,7 +817,7 @@ export default function SchedulePage() {
             <section style={S.section}>
               <div style={S.sectionLabel}>Results ({completed.length})</div>
               <div style={S.gameList}>
-                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} teams={divTeams} onDelete={() => deleteGame(g.id)} onEdit={editGame} leagueId={leagueId} rsvpYes={attendance.filter(a => a.game_id === g.id && a.status === 'yes').length} />)}
+                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} teams={divTeams} onDelete={() => deleteGame(g.id)} onEdit={editGame} onInsightsNeeded={triggerInsights} leagueId={leagueId} rsvpYes={attendance.filter(a => a.game_id === g.id && a.status === 'yes').length} />)}
               </div>
             </section>
           )}
@@ -817,7 +827,7 @@ export default function SchedulePage() {
             <section style={S.section}>
               <div style={S.sectionLabel}>Upcoming ({upcoming.length})</div>
               <div style={S.gameList}>
-                {upcoming.map(g => <GameRow key={g.id} game={g} teams={divTeams} onCancel={() => cancelGame(g.id)} onDelete={() => deleteGame(g.id)} onEdit={editGame} leagueId={leagueId} rsvpYes={attendance.filter(a => a.game_id === g.id && a.status === 'yes').length} />)}
+                {upcoming.map(g => <GameRow key={g.id} game={g} teams={divTeams} onCancel={() => cancelGame(g.id)} onDelete={() => deleteGame(g.id)} onEdit={editGame} onInsightsNeeded={triggerInsights} leagueId={leagueId} rsvpYes={attendance.filter(a => a.game_id === g.id && a.status === 'yes').length} />)}
               </div>
             </section>
           )}
@@ -908,12 +918,13 @@ function fmtSlot(t: string): string {
   return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`
 }
 
-function GameRow({ game, teams = [], onCancel, onDelete, onEdit, leagueId, rsvpYes = 0 }: {
+function GameRow({ game, teams = [], onCancel, onDelete, onEdit, onInsightsNeeded, leagueId, rsvpYes = 0 }: {
   game: GameWithTeams
   teams?: LeagueTeam[]
   onCancel?: () => void
   onDelete?: () => void
   onEdit?: (id: string, updates: Partial<LeagueGame>) => void
+  onInsightsNeeded?: () => void
   leagueId: string
   rsvpYes?: number
 }) {
@@ -959,6 +970,7 @@ function GameRow({ game, teams = [], onCancel, onDelete, onEdit, leagueId, rsvpY
     onEdit?.(game.id, updates)
     setSavingQuick(false)
     setQuickMode(false)
+    onInsightsNeeded?.()
   }
 
   async function saveEdit() {

@@ -165,6 +165,13 @@ export default function BoxScorePage() {
 
     setSaving(false)
     setSaved(true)
+    // Fire-and-forget insights refresh after final score saved
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      fetch(`/api/league/${league!.slug}/insights`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
+      }).catch(() => {})
+    })
     setTimeout(() => {
       router.push(`/league-portal/${leagueId}/schedule`)
     }, 1200)

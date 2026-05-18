@@ -10,7 +10,7 @@ export default function LeagueOverview() {
   const [games, setGames] = useState<LeagueGame[]>([])
   const [playerCount, setPlayerCount] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [insightsStatus, setInsightsStatus] = useState<'idle'|'loading'|'done'|'error'>('idle')
+
 
   useEffect(() => {
     if (!leagueId) return
@@ -154,48 +154,6 @@ export default function LeagueOverview() {
                 </div>
               ) : null}
             </div>
-          </div>
-
-          {/* AI Insights generator */}
-          <div style={{ background: '#0D0D12', border: '1px solid #1C1C26', borderRadius: 16, padding: '20px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' as const }}>
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
-                <span style={{ fontSize: 18 }}>🤖</span>
-                <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 18, textTransform: 'uppercase' as const, letterSpacing: 0.5 }}>AI Insights</span>
-              </div>
-              <div style={{ fontSize: 12, color: '#6A6A82', fontFamily: "'DM Mono', monospace", lineHeight: 1.5 }}>
-                {insightsStatus === 'done'
-                  ? '✓ Insights generated — visible on the player league page'
-                  : insightsStatus === 'error'
-                  ? '✗ Generation failed — check the browser console for details'
-                  : 'Generate playoff odds, championship probability & AI analysis for every team'}
-              </div>
-            </div>
-            <button
-              onClick={async () => {
-                if (insightsStatus === 'loading') return
-                setInsightsStatus('loading')
-                try {
-                  const { data: { session } } = await supabase.auth.getSession()
-                  const res = await fetch(`/api/league/${league.slug}/insights`, {
-                    method: 'POST',
-                    headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
-                  })
-                  setInsightsStatus(res.ok ? 'done' : 'error')
-                } catch { setInsightsStatus('error') }
-              }}
-              style={{
-                background: insightsStatus === 'loading' ? 'rgba(57,255,20,0.08)' : insightsStatus === 'done' ? 'rgba(57,255,20,0.12)' : '#39FF14',
-                border: `1px solid ${insightsStatus === 'done' ? '#39FF14' : '#39FF14'}`,
-                color: insightsStatus === 'loading' || insightsStatus === 'done' ? '#39FF14' : '#040406',
-                fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 15,
-                textTransform: 'uppercase' as const, letterSpacing: 1,
-                padding: '12px 24px', borderRadius: 10, cursor: insightsStatus === 'loading' ? 'wait' : 'pointer',
-                whiteSpace: 'nowrap' as const, transition: 'all 0.2s', flexShrink: 0,
-              }}
-            >
-              {insightsStatus === 'loading' ? '◎ Analyzing…' : insightsStatus === 'done' ? '✓ Done' : '⚡ Generate'}
-            </button>
           </div>
 
           {/* Quick nav cards */}
