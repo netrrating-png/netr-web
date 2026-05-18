@@ -2,6 +2,7 @@ import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../../lib/supabase'
+import type { InsightResult } from '../../../../lib/league-insights'
 
 type League = { id: string; name: string; slug: string; sport: string; season: string | null; accent_color: string | null; logo_url: string | null; league_font: string | null }
 type Team = { id: string; name: string; color: string; logo_url: string | null }
@@ -34,10 +35,19 @@ export default function TeamSharePage() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [insight, setInsight] = useState<InsightResult | null>(null)
 
   useEffect(() => {
     if (!slug || !teamId) return
     load()
+    // Fetch AI insight for this team in the background
+    fetch(`/api/league/${slug}/insights`)
+      .then(r => r.json())
+      .then(d => {
+        const found = (d.insights as InsightResult[] ?? []).find(i => i.team_id === teamId)
+        if (found) setInsight(found)
+      })
+      .catch(() => {/* insights are optional */})
   }, [slug, teamId])
 
   async function load() {
@@ -201,6 +211,56 @@ export default function TeamSharePage() {
               </div>
             ))}
           </div>
+
+          {/* AI Insight Card */}
+          {insight && (() => {
+            const trendColor = insight.trend === 'UP' ? '#39FF14' : insight.trend === 'DOWN' ? '#FF453A' : '#6A6A82'
+            const trendIcon  = insight.trend === 'UP' ? '↑' : insight.trend === 'DOWN' ? '↓' : '→'
+            const isElim     = insight.magic_number === null && insight.games_played > 0
+            const isClinched = insight.magic_number === 0
+            const playoffPct  = Math.round(insight.playoff_probability * 100)
+            const champPct    = Math.round(insight.championship_probability * 100)
+            return (
+              <div style={{ position: 'relative', overflow: 'hidden', background: '#0D0D12', border: `1px solid ${isElim ? '#1A1A28' : isClinched ? `${accent}44` : `${team.color}44`}`, borderRadius: 16, marginBottom: 24 }}>
+                <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(135deg,${team.color}08 0%,transparent 60%)`, pointerEvents: 'none' }} />
+                {/* Header */}
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: `1px solid ${team.color}20` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: accent, boxShadow: `0 0 8px ${accent}`, animation: 'none' }} />
+                    <span style={{ fontSize: 9, color: accent, fontFamily: "'DM Mono', monospace", letterSpacing: 3, textTransform: 'uppercase' as const }}>AI Insight</span>
+                    {isClinched && <span style={{ fontSize: 9, background: `${accent}20`, border: `1px solid ${accent}44`, color: accent, fontFamily: "'DM Mono', monospace", letterSpacing: 2, padding: '2px 7px', borderRadius: 99 }}>CLINCHED</span>}
+                    {isElim    && <span style={{ fontSize: 9, background: 'rgba(255,69,58,0.12)', border: '1px solid rgba(255,69,58,0.3)', color: '#FF453A', fontFamily: "'DM Mono', monospace", letterSpacing: 2, padding: '2px 7px', borderRadius: 99 }}>ELIMINATED</span>}
+                  </div>
+                  <span style={{ fontSize: 12, color: trendColor, fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>{trendIcon} {insight.trend}</span>
+                </div>
+                {/* Probabilities */}
+                <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, borderBottom: `1px solid rgba(255,255,255,0.05)` }}>
+                  {[
+                    { label: 'Playoff Odds', pct: playoffPct, color: team.color },
+                    { label: 'Championship', pct: champPct,  color: accent, border: true },
+                  ].map(({ label, pct, color, border }) => (
+                    <div key={label} style={{ padding: '18px 20px', borderLeft: border ? `1px solid rgba(255,255,255,0.05)` : undefined }}>
+                      <div style={{ fontSize: 9, color: '#6A6A82', fontFamily: "'DM Mono', monospace", letterSpacing: 2, textTransform: 'uppercase' as const, marginBottom: 6 }}>{label}</div>
+                      <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 42, color: isElim ? '#2E2E3A' : color, lineHeight: 1, marginBottom: 8 }}>{pct}%</div>
+                      <div style={{ height: 4, background: '#1A1A28', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: isElim ? '#2E2E3A' : color, borderRadius: 2 }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Magic number + insight text */}
+                <div style={{ position: 'relative', padding: '16px 20px' }}>
+                  {insight.magic_number !== null && insight.magic_number > 0 && (
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: `${team.color}12`, border: `1px solid ${team.color}30`, borderRadius: 8, padding: '5px 12px', marginBottom: 12 }}>
+                      <span style={{ fontSize: 9, color: '#6A6A82', fontFamily: "'DM Mono', monospace", letterSpacing: 2 }}>MAGIC #</span>
+                      <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 20, color: team.color, lineHeight: 1 }}>{insight.magic_number}</span>
+                    </div>
+                  )}
+                  <p style={{ fontSize: 14, lineHeight: 1.75, color: 'rgba(238,238,245,0.85)', fontFamily: "'DM Sans', sans-serif", margin: 0 }}>{insight.insight_text}</p>
+                </div>
+              </div>
+            )
+          })()}
 
           <div style={S.twoCol}>
             {/* Roster */}

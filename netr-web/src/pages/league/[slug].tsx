@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { getFontFamily, getFontGF } from '../../lib/league-fonts'
 import { Globe, MapPin, Mail, X } from 'lucide-react'
+import type { InsightResult } from '../../lib/league-insights'
 
 type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null;league_font:string|null;signup_url:string|null;signup_label:string|null;rules_sections:{title:string;content:string}[]|null }
 type LeagueSeason = { id:string;league_id:string;name:string;start_date:string|null;end_date:string|null;champion_team_id:string|null;notes:string|null;display_order:number;created_at:string }
@@ -28,7 +29,7 @@ type Standing = { team_id:string;team_name:string;color:string;wins:number;losse
 type Game = { id:string;home_team_id:string;away_team_id:string;scheduled_at:string;location:string|null;status:string;home_score:number|null;away_score:number|null;game_type:string|null }
 type RawStat = { game_id:string;player_id:string;team_id:string;points:number;rebounds:number;assists:number;steals:number;blocks:number;turnovers:number;field_goals_made:number;field_goals_attempted:number;three_pointers_made:number;three_pointers_attempted:number;free_throws_made:number;free_throws_attempted:number }
 type PStat = { player_id:string;display_name:string;team_id:string;team_name:string;team_color:string;gp:number;ppg:number;rpg:number;apg:number;spg:number;bpg:number }
-type Tab = 'overview'|'schedule'|'stats'|'teams'|'gallery'|'rules'|'history'
+type Tab = 'overview'|'schedule'|'stats'|'teams'|'gallery'|'rules'|'history'|'insights'
 type SortKey = 'ppg'|'rpg'|'apg'|'spg'|'bpg'
 const ACC = '#39FF14'
 
@@ -53,9 +54,15 @@ export default function PublicLeaguePage() {
   const [sponsors,setSponsors] = useState<Sponsor[]>([])
   const [galleryPhotos,setGalleryPhotos] = useState<GalleryPhoto[]>([])
   const [lightboxIdx,setLightboxIdx] = useState<number|null>(null)
-  const VALID_TABS = ['overview','schedule','stats','teams','gallery','rules','history']
+  const VALID_TABS = ['overview','schedule','stats','teams','gallery','rules','history','insights']
   const activeTab:Tab = (VALID_TABS.includes(tabParam as string)?tabParam:'overview') as Tab
-  const setTab = (t:Tab) => router.replace({pathname:router.pathname,query:{slug,tab:t}},undefined,{shallow:true})
+  const setTab = (t:Tab) => {
+    router.replace({pathname:router.pathname,query:{slug,tab:t}},undefined,{shallow:true})
+    if(t==='insights'&&insights===null&&!insightsLoading&&slug){
+      setInsightsLoading(true)
+      fetch(`/api/league/${slug}/insights`).then(r=>r.json()).then(d=>{setInsights(d.insights??[]);setInsightsLoading(false)}).catch(()=>setInsightsLoading(false))
+    }
+  }
 
   const [seasons,setSeasons] = useState<LeagueSeason[]>([])
   const [showNetrInfo,setShowNetrInfo] = useState(false)
@@ -64,6 +71,8 @@ export default function PublicLeaguePage() {
   const [seasonStats,setSeasonStats] = useState<RawStat[]>([])
   const [loadingSeason,setLoadingSeason] = useState(false)
   const [countdownStr,setCountdownStr] = useState<string|null>(null)
+  const [insights,setInsights] = useState<InsightResult[]|null>(null)
+  const [insightsLoading,setInsightsLoading] = useState(false)
 
   useEffect(()=>{ if(slug) load() },[slug])
 
@@ -389,6 +398,7 @@ export default function PublicLeaguePage() {
             ...(league.rules_sections&&league.rules_sections.length>0?[['rules','Rules']]:[] as [Tab,string][]),
             ...(seasons.length>0?[['history','History']]:[] as [Tab,string][]),
             ...(galleryPhotos.length>0?[['gallery','Gallery']]:[] as [Tab,string][]),
+            ['insights','AI Insights'] as [Tab,string],
           ] as [Tab,string][]).map(([t,label])=>(
             <button key={t} onClick={()=>setTab(t)} className="tab-btn" style={{background:activeTab===t?`${accent}0D`:'none',border:'none',borderBottom:activeTab===t?`3px solid ${accent}`:'3px solid transparent',color:activeTab===t?accent:'#C8C8D4',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase',letterSpacing:1.5,padding:'16px 18px',cursor:'pointer',whiteSpace:'nowrap',flexShrink:0,transition:'all 0.2s',borderRadius:'8px 8px 0 0'}}>
               {label}
@@ -932,6 +942,120 @@ export default function PublicLeaguePage() {
             </div>
           )}
         </section>}
+
+        {/* AI INSIGHTS */}
+        {activeTab==='insights'&&(
+          <section>
+            <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:24,gap:12,flexWrap:'wrap' as const}}>
+              <div>
+                <SecTitle accent={accent} noMargin>AI Insights</SecTitle>
+                <p style={{fontSize:12,color:'#6A6A82',fontFamily:"'DM Mono',monospace",margin:'8px 0 0',letterSpacing:0.5}}>
+                  Monte Carlo simulation · Updated after each game · Powered by Claude
+                </p>
+              </div>
+            </div>
+
+            {insightsLoading&&(
+              <div style={{textAlign:'center',padding:'60px 0',color:accent,fontFamily:"'DM Mono',monospace",fontSize:13,letterSpacing:2}}>
+                <div style={{marginBottom:8,fontSize:20,animation:'countPulse 1s ease-in-out infinite'}}>◎</div>
+                ANALYZING LEAGUE…
+              </div>
+            )}
+
+            {!insightsLoading&&(!insights||insights.length===0)&&(
+              <div style={{background:'#0A0A0E',border:`1px dashed ${accent}30`,borderRadius:16,padding:'48px 32px',textAlign:'center' as const}}>
+                <div style={{fontSize:32,marginBottom:12}}>🤖</div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,textTransform:'uppercase' as const,color:'#EEEEF5',marginBottom:8}}>No Insights Yet</div>
+                <p style={{fontSize:14,color:'#6A6A82',fontFamily:"'DM Sans',sans-serif",maxWidth:400,margin:'0 auto',lineHeight:1.6}}>
+                  AI Insights are generated by your league admin after games are recorded. Check back after the next game.
+                </p>
+              </div>
+            )}
+
+            {!insightsLoading&&insights&&insights.length>0&&(
+              <>
+                {insights[0]?.low_confidence&&(
+                  <div style={{background:'rgba(245,197,66,0.08)',border:'1px solid rgba(245,197,66,0.25)',borderRadius:12,padding:'12px 18px',marginBottom:20,display:'flex',alignItems:'center',gap:10}}>
+                    <span style={{fontSize:16}}>⚠️</span>
+                    <span style={{fontSize:12,color:'#F5C542',fontFamily:"'DM Mono',monospace",letterSpacing:0.5}}>Early season — low confidence. Probabilities will sharpen as more games are played.</span>
+                  </div>
+                )}
+
+                <div style={{display:'flex',flexDirection:'column',gap:16}}>
+                  {insights.map((ins,i)=>{
+                    const trendColor=ins.trend==='UP'?'#39FF14':ins.trend==='DOWN'?'#FF453A':'#6A6A82'
+                    const trendIcon=ins.trend==='UP'?'↑':ins.trend==='DOWN'?'↓':'→'
+                    const isElim=ins.magic_number===null&&ins.games_played>0
+                    const isClinched=ins.magic_number===0
+
+                    return(
+                      <div key={ins.team_id} style={{position:'relative',overflow:'hidden',background:'#0D0D12',border:`1px solid ${isElim?'#1A1A28':isClinched?accent+'44':ins.color+'33'}`,borderRadius:18,padding:'22px 24px'}}>
+                        <div style={{position:'absolute',inset:0,background:`linear-gradient(135deg,${ins.color}08 0%,transparent 55%)`,pointerEvents:'none'}}/>
+                        <div style={{position:'absolute',top:-16,right:16,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:140,color:`${accent}04`,lineHeight:1,userSelect:'none' as const,pointerEvents:'none'}}>{i+1}</div>
+
+                        {/* Team header */}
+                        <div style={{position:'relative',display:'flex',alignItems:'center',gap:14,marginBottom:18,flexWrap:'wrap' as const}}>
+                          {ins.logo_url
+                            ?<img src={ins.logo_url} alt={ins.team_name} style={{width:48,height:48,borderRadius:10,objectFit:'cover',flexShrink:0,border:`2px solid ${ins.color}55`}}/>
+                            :<div style={{width:48,height:48,borderRadius:10,background:`linear-gradient(135deg,${ins.color},${ins.color}88)`,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                              <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,color:'rgba(255,255,255,0.9)',textTransform:'uppercase' as const}}>{ins.team_name.slice(0,2)}</span>
+                            </div>}
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap' as const}}>
+                              <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:20,textTransform:'uppercase' as const,color:'#EEEEF5',letterSpacing:0.5}}>{ins.team_name}</span>
+                              {isClinched&&<span style={{fontSize:9,background:`${accent}20`,border:`1px solid ${accent}44`,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2,padding:'3px 8px',borderRadius:99}}>CLINCHED</span>}
+                              {isElim&&<span style={{fontSize:9,background:'rgba(255,69,58,0.12)',border:'1px solid rgba(255,69,58,0.3)',color:'#FF453A',fontFamily:"'DM Mono',monospace",letterSpacing:2,padding:'3px 8px',borderRadius:99}}>ELIMINATED</span>}
+                            </div>
+                            <div style={{fontSize:12,color:'#6A6A82',fontFamily:"'DM Mono',monospace",marginTop:3}}>{ins.games_played} GP</div>
+                          </div>
+                          <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
+                            <span style={{fontSize:13,color:trendColor,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{trendIcon}</span>
+                            <span style={{fontSize:10,color:trendColor,fontFamily:"'DM Mono',monospace",letterSpacing:1}}>{ins.trend}</span>
+                          </div>
+                        </div>
+
+                        {/* Probability bars */}
+                        <div style={{position:'relative',display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:18}}>
+                          {[
+                            {label:'Playoff',pct:ins.playoff_probability,color:ins.color},
+                            {label:'Championship',pct:ins.championship_probability,color:accent},
+                          ].map(({label,pct,color})=>(
+                            <div key={label}>
+                              <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:6}}>
+                                <span style={{fontSize:9,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const}}>{label}</span>
+                                <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:26,color:isElim?'#2E2E3A':color,lineHeight:1}}>{Math.round(pct*100)}%</span>
+                              </div>
+                              <div style={{height:5,background:'#1A1A28',borderRadius:3,overflow:'hidden'}}>
+                                <div style={{height:'100%',width:`${pct*100}%`,background:isElim?'#2E2E3A':`linear-gradient(90deg,${color},${color}88)`,borderRadius:3,transition:'width 0.8s ease'}}/>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Magic number */}
+                        {ins.magic_number!==null&&ins.magic_number>0&&(
+                          <div style={{position:'relative',display:'inline-flex',alignItems:'center',gap:6,background:`${ins.color}12`,border:`1px solid ${ins.color}30`,borderRadius:8,padding:'6px 12px',marginBottom:14}}>
+                            <span style={{fontSize:9,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:2}}>MAGIC#</span>
+                            <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:20,color:ins.color,lineHeight:1}}>{ins.magic_number}</span>
+                          </div>
+                        )}
+
+                        {/* AI insight text */}
+                        <p style={{position:'relative',fontSize:14,lineHeight:1.75,color:'rgba(238,238,245,0.85)',fontFamily:"'DM Sans',sans-serif",margin:0,borderTop:'1px solid rgba(255,255,255,0.05)',paddingTop:14}}>
+                          {ins.insight_text}
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div style={{marginTop:20,textAlign:'center' as const,fontSize:11,color:'#2E2E3A',fontFamily:"'DM Mono',monospace",letterSpacing:1}}>
+                  Analysis powered by Claude · {insights[0]?.low_confidence?'Early season estimates':'Monte Carlo simulation'} · Contact your league admin to refresh
+                </div>
+              </>
+            )}
+          </section>
+        )}
 
       </main>
       <footer style={{borderTop:'1px solid #12121C',marginTop:40,padding:'32px 24px',textAlign:'center' as const}}>
