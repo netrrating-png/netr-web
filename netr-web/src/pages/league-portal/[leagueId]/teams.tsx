@@ -213,10 +213,9 @@ export default function TeamsPage() {
     setEditPJersey(p.jersey_number ?? '')
     setEditPPosition(p.position ?? '')
     setEditPPhotoFile(null)
-    const hasAppPhoto = p.is_claimed && !!p.profile_avatar
-    const src = (p.photo_source === 'app' && hasAppPhoto) ? 'app' : 'custom'
+    const src: 'app' | 'custom' = p.is_claimed && (p.photo_source === 'app' || !p.photo_url) ? 'app' : 'custom'
     setEditPSource(src)
-    setEditPPhotoPreview(src === 'app' ? p.profile_avatar : p.photo_url ?? null)
+    setEditPPhotoPreview(src === 'app' ? (p.profile_avatar ?? null) : (p.photo_url ?? null))
   }
 
   async function uploadPlayerPhoto(file: File, playerId: string): Promise<string | null> {
@@ -801,16 +800,23 @@ export default function TeamsPage() {
               <div style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace", letterSpacing: 1, textTransform: 'uppercase' as const, marginBottom: 10 }}>Player Photo</div>
 
               {/* Source toggle — only when player is claimed AND has an app avatar */}
-              {editingPlayer.is_claimed && editingPlayer.profile_avatar && (
-                <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-                  {(['app', 'custom'] as const).map(src => (
-                    <button key={src} onClick={() => {
-                      setEditPSource(src)
-                      setEditPPhotoPreview(src === 'app' ? editingPlayer.profile_avatar : (editPPhotoFile ? editPPhotoPreview : editingPlayer.photo_url ?? null))
-                    }} style={{ flex: 1, background: editPSource === src ? 'rgba(57,255,20,0.12)' : '#0A0A0E', border: `1.5px solid ${editPSource === src ? '#39FF14' : '#2E2E3A'}`, borderRadius: 8, padding: '8px 0', color: editPSource === src ? '#39FF14' : '#6A6A82', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: 1, cursor: 'pointer', transition: 'all 0.15s' }}>
-                      {src === 'app' ? '📱 App Photo' : '📷 Custom Photo'}
-                    </button>
-                  ))}
+              {editingPlayer.is_claimed && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: editPSource === 'app' && !editingPlayer.profile_avatar ? 8 : 0 }}>
+                    {(['app', 'custom'] as const).map(src => (
+                      <button key={src} onClick={() => {
+                        setEditPSource(src)
+                        setEditPPhotoPreview(src === 'app' ? editingPlayer.profile_avatar : (editPPhotoFile ? editPPhotoPreview : editingPlayer.photo_url ?? null))
+                      }} style={{ flex: 1, background: editPSource === src ? 'rgba(57,255,20,0.12)' : '#0A0A0E', border: `1.5px solid ${editPSource === src ? '#39FF14' : '#2E2E3A'}`, borderRadius: 8, padding: '8px 0', color: editPSource === src ? '#39FF14' : '#6A6A82', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: 1, cursor: 'pointer', transition: 'all 0.15s' }}>
+                        {src === 'app' ? '📱 App Photo' : '📷 Custom Photo'}
+                      </button>
+                    ))}
+                  </div>
+                  {editPSource === 'app' && !editingPlayer.profile_avatar && (
+                    <div style={{ fontSize: 11, color: '#F5C542', fontFamily: "'DM Mono', monospace", letterSpacing: 0.3, padding: '6px 10px', background: 'rgba(245,197,66,0.06)', border: '1px solid rgba(245,197,66,0.2)', borderRadius: 6 }}>
+                      ⚠ This player hasn&apos;t set a profile photo in the NETR app yet. Their photo will appear automatically once they do.
+                    </div>
+                  )}
                 </div>
               )}
 
