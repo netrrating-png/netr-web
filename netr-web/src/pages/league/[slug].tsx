@@ -54,7 +54,7 @@ export default function PublicLeaguePage() {
   const [sponsors,setSponsors] = useState<Sponsor[]>([])
   const [galleryPhotos,setGalleryPhotos] = useState<GalleryPhoto[]>([])
   const [lightboxIdx,setLightboxIdx] = useState<number|null>(null)
-  const VALID_TABS = ['overview','schedule','stats','teams','gallery','rules','history']
+  const VALID_TABS = ['overview','schedule','stats','teams','gallery','rules','history','about']
   const activeTab:Tab = (VALID_TABS.includes(tabParam as string)?tabParam:'overview') as Tab
   const setTab = (t:Tab) => {
     router.replace({pathname:router.pathname,query:{slug,tab:t}},undefined,{shallow:true})
