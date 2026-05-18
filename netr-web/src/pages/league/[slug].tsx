@@ -15,6 +15,34 @@ type Division = { id:string;name:string;display_order:number }
 type Team = { id:string;name:string;color:string;logo_url:string|null;division_id:string|null }
 type Player = { id:string;display_name:string;jersey_number:string|null;position:string|null;team_id:string;netr_score:number|null;photo_url:string|null;photo_source:string|null;profile_avatar:string|null }
 
+
+function makeC(isDark:boolean) {
+  return {
+    pageBg:    isDark?'#040406'                  :'#F2F2F7',
+    cardBg:    isDark?'#0A0A0E'                  :'#FFFFFF',
+    cardBg2:   isDark?'#0D0D12'                  :'#F8F8FC',
+    cardBg3:   isDark?'#0F0F14'                  :'#F0F0F6',
+    inputBg:   isDark?'#080810'                  :'#FFFFFF',
+    track:     isDark?'#151520'                  :'#E4E4EE',
+    border:    isDark?'#1C1C26'                  :'#D8D8E8',
+    borderSub: isDark?'#1A1A28'                  :'#E0E0EC',
+    borderStr: isDark?'#2A2A38'                  :'#C4C4D4',
+    text:      isDark?'#EEEEF5'                  :'#0A0A14',
+    textSub:   isDark?'#C8C8D4'                  :'#2A2A3E',
+    textA0:    isDark?'#A0A0B8'                  :'#5A5A74',
+    textMuted: isDark?'#6A6A82'                  :'#5A5A72',
+    textDim:   isDark?'#3A3A4E'                  :'#9898B0',
+    textFaint: isDark?'#2E2E3A'                  :'#ADADC4',
+    elim:      isDark?'#4A4A5E'                  :'#AAAABC',
+    t75:       isDark?'rgba(238,238,245,0.75)'   :'rgba(10,10,20,0.75)',
+    t80:       isDark?'rgba(238,238,245,0.8)'    :'rgba(10,10,20,0.8)',
+    t85:       isDark?'rgba(238,238,245,0.85)'   :'rgba(10,10,20,0.85)',
+    t90:       isDark?'rgba(238,238,245,0.9)'    :'rgba(10,10,20,0.9)',
+    chipBg:    isDark?'rgba(255,255,255,0.06)'   :'rgba(0,0,0,0.05)',
+    chipBorder:isDark?'rgba(255,255,255,0.08)'   :'rgba(0,0,0,0.08)',
+  }
+}
+const ThemeCtx = React.createContext(makeC(true))
 function netrScoreColor(s:number):string {
   if(s>=9.5)return'#C40010'
   if(s>=9.0)return'#FF3B30'
@@ -192,28 +220,7 @@ export default function PublicLeaguePage() {
   if(notFound||!league) return <NotFound/>
   const accent=league.accent_color||ACC
   const isDark=league.league_theme!=='light'
-  const C={
-    pageBg:    isDark?'#040406'                  :'#F2F2F7',
-    cardBg:    isDark?'#0A0A0E'                  :'#FFFFFF',
-    cardBg2:   isDark?'#0D0D12'                  :'#F8F8FC',
-    cardBg3:   isDark?'#0F0F14'                  :'#F0F0F6',
-    inputBg:   isDark?'#080810'                  :'#FFFFFF',
-    track:     isDark?'#151520'                  :'#E4E4EE',
-    border:    isDark?'#1C1C26'                  :'#D8D8E8',
-    borderSub: isDark?'#1A1A28'                  :'#E0E0EC',
-    borderStr: isDark?'#2A2A38'                  :'#C4C4D4',
-    text:      isDark?'#EEEEF5'                  :'#0A0A14',
-    textSub:   isDark?'#C8C8D4'                  :'#2A2A3E',
-    textA0:    isDark?'#A0A0B8'                  :'#5A5A74',
-    textMuted: isDark?'#6A6A82'                  :'#5A5A72',
-    textDim:   isDark?'#3A3A4E'                  :'#9898B0',
-    textFaint: isDark?'#2E2E3A'                  :'#ADADC4',
-    elim:      isDark?'#4A4A5E'                  :'#AAAABC',
-    t75:       isDark?'rgba(238,238,245,0.75)'   :'rgba(10,10,20,0.75)',
-    t80:       isDark?'rgba(238,238,245,0.8)'    :'rgba(10,10,20,0.8)',
-    t85:       isDark?'rgba(238,238,245,0.85)'   :'rgba(10,10,20,0.85)',
-    t90:       isDark?'rgba(238,238,245,0.9)'    :'rgba(10,10,20,0.9)',
-  }
+  const C=makeC(isDark)
   const NetrBadge=({score}:{score:number|null|undefined})=>{
     if(score==null)return null
     const c=netrScoreColor(score)
@@ -281,6 +288,7 @@ export default function PublicLeaguePage() {
         }
       `}</style>
     </Head>
+    <ThemeCtx.Provider value={C}>
     <div style={{minHeight:'100vh',background:C.pageBg,fontFamily:"'DM Sans',sans-serif",color:C.text}}>
 
       {/* ── HERO ── */}
@@ -1387,6 +1395,7 @@ export default function PublicLeaguePage() {
         </Modal>
       )}
     </div>
+    </ThemeCtx.Provider>
   </>)
 }
 
@@ -1454,23 +1463,25 @@ function SocialIcons({links,accent}:{links:Record<string,string>;accent:string})
 }
 
 function CalendarButtons({slug,teamId,size}:{slug:string;teamId?:string;size:'sm'|'lg'}) {
+  const C=React.useContext(ThemeCtx)
   const host=typeof window!=='undefined'?window.location.host:''
   const qs=teamId?`?team=${teamId}`:''
   const pad=size==='lg'?'9px 16px':'7px 12px'
   const fs=size==='lg'?13:12
-  const btn:React.CSSProperties={display:'inline-flex',alignItems:'center',gap:5,background:C.cardBg3,border:'1px solid #2E2E3A',borderRadius:8,color:C.text,fontSize:fs,fontFamily:"'DM Sans',sans-serif",padding:pad,textDecoration:'none',whiteSpace:'nowrap'}
+  const btn:React.CSSProperties={display:'inline-flex',alignItems:'center',gap:5,background:C.cardBg3,border:`1px solid ${C.borderSub}`,borderRadius:8,color:C.text,fontSize:fs,fontFamily:"'DM Sans',sans-serif",padding:pad,textDecoration:'none',whiteSpace:'nowrap'}
   return(
     <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
       <a href={`webcal://${host}/api/league/${slug}/calendar${qs}`} style={btn}>🍎 iPhone / Apple</a>
       <a href={`https://calendar.google.com/calendar/r?cid=https://${host}/api/league/${slug}/calendar${qs}`} target="_blank" rel="noopener noreferrer" style={btn}>📆 Google</a>
-      <a href={`/api/league/${slug}/calendar${qs}`} target="_blank" rel="noopener noreferrer" style={{...btn,background:'transparent',border:'1px solid #1C1C26',color:C.textSub}}>↓ .ics</a>
+      <a href={`/api/league/${slug}/calendar${qs}`} target="_blank" rel="noopener noreferrer" style={{...btn,background:'transparent',border:`1px solid ${C.border}`,color:C.textSub}}>↓ .ics</a>
     </div>
   )
 }
 
 function RsvpRow({gameId,myStatus,accent,onRsvp}:{gameId:string;myStatus:'yes'|'no'|'maybe'|null;accent:string;onRsvp:(id:string,s:'yes'|'no'|'maybe')=>void}) {
+  const C=React.useContext(ThemeCtx)
   return(
-    <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 16px 10px',background:C.cardBg,borderRadius:'0 0 10px 10px',borderLeft:'1px solid #1C1C26',borderRight:'1px solid #1C1C26',borderBottom:'1px solid #1C1C26',marginTop:-2}}>
+    <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 16px 10px',background:C.cardBg,borderRadius:'0 0 10px 10px',borderLeft:`1px solid ${C.border}`,borderRight:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`,marginTop:-2}}>
       <span style={{fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace",marginRight:4}}>RSVP:</span>
       {(['yes','no','maybe'] as const).map(s=>(
         <button key={s} onClick={()=>onRsvp(gameId,s)} style={{background:myStatus===s?(s==='yes'?`${accent}22`:s==='no'?'rgba(255,68,85,0.15)':'rgba(245,197,66,0.15)'):'transparent',border:`1px solid ${myStatus===s?(s==='yes'?accent:s==='no'?'#FF4455':'#F5C542'):C.textFaint}`,borderRadius:99,color:myStatus===s?(s==='yes'?accent:s==='no'?'#FF4455':'#F5C542'):C.textMuted,fontSize:11,fontFamily:"'DM Mono',monospace",padding:'3px 10px',cursor:'pointer'}}>
@@ -1482,6 +1493,7 @@ function RsvpRow({gameId,myStatus,accent,onRsvp}:{gameId:string;myStatus:'yes'|'
 }
 
 function GCard({g,tMap,accent,onClick,showLoc,rsvpCount}:{g:Game;tMap:Record<string,Team>;accent:string;onClick?:()=>void;showLoc?:boolean;rsvpCount?:number}) {
+  const C=React.useContext(ThemeCtx)
   const home=tMap[g.home_team_id],away=tMap[g.away_team_id],fin=g.status==='final',cancelled=g.status==='cancelled',homeWon=(g.home_score??0)>(g.away_score??0)
   const d=new Date(g.scheduled_at)
   const dayStr=d.toLocaleDateString('en-US',{weekday:'short'}).toUpperCase()
@@ -1518,7 +1530,7 @@ function GCard({g,tMap,accent,onClick,showLoc,rsvpCount}:{g:Game;tMap:Record<str
           ):(
             <>
               <div style={{fontSize:9,color:C.text,fontFamily:"'DM Mono',monospace",letterSpacing:1}}>{dayStr}</div>
-              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:28,color:'#FFFFFF',lineHeight:1,WebkitTextStroke:`1px ${accent}`,textShadow:`0 0 8px ${accent}40`}}>{dateNum}</div>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:28,color:C.pageBg,lineHeight:1,WebkitTextStroke:`1px ${accent}`,textShadow:`0 0 8px ${accent}40`}}>{dateNum}</div>
               <div style={{fontSize:10,color:C.text,fontFamily:"'DM Mono',monospace"}}>{timeStr}</div>
               {rsvpCount!=null&&rsvpCount>0&&<div style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",marginTop:2}}>✓{rsvpCount}</div>}
             </>
@@ -1533,27 +1545,30 @@ function GCard({g,tMap,accent,onClick,showLoc,rsvpCount}:{g:Game;tMap:Record<str
           {fin&&!homeWon&&<div style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase'}}>WINNER</div>}
         </div>
       </div>
-      {showLoc&&g.location&&<div style={{background:C.inputBg,borderLeft:`1px solid #1C1C26`,borderRight:'1px solid #1C1C26',borderBottom:'1px solid #1C1C26',borderRadius:'0 0 14px 14px',padding:'5px 18px',fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace"}}>📍 {g.location}</div>}
+      {showLoc&&g.location&&<div style={{background:C.inputBg,borderLeft:`1px solid ${C.border}`,borderRight:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`,borderRadius:'0 0 14px 14px',padding:'5px 18px',fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace"}}>📍 {g.location}</div>}
     </div>
   )
 }
 
 function Modal({children,onClose}:{children:React.ReactNode;onClose:()=>void}) {
+  const C=React.useContext(ThemeCtx)
   useEffect(()=>{const h=(e:KeyboardEvent)=>{if(e.key==='Escape')onClose()};document.addEventListener('keydown',h);return()=>document.removeEventListener('keydown',h)},[onClose])
   return(<div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px 16px',overflowY:'auto'}} onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
-    <div style={{background:C.cardBg3,border:'1px solid #2E2E3A',borderRadius:16,padding:'28px 24px',width:'100%',maxWidth:660,position:'relative',maxHeight:'90vh',overflowY:'auto'}}>
-      <button onClick={onClose} style={{position:'absolute',top:14,right:14,background:'none',border:'1px solid #2E2E3A',borderRadius:8,color:C.textSub,fontSize:16,width:32,height:32,cursor:'pointer'}}>✕</button>
+    <div style={{background:C.cardBg3,border:`1px solid ${C.borderSub}`,borderRadius:16,padding:'28px 24px',width:'100%',maxWidth:660,position:'relative',maxHeight:'90vh',overflowY:'auto'}}>
+      <button onClick={onClose} style={{position:'absolute',top:14,right:14,background:'none',border:`1px solid ${C.borderSub}`,borderRadius:8,color:C.textSub,fontSize:16,width:32,height:32,cursor:'pointer'}}>✕</button>
       {children}
     </div>
   </div>)
 }
 
 function SecTitle({children,accent,noMargin}:{children:React.ReactNode;accent:string;noMargin?:boolean}) {
+  const C=React.useContext(ThemeCtx)
   return(<h2 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:26,textTransform:'uppercase',letterSpacing:1,marginBottom:noMargin?0:18,color:C.text,display:'flex',alignItems:'center',gap:12}}>
     <span style={{display:'inline-block',width:4,height:22,background:accent,borderRadius:2,flexShrink:0,boxShadow:`0 0 8px ${accent}88`}}/>{children}
   </h2>)
 }
 function SectionLabel({children,accent,noMargin}:{children:string;accent:string;noMargin?:boolean}) {
+  const C=React.useContext(ThemeCtx)
   return(
     <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:noMargin?0:20}}>
       <div style={{height:2,width:24,background:accent,borderRadius:2,flexShrink:0}}/>
@@ -1562,17 +1577,21 @@ function SectionLabel({children,accent,noMargin}:{children:string;accent:string;
   )
 }
 function Chip({children,style}:{children:React.ReactNode;style?:React.CSSProperties}) {
-  return<span style={{background:'rgba(255,255,255,0.06)',color:C.text,fontSize:11,padding:'5px 12px',borderRadius:99,fontFamily:"'DM Mono',monospace",border:'1px solid rgba(255,255,255,0.08)',...style}}>{children}</span>
+  const C=React.useContext(ThemeCtx)
+  return<span style={{background:C.chipBg,color:C.text,fontSize:11,padding:'5px 12px',borderRadius:99,fontFamily:"'DM Mono',monospace",border:`1px solid ${C.chipBorder}`,...style}}>{children}</span>
 }
 function Empty({children}:{children:React.ReactNode}) {
+  const C=React.useContext(ThemeCtx)
   return<div style={{color:C.textDim,fontSize:13,padding:'32px 0',textAlign:'center' as const,fontFamily:"'DM Mono',monospace",letterSpacing:1}}>{children}</div>
 }
 function Spinner() {
+  const C=React.useContext(ThemeCtx)
   return<div style={{minHeight:'100vh',background:C.pageBg,display:'flex',alignItems:'center',justifyContent:'center'}}>
     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,color:'#39FF14',letterSpacing:4,textTransform:'uppercase' as const,opacity:0.8}}>Loading…</div>
   </div>
 }
 function NotFound() {
+  const C=React.useContext(ThemeCtx)
   return<div style={{minHeight:'100vh',background:C.pageBg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',fontFamily:"'DM Sans',sans-serif",color:C.text,padding:24}}>
     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:96,color:C.cardBg3,fontWeight:900,lineHeight:1}}>404</div>
     <div style={{fontSize:16,color:C.textSub,marginTop:8,fontFamily:"'DM Mono',monospace",letterSpacing:2}}>LEAGUE NOT FOUND</div>
@@ -1589,7 +1608,7 @@ function computeStats(stats:RawStat[],pMap:Record<string,Player>,tMap:Record<str
   return Object.entries(agg).map(([pid,a])=>{
     const p=pMap[pid],t=p?tMap[p.team_id]:null
     const r=(n:number)=>Math.round(n*10)/10
-    return{player_id:pid,display_name:p?.display_name??'—',team_id:p?.team_id??'',team_name:t?.name??'—',team_color:t?.color??C.textMuted,gp:a.gp,ppg:r(a.pts/a.gp),rpg:r(a.reb/a.gp),apg:r(a.ast/a.gp),spg:r(a.stl/a.gp),bpg:r(a.blk/a.gp),photo_url:p?.photo_url??null,photo_source:p?.photo_source??null,profile_avatar:p?.profile_avatar??null}
+    return{player_id:pid,display_name:p?.display_name??'—',team_id:p?.team_id??'',team_name:t?.name??'—',team_color:t?.color??'#6A6A82',gp:a.gp,ppg:r(a.pts/a.gp),rpg:r(a.reb/a.gp),apg:r(a.ast/a.gp),spg:r(a.stl/a.gp),bpg:r(a.blk/a.gp),photo_url:p?.photo_url??null,photo_source:p?.photo_source??null,profile_avatar:p?.profile_avatar??null}
   })
 }
 
