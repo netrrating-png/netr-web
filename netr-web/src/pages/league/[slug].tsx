@@ -322,7 +322,7 @@ export default function PublicLeaguePage() {
               <span style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const}}>{league.is_active?'Active Season':league.sport||'League'}</span>
             </span>
             {league.season&&(
-              <span style={{display:'inline-flex',alignItems:'center',background:'rgba(0,0,0,0.55)',backdropFilter:'blur(8px)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:99,padding:'4px 12px',fontSize:10,color:C.t90,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,fontWeight:600}}>
+              <span style={{display:'inline-flex',alignItems:'center',background:isDark?'rgba(0,0,0,0.55)':'rgba(255,255,255,0.85)',...(isDark?{backdropFilter:'blur(8px)'}:{}),border:isDark?'1px solid rgba(255,255,255,0.18)':`1px solid ${C.border}`,borderRadius:99,padding:'4px 12px',fontSize:10,color:C.t90,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,fontWeight:600}}>
                 {league.season}
               </span>
             )}
@@ -359,7 +359,7 @@ export default function PublicLeaguePage() {
               <p style={{
                 fontFamily:"'DM Sans',sans-serif",
                 fontSize:'clamp(16px,2.2vw,21px)',
-                color:'rgba(238,238,245,0.92)',
+                color:C.t90,
                 lineHeight:1.6,
                 margin:0,
                 fontWeight:400,
@@ -380,13 +380,13 @@ export default function PublicLeaguePage() {
           {/* Meta + CTA */}
           <div className="chip-row" style={{display:'flex',alignItems:'center',flexWrap:'wrap' as const,gap:8}}>
             {league.location&&(
-              <span style={{display:'inline-flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:99,padding:'6px 14px',fontSize:12,color:C.textA0,fontFamily:"'DM Sans',sans-serif"}}>
+              <span style={{display:'inline-flex',alignItems:'center',gap:6,background:isDark?'rgba(255,255,255,0.05)':'rgba(255,255,255,0.8)',border:isDark?'1px solid rgba(255,255,255,0.1)':`1px solid ${C.border}`,borderRadius:99,padding:'6px 14px',fontSize:12,color:C.textA0,fontFamily:"'DM Sans',sans-serif"}}>
                 <MapPin size={12} strokeWidth={2}/>{league.location}
               </span>
             )}
             {(league.contact_info||league.social_links?.phone)&&(
               <a href={league.contact_info?`mailto:${league.contact_info}`:`tel:${league.social_links!.phone}`}
-                style={{display:'inline-flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:99,padding:'6px 14px',fontSize:12,color:C.textA0,fontFamily:"'DM Sans',sans-serif",textDecoration:'none',whiteSpace:'nowrap' as const}}>
+                style={{display:'inline-flex',alignItems:'center',gap:6,background:isDark?'rgba(255,255,255,0.05)':'rgba(255,255,255,0.8)',border:isDark?'1px solid rgba(255,255,255,0.1)':`1px solid ${C.border}`,borderRadius:99,padding:'6px 14px',fontSize:12,color:C.textA0,fontFamily:"'DM Sans',sans-serif",textDecoration:'none',whiteSpace:'nowrap' as const}}>
                 <Mail size={12} strokeWidth={2}/>Contact
               </a>
             )}
@@ -1441,6 +1441,8 @@ function YtIcon() {
 }
 
 function SocialIcons({links,accent}:{links:Record<string,string>;accent:string}) {
+  const C=React.useContext(ThemeCtx)
+  const isDark=C.pageBg==='#040406'
   const defs:{[k:string]:{icon:React.ReactNode;label:string;color:string;url:(h:string)=>string}} = {
     instagram:{icon:<IgIcon/>,label:'Instagram',color:'#E1306C',url:h=>`https://instagram.com/${h}`},
     twitter:  {icon:<XIcon/>, label:'X / Twitter',color:'#E7E9EA',url:h=>`https://twitter.com/${h}`},
@@ -1455,7 +1457,7 @@ function SocialIcons({links,accent}:{links:Record<string,string>;accent:string})
         const d=defs[k]; if(!d) return null
         return(
           <a key={k} href={d.url(handle)} target="_blank" rel="noopener noreferrer" title={d.label}
-            style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:34,height:34,borderRadius:10,background:`${d.color}18`,border:`1px solid ${d.color}44`,color:d.color,textDecoration:'none',flexShrink:0,transition:'background 0.2s'}}>
+            style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:34,height:34,borderRadius:10,background:isDark?`${d.color}18`:'rgba(255,255,255,0.88)',border:`1px solid ${isDark?d.color+'44':d.color+'66'}`,color:d.color,textDecoration:'none',flexShrink:0,transition:'background 0.2s'}}>
             {d.icon}
           </a>
         )
