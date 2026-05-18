@@ -196,6 +196,7 @@ export default function PublicLeaguePage() {
   const pMap=Object.fromEntries(players.map(p=>[p.id,p]))
   const sMap=Object.fromEntries(standings.map(s=>[s.team_id,s]))
   const iMap=Object.fromEntries((insights??[]).map(i=>[i.team_id,i]))
+  const allMakePlayoffs=(insights??[]).length>0&&(insights??[]).every(i=>i.playoff_probability>0.98)
   const finals=[...allGames].filter(g=>g.status==='final').sort((a,b)=>b.scheduled_at.localeCompare(a.scheduled_at))
   const upcoming=allGames.filter(g=>g.status==='scheduled')
   const pStats=computeStats(allStats,pMap,tMap)
@@ -650,12 +651,18 @@ export default function PublicLeaguePage() {
                           <div style={{fontFamily:"'DM Mono',monospace",fontSize:13,color:diff>0?accent:diff<0?'#FF453A':'#C8C8D4',lineHeight:1}}>{diff>0?'+':''}{diff}</div>
                           <div style={{fontSize:9,color:'#3A3A4E',fontFamily:"'DM Mono',monospace",letterSpacing:1}}>DIFF</div>
                         </div>
-                        {iMap[s.team_id]&&(
-                          <div style={{textAlign:'center' as const,minWidth:44}}>
-                            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,color:iMap[s.team_id].magic_number===null&&iMap[s.team_id].games_played>0?'#3A3A4E':iMap[s.team_id].magic_number===0?accent:s.color,lineHeight:1}}>{Math.round(iMap[s.team_id].playoff_probability*100)}%</div>
-                            <div style={{fontSize:9,color:'#3A3A4E',fontFamily:"'DM Mono',monospace",letterSpacing:1}}>PLAYOFF</div>
-                          </div>
-                        )}
+                        {iMap[s.team_id]&&(()=>{
+                          const ins=iMap[s.team_id]
+                          const pct=allMakePlayoffs?ins.championship_probability:ins.playoff_probability
+                          const isElim=ins.magic_number===null&&ins.games_played>0
+                          const isClinched=ins.magic_number===0
+                          return(
+                            <div style={{textAlign:'center' as const,minWidth:44}}>
+                              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,color:isElim?'#3A3A4E':isClinched||allMakePlayoffs?accent:s.color,lineHeight:1}}>{Math.round(pct*100)}%</div>
+                              <div style={{fontSize:9,color:'#3A3A4E',fontFamily:"'DM Mono',monospace",letterSpacing:1}}>{allMakePlayoffs?'CHAMP':'PLAYOFF'}</div>
+                            </div>
+                          )
+                        })()}
                       </div>
                     </div>
                   )
