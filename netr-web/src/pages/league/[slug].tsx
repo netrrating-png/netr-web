@@ -116,10 +116,10 @@ export default function PublicLeaguePage() {
     setPlayers((pr.data??[]).map((p:any)=>({...p,netr_score:p.profiles?.netr_score??null,profile_avatar:p.profile_id?supabase.storage.from('avatars').getPublicUrl(`${p.profile_id}/avatar.jpg`).data.publicUrl:null,profiles:undefined})))
     const [sponsorsRes,galleryRes,seasonsRes] = await Promise.all([
       supabase.from('league_sponsors').select('id,name,logo_url,website_url').eq('league_id',lg.id).order('display_order'),
-      supabase.from('league_gallery_photos').select('id,photo_url,caption').eq('league_id',lg.id).order('created_at',{ascending:false}),
+      supabase.from('league_gallery_photos').select('id,photo_url,caption,is_featured').eq('league_id',lg.id).order('created_at',{ascending:false}),
       supabase.from('league_seasons').select('*').eq('league_id',lg.id).order('display_order',{ascending:false}),
     ])
-    setSponsors(sponsorsRes.data??[]);setGalleryPhotos(galleryRes.data??[]);setSeasons(seasonsRes.data??[])
+    setSponsors(sponsorsRes.data??[]);setGalleryPhotos((galleryRes.data??[]).map((p:any)=>({...p,is_featured:p.is_featured??false})));setSeasons(seasonsRes.data??[])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pids=(pr.data??[]).map((p:any)=>p.id)
     if(pids.length>0){
