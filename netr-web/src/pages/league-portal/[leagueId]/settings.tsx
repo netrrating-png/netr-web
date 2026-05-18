@@ -1599,8 +1599,6 @@ export default function SettingsPage() {
           </div>
           </>}
 
-          {sTab === 'appearance' && <>
-
           {sTab === 'website' && <>
           {/* ── Sponsors ── */}
           <div style={S.card}>
