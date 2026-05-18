@@ -273,7 +273,7 @@ export default function PublicLeaguePage() {
         .hero-content > *:nth-child(3) { animation-delay: 0.2s; }
         .hero-content > *:nth-child(4) { animation-delay: 0.28s; }
         @keyframes countPulse { 0%,100%{opacity:1} 50%{opacity:0.45} }
-        .tab-btn:hover { background: rgba(255,255,255,0.04) !important; }
+        .tab-btn:hover { background: ${isDark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)'} !important; }
         @media (max-width: 640px) {
           .hero-content { padding: 56px 16px 24px !important; }
           .hero-name { font-size: clamp(28px,10vw,56px) !important; line-height: 1 !important; }
@@ -401,7 +401,7 @@ export default function PublicLeaguePage() {
         </div>
 
         {/* Stats strip */}
-        <div style={{position:'relative',zIndex:1,borderTop:`1px solid ${accent}20`,background:'rgba(4,4,6,0.75)',backdropFilter:'blur(12px)'}}>
+        <div style={{position:'relative',zIndex:1,borderTop:`1px solid ${accent}20`,background:isDark?'rgba(4,4,6,0.75)':'rgba(242,242,247,0.9)',backdropFilter:'blur(12px)'}}>
           <div style={{maxWidth:980,margin:'0 auto',display:'flex',padding:'0 24px',overflowX:'auto',scrollbarWidth:'none' as const}}>
             {[
               {label:'Teams',value:teams.length},
@@ -409,7 +409,7 @@ export default function PublicLeaguePage() {
               {label:'Players',value:players.length},
               ...(standings[0]&&standings[0].wins>0?[{label:'League Leader',value:standings[0].team_name,accent:true}]:[]),
             ].map((item,i)=>(
-              <div key={i} className="stats-strip-item" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'14px 28px',borderRight:`1px solid rgba(255,255,255,0.05)`,flexShrink:0}}>
+              <div key={i} className="stats-strip-item" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'14px 28px',borderRight:`1px solid ${C.chipBorder}`,flexShrink:0}}>
                 <div className="stats-strip-value" style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:item.accent?15:24,color:item.accent?accent:C.text,textTransform:'uppercase' as const,letterSpacing:item.accent?0.5:-0.5,lineHeight:1}}>{item.value}</div>
                 <div style={{fontSize:9,color:C.textDim,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginTop:3}}>{item.label}</div>
               </div>
@@ -425,7 +425,7 @@ export default function PublicLeaguePage() {
           <div style={{maxWidth:980,margin:'0 auto',display:'flex',alignItems:'center',gap:14,padding:'13px 0'}}>
             <div style={{width:28,height:28,borderRadius:8,background:`${accent}20`,border:`1px solid ${accent}40`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:14}}>📢</div>
             <span style={{flex:1,fontSize:13,lineHeight:1.6,color:C.t85}}>{league.announcement}</span>
-            <button onClick={()=>setDismissed(true)} style={{background:'none',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,color:C.textSub,cursor:'pointer',width:26,height:26,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:14}}>
+            <button onClick={()=>setDismissed(true)} style={{background:'none',border:`1px solid ${C.chipBorder}`,borderRadius:6,color:C.textSub,cursor:'pointer',width:26,height:26,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:14}}>
               <X size={14} strokeWidth={2}/>
             </button>
           </div>
@@ -433,7 +433,7 @@ export default function PublicLeaguePage() {
       )}
 
       {/* Tabs */}
-      <div style={{background:'rgba(4,4,6,0.92)',borderBottom:'1px solid #1A1A28',position:'sticky',top:0,zIndex:50,backdropFilter:'blur(16px)'}}>
+      <div style={{background:isDark?'rgba(4,4,6,0.92)':'rgba(242,242,247,0.95)',borderBottom:`1px solid ${C.borderSub}`,position:'sticky',top:0,zIndex:50,backdropFilter:'blur(16px)'}}>
         <div style={{maxWidth:960,margin:'0 auto',display:'flex',overflowX:'auto',padding:'0 8px',scrollbarWidth:'none' as const}}>
           {([
             ['overview','Overview'],['schedule','Schedule'],['stats','Stats'],['teams','Teams'],
@@ -693,11 +693,11 @@ export default function PublicLeaguePage() {
           {standings.length>0&&(
             <section style={{marginBottom:40}}>
               <SecTitle accent={accent}>Standings</SecTitle>
-              <div style={{background:C.cardBg2,border:'1px solid #1A1A28',borderRadius:16,overflow:'hidden'}}>
+              <div style={{background:C.cardBg2,border:`1px solid ${C.borderSub}`,borderRadius:16,overflow:'hidden'}}>
                 {standings.map((s,i)=>{
                   const gp=s.wins+s.losses,pct=gp>0?(s.wins/gp).toFixed(3).replace(/^0/,''):'.000',diff=s.pts_for-s.pts_against,top=i===0&&s.wins>0,winPct=gp>0?s.wins/gp:0
                   return(
-                    <div key={s.team_id} onClick={()=>setTeamModalId(s.team_id)} style={{display:'grid',gridTemplateColumns:'40px 1fr auto',alignItems:'center',borderBottom:'1px solid #0F0F18',padding:'14px 18px',cursor:'pointer',background:top?`${accent}06`:'transparent',gap:12,transition:'background 0.1s'}}
+                    <div key={s.team_id} onClick={()=>setTeamModalId(s.team_id)} style={{display:'grid',gridTemplateColumns:'40px 1fr auto',alignItems:'center',borderBottom:`1px solid ${C.borderSub}`,padding:'14px 18px',cursor:'pointer',background:top?`${accent}06`:'transparent',gap:12,transition:'background 0.1s'}}
                       onMouseEnter={e=>e.currentTarget.style.background=top?`${accent}10`:C.cardBg3}
                       onMouseLeave={e=>e.currentTarget.style.background=top?`${accent}06`:'transparent'}>
                       <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,color:top?accent:C.textFaint,textAlign:'center' as const}}>{top?'🏆':i+1}</div>
