@@ -413,19 +413,19 @@ export default function PublicLeaguePage() {
         if(featured.length===0) return null
         const cur=featured[Math.min(featuredIdx,featured.length-1)]
         return(
-          <div style={{position:'relative',width:'100%',background:'#000',overflow:'hidden'}}>
+          <div style={{position:'relative',width:'100%',background:'#060608',overflow:'hidden'}}>
             {/* Photo */}
             <div
               onClick={()=>{
                 const allIdx=galleryPhotos.findIndex(p=>p.id===cur.id)
                 if(allIdx!==-1) setLightboxIdx(allIdx)
               }}
-              style={{cursor:'pointer',width:'100%',height:'clamp(260px,50vw,520px)',position:'relative',overflow:'hidden'}}
+              style={{cursor:'pointer',width:'100%',maxHeight:'72vh',display:'flex',alignItems:'center',justifyContent:'center' as const,position:'relative'}}
             >
               <img
                 src={cur.photo_url}
                 alt={cur.caption??''}
-                style={{width:'100%',height:'100%',objectFit:'cover',display:'block',transition:'opacity 0.3s'}}
+                style={{maxWidth:'100%',maxHeight:'72vh',width:'auto',height:'auto',objectFit:'contain',display:'block',transition:'opacity 0.3s'}}
               />
               <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(0,0,0,0.55) 0%,transparent 50%)',pointerEvents:'none'}}/>
               {cur.caption&&(
