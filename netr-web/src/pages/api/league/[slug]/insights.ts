@@ -19,11 +19,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const leagueId = league.id
 
-  // ── GET: return cached insights ────────────────────────────────────────────
+  // ── GET: return cached insights, auto-generate if none exist ──────────────
   if (req.method === 'GET') {
     const cached = await fetchCachedInsights(leagueId)
-    if (!cached) return res.status(200).json({ insights: [], generated: false })
-    return res.status(200).json({ insights: cached, generated: true })
+    if (cached && cached.length > 0) return res.status(200).json({ insights: cached, generated: true })
+    // No cache — generate on first visit so public page always gets data
+    try {
+      const fresh = await generateLeagueInsights(leagueId)
+      return res.status(200).json({ insights: fresh, generated: true, generated_at: new Date().toISOString() })
+    } catch {
+      return res.status(200).json({ insights: [], generated: false })
+    }
   }
 
   // ── POST: regenerate insights ─────────────────────────────────────────────

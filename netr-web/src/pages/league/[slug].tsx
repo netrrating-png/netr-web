@@ -69,6 +69,7 @@ export default function PublicLeaguePage() {
   const [loadingSeason,setLoadingSeason] = useState(false)
   const [countdownStr,setCountdownStr] = useState<string|null>(null)
   const [insights,setInsights] = useState<InsightResult[]|null>(null)
+  const [insightsLoading,setInsightsLoading] = useState(false)
 
   useEffect(()=>{ if(slug) load() },[slug])
 
@@ -145,8 +146,12 @@ export default function PublicLeaguePage() {
       }
     }
     setLoading(false)
-    // Load insights silently in the background
-    fetch(`/api/league/${slug}/insights`).then(r=>r.json()).then(d=>setInsights(d.insights??[])).catch(()=>{})
+    // Load insights (GET auto-generates on first visit)
+    setInsightsLoading(true)
+    fetch(`/api/league/${slug}/insights`)
+      .then(r=>r.json())
+      .then(d=>{ setInsights(d.insights??[]); setInsightsLoading(false) })
+      .catch(()=>setInsightsLoading(false))
   }
 
   async function loadSeason(seasonId:string) {
@@ -645,7 +650,7 @@ export default function PublicLeaguePage() {
           )}
 
           {/* AI Power Rankings */}
-          {insights&&insights.length>0&&(
+          {(insightsLoading||(insights&&insights.length>0))&&(
             <section style={{marginBottom:48}}>
               <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
                 <SectionLabel accent={accent} noMargin>Power Rankings</SectionLabel>
