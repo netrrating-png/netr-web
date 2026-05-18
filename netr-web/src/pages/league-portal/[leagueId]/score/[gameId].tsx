@@ -370,13 +370,13 @@ export default function BoxScorePage() {
                           <div style={S.cardStepper}>
                             <button
                               type="button"
-                              onMouseDown={e => { e.preventDefault(); updateStat(current.rows, current.setRows, row.player.id, field, Math.max(0, getNum(row.stat, field) - 1)) }}
+                              onClick={() => updateStat(current.rows, current.setRows, row.player.id, field, Math.max(0, getNum(row.stat, field) - 1))}
                               style={S.cardStepBtn}
                             >−</button>
                             <span style={S.cardStepVal}>{getNum(row.stat, field)}</span>
                             <button
                               type="button"
-                              onMouseDown={e => { e.preventDefault(); updateStat(current.rows, current.setRows, row.player.id, field, getNum(row.stat, field) + 1) }}
+                              onClick={() => updateStat(current.rows, current.setRows, row.player.id, field, getNum(row.stat, field) + 1)}
                               style={S.cardStepBtn}
                             >+</button>
                           </div>
@@ -647,21 +647,21 @@ const S: Record<string, React.CSSProperties> = {
   cardJersey: { fontFamily: "'DM Mono', monospace", color: '#6A6A82', fontSize: 18 },
   cardPlayerName: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 28, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
   cardStatsGrid: {
-    display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 12,
+    display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10,
   },
-  cardStatCell: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 8 },
+  cardStatCell: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 8, padding: '12px 4px', background: '#0A0A0D', borderRadius: 10, border: '1px solid #1C1C26' },
   cardStatLabel: { fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace", textTransform: 'uppercase' as const, letterSpacing: 1 },
-  cardStepper: { display: 'flex', alignItems: 'center', gap: 6 },
+  cardStepper: { display: 'flex', alignItems: 'center', gap: 4 },
   cardStepBtn: {
-    width: 48, height: 48, background: '#14141C', border: '1px solid #2A2A38',
-    borderRadius: 10, color: '#EEEEF5', fontSize: 28, lineHeight: 1, cursor: 'pointer',
+    width: 40, height: 44, background: '#14141C', border: '1px solid #2A2A38',
+    borderRadius: 8, color: '#EEEEF5', fontSize: 24, lineHeight: 1, cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     fontFamily: 'monospace', padding: 0, userSelect: 'none' as const,
-    WebkitTapHighlightColor: 'transparent',
+    WebkitTapHighlightColor: 'transparent', flexShrink: 0,
   },
   cardStepVal: {
-    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 32,
-    minWidth: 40, textAlign: 'center' as const, color: '#EEEEF5',
+    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 28,
+    minWidth: 34, textAlign: 'center' as const, color: '#EEEEF5',
   },
   cardNav: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
