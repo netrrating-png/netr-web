@@ -93,7 +93,7 @@ export default function TeamsPage() {
       const [leagueRes, teamsRes, playersRes, divisionsRes] = await Promise.all([
         supabase.from('leagues').select('*').eq('id', leagueId).eq('owner_id', user.id).single(),
         supabase.from('league_teams').select('*').eq('league_id', leagueId).order('created_at'),
-        supabase.from('league_players').select('*, profiles(netr_score, avatar_url)').eq('league_id', leagueId),
+        supabase.from('league_players').select('*, profiles(*)').eq('league_id', leagueId),
         supabase.from('league_divisions').select('*').eq('league_id', leagueId).order('display_order'),
       ])
 
@@ -324,13 +324,15 @@ export default function TeamsPage() {
 
     const [teamsRes, playersRes] = await Promise.all([
       supabase.from('league_teams').select('*').eq('league_id', leagueId).order('created_at'),
-      supabase.from('league_players').select('*, profiles(netr_score, avatar_url)').eq('league_id', leagueId),
+      supabase.from('league_players').select('*, profiles(*)').eq('league_id', leagueId),
     ])
     const playersByTeam: Record<string, LeaguePlayer[]> = {}
     for (const p of (playersRes.data ?? [])) {
       if (!playersByTeam[p.team_id]) playersByTeam[p.team_id] = []
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      playersByTeam[p.team_id].push({ ...p, netr_score: (p as any).profiles?.netr_score ?? null, profile_avatar: (p as any).profiles?.avatar_url ?? null })
+      const prof = (p as any).profiles ?? {}
+      const profileAvatar = prof.avatar_url ?? prof.photo_url ?? prof.picture ?? prof.profile_picture ?? prof.image_url ?? null
+      playersByTeam[p.team_id].push({ ...p, netr_score: prof.netr_score ?? null, profile_avatar: profileAvatar })
     }
     setTeams((teamsRes.data ?? []).map(t => ({ ...t, players: playersByTeam[t.id] ?? [] })))
     setImportDone(`Imported ${totalPlayers} players across ${csvPreview.length} teams.`)

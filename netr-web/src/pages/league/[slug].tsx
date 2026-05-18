@@ -108,11 +108,11 @@ export default function PublicLeaguePage() {
       supabase.from('league_standings').select('*').eq('league_id',lg.id).order('wins',{ascending:false}),
       supabase.from('league_teams').select('id,name,color,logo_url').eq('league_id',lg.id),
       supabase.from('league_games').select('*').eq('league_id',lg.id).order('scheduled_at',{ascending:true}),
-      supabase.from('league_players').select('id,display_name,jersey_number,position,team_id,photo_url,photo_source,profiles(netr_score,avatar_url)').eq('league_id',lg.id),
+      supabase.from('league_players').select('id,display_name,jersey_number,position,team_id,photo_url,photo_source,profiles(*)').eq('league_id',lg.id),
     ])
     setStandings(sr.data??[]);setTeams(tr.data??[]);setAllGames(gr.data??[])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setPlayers((pr.data??[]).map((p:any)=>({...p,netr_score:p.profiles?.netr_score??null,profile_avatar:p.profiles?.avatar_url??null,profiles:undefined})))
+    setPlayers((pr.data??[]).map((p:any)=>{const prof=p.profiles??{};return{...p,netr_score:prof.netr_score??null,profile_avatar:prof.avatar_url??prof.photo_url??prof.picture??prof.profile_picture??prof.image_url??null,profiles:undefined}}))
     const [sponsorsRes,galleryRes,seasonsRes] = await Promise.all([
       supabase.from('league_sponsors').select('id,name,logo_url,website_url').eq('league_id',lg.id).order('display_order'),
       supabase.from('league_gallery_photos').select('id,photo_url,caption').eq('league_id',lg.id).order('created_at',{ascending:false}),

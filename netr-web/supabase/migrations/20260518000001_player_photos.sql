@@ -3,9 +3,6 @@ ALTER TABLE league_players ADD COLUMN IF NOT EXISTS photo_url TEXT;
 ALTER TABLE league_players ADD COLUMN IF NOT EXISTS photo_source TEXT DEFAULT 'custom'
   CHECK (photo_source IN ('custom', 'app'));
 
--- Avatar on profiles (for claimed players whose app photo the owner can use)
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
-
 -- Storage bucket for league-owner-uploaded player photos
 INSERT INTO storage.buckets (id, name, public)
   VALUES ('player-photos', 'player-photos', true)
