@@ -167,7 +167,7 @@ export default function LeagueOverview() {
                 {insightsStatus === 'done'
                   ? '✓ Insights generated — visible on the player league page'
                   : insightsStatus === 'error'
-                  ? '✗ Generation failed — check ANTHROPIC_API_KEY is set'
+                  ? '✗ Generation failed — check the browser console for details'
                   : 'Generate playoff odds, championship probability & AI analysis for every team'}
               </div>
             </div>
