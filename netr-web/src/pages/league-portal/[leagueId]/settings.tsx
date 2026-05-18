@@ -145,6 +145,7 @@ export default function SettingsPage() {
 
   // Contact & social
   const [contactInfo, setContactInfo]   = useState('')
+  const [contactPhone, setContactPhone] = useState('')
   const [socialLinks, setSocialLinks]   = useState<Record<string,string>>({})
   const contactSave = useSaveState()
   const aboutSave = useSaveState()
@@ -218,7 +219,8 @@ export default function SettingsPage() {
       setSignupUrl(data.signup_url ?? '')
       setSignupLabel(data.signup_label ?? '')
       setContactInfo(data.contact_info ?? '')
-      setSocialLinks(data.social_links ?? {})
+      setContactPhone(data.social_links?.phone ?? '')
+      setSocialLinks(data.social_links ? Object.fromEntries(Object.entries(data.social_links).filter(([k]) => k !== 'phone')) : {})
       setCrossDivisionPlay(data.cross_division_play ?? true)
       setSeasonEndDate(data.season_end_date ?? '')
       setRulesSections(data.rules_sections ?? [])
@@ -386,17 +388,19 @@ export default function SettingsPage() {
   }
 
   function saveContact() {
+    const links = { ...socialLinks, ...(contactPhone.trim() ? { phone: contactPhone.trim() } : {}) }
     contactSave.trigger(
-      supabase.from('leagues').update({ contact_info: contactInfo.trim() || null, social_links: Object.keys(socialLinks).length ? socialLinks : null }).eq('id', leagueId)
+      supabase.from('leagues').update({ contact_info: contactInfo.trim() || null, social_links: Object.keys(links).length ? links : null }).eq('id', leagueId)
     )
   }
 
   function saveAbout() {
+    const links = { ...socialLinks, ...(contactPhone.trim() ? { phone: contactPhone.trim() } : {}) }
     aboutSave.trigger(
       supabase.from('leagues').update({
         description: description.trim() || null,
         contact_info: contactInfo.trim() || null,
-        social_links: Object.keys(socialLinks).filter(k => socialLinks[k]).length ? socialLinks : null,
+        social_links: Object.keys(links).filter(k => links[k]).length ? links : null,
       }).eq('id', leagueId)
     )
   }
@@ -1157,17 +1161,33 @@ export default function SettingsPage() {
             <div style={S.cardHead}>
               <div>
                 <div style={S.cardTitle}>Contact Info</div>
-                <div style={S.cardSub}>How players and parents can reach you. Shows as a contact button on your public page.</div>
+                <div style={S.cardSub}>How players and parents can reach you. Both appear as tap-to-contact buttons on your public page.</div>
               </div>
             </div>
-            <label style={S.label}>Email, phone, or website</label>
-            <input
-              value={contactInfo}
-              onChange={e => setContactInfo(e.target.value)}
-              style={S.input}
-              placeholder="e.g. mondayhoops@gmail.com or (312) 555-0100"
-            />
-            <div style={S.hint}>Tip: an email address is usually best — we&apos;ll make it a one-tap mailto: link.</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 14 }}>
+              <div>
+                <label style={S.label}>📧 Email</label>
+                <input
+                  type="email"
+                  value={contactInfo}
+                  onChange={e => setContactInfo(e.target.value)}
+                  style={S.input}
+                  placeholder="e.g. mondayhoops@gmail.com"
+                />
+                <div style={S.hint}>We&apos;ll make this a one-tap mailto: link.</div>
+              </div>
+              <div>
+                <label style={S.label}>📞 Phone Number</label>
+                <input
+                  type="tel"
+                  value={contactPhone}
+                  onChange={e => setContactPhone(e.target.value)}
+                  style={S.input}
+                  placeholder="e.g. (312) 555-0100"
+                />
+                <div style={S.hint}>We&apos;ll make this a one-tap call link.</div>
+              </div>
+            </div>
           </div>
 
           {/* ── Social ── */}

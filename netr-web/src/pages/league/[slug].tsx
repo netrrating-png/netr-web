@@ -341,8 +341,8 @@ export default function PublicLeaguePage() {
                 <MapPin size={12} strokeWidth={2}/>{league.location}
               </span>
             )}
-            {league.contact_info&&(
-              <a href={league.contact_info.includes('@')?`mailto:${league.contact_info}`:league.contact_info.startsWith('http')?league.contact_info:`tel:${league.contact_info}`}
+            {(league.contact_info||league.social_links?.phone)&&(
+              <a href={league.contact_info?`mailto:${league.contact_info}`:`tel:${league.social_links!.phone}`}
                 style={{display:'inline-flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:99,padding:'6px 14px',fontSize:12,color:'#9090A8',fontFamily:"'DM Sans',sans-serif",textDecoration:'none',whiteSpace:'nowrap' as const}}>
                 <Mail size={12} strokeWidth={2}/>Contact
               </a>
@@ -893,18 +893,23 @@ export default function PublicLeaguePage() {
             )}
 
             {/* Contact */}
-            {league.contact_info&&(
-              <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:14,padding:'20px 24px',display:'flex',alignItems:'center',gap:16,flexWrap:'wrap' as const}}>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:6}}>Get In Touch</div>
-                  <div style={{fontSize:15,color:'#EEEEF5'}}>{league.contact_info}</div>
+            {(league.contact_info||league.social_links?.phone)&&(
+              <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:14,padding:'20px 24px'}}>
+                <div style={{fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:14}}>Get In Touch</div>
+                <div style={{display:'flex',flexWrap:'wrap' as const,gap:10}}>
+                  {league.contact_info&&(
+                    <a href={`mailto:${league.contact_info}`}
+                      style={{display:'inline-flex',alignItems:'center',gap:8,background:`${accent}18`,border:`1px solid ${accent}44`,color:accent,borderRadius:10,padding:'10px 20px',textDecoration:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase' as const,letterSpacing:0.5}}>
+                      📧 {league.contact_info}
+                    </a>
+                  )}
+                  {league.social_links?.phone&&(
+                    <a href={`tel:${league.social_links.phone}`}
+                      style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',color:'#EEEEF5',borderRadius:10,padding:'10px 20px',textDecoration:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase' as const,letterSpacing:0.5}}>
+                      📞 {league.social_links.phone}
+                    </a>
+                  )}
                 </div>
-                <a
-                  href={league.contact_info.includes('@')?`mailto:${league.contact_info}`:league.contact_info.startsWith('http')?league.contact_info:`tel:${league.contact_info}`}
-                  style={{background:`${accent}18`,border:`1px solid ${accent}44`,color:accent,borderRadius:10,padding:'10px 22px',textDecoration:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,textTransform:'uppercase' as const,letterSpacing:0.5,flexShrink:0}}
-                >
-                  Contact Us →
-                </a>
               </div>
             )}
 
