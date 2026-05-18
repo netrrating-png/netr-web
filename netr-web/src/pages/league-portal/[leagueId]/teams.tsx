@@ -93,7 +93,7 @@ export default function TeamsPage() {
       const [leagueRes, teamsRes, playersRes, divisionsRes] = await Promise.all([
         supabase.from('leagues').select('*').eq('id', leagueId).eq('owner_id', user.id).single(),
         supabase.from('league_teams').select('*').eq('league_id', leagueId).order('created_at'),
-        supabase.from('league_players').select('*, profiles(*)').eq('league_id', leagueId),
+        supabase.from('league_players').select('*, profiles(netr_score)').eq('league_id', leagueId),
         supabase.from('league_divisions').select('*').eq('league_id', leagueId).order('display_order'),
       ])
 
@@ -104,7 +104,11 @@ export default function TeamsPage() {
       for (const p of (playersRes.data ?? [])) {
         if (!playersByTeam[p.team_id]) playersByTeam[p.team_id] = []
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        playersByTeam[p.team_id].push({ ...p, netr_score: (p as any).profiles?.netr_score ?? null })
+        const netr_score = (p as any).profiles?.netr_score ?? null
+        const profile_avatar = p.profile_id
+          ? supabase.storage.from('avatars').getPublicUrl(`${p.profile_id}/avatar.jpg`).data.publicUrl
+          : null
+        playersByTeam[p.team_id].push({ ...p, netr_score, profile_avatar })
       }
 
       setTeams((teamsRes.data ?? []).map(t => ({ ...t, players: playersByTeam[t.id] ?? [] })))
@@ -324,15 +328,17 @@ export default function TeamsPage() {
 
     const [teamsRes, playersRes] = await Promise.all([
       supabase.from('league_teams').select('*').eq('league_id', leagueId).order('created_at'),
-      supabase.from('league_players').select('*, profiles(*)').eq('league_id', leagueId),
+      supabase.from('league_players').select('*, profiles(netr_score)').eq('league_id', leagueId),
     ])
     const playersByTeam: Record<string, LeaguePlayer[]> = {}
     for (const p of (playersRes.data ?? [])) {
       if (!playersByTeam[p.team_id]) playersByTeam[p.team_id] = []
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const prof = (p as any).profiles ?? {}
-      const profileAvatar = prof.avatar_url ?? prof.photo_url ?? prof.picture ?? prof.profile_picture ?? prof.image_url ?? null
-      playersByTeam[p.team_id].push({ ...p, netr_score: prof.netr_score ?? null, profile_avatar: profileAvatar })
+      const netr_score2 = (p as any).profiles?.netr_score ?? null
+      const profile_avatar2 = p.profile_id
+        ? supabase.storage.from('avatars').getPublicUrl(`${p.profile_id}/avatar.jpg`).data.publicUrl
+        : null
+      playersByTeam[p.team_id].push({ ...p, netr_score: netr_score2, profile_avatar: profile_avatar2 })
     }
     setTeams((teamsRes.data ?? []).map(t => ({ ...t, players: playersByTeam[t.id] ?? [] })))
     setImportDone(`Imported ${totalPlayers} players across ${csvPreview.length} teams.`)
@@ -804,7 +810,7 @@ export default function TeamsPage() {
               {/* Source toggle — only when player is claimed AND has an app avatar */}
               {editingPlayer.is_claimed && (
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: editPSource === 'app' && !editingPlayer.profile_avatar ? 8 : 0 }}>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 0 }}>
                     {(['app', 'custom'] as const).map(src => (
                       <button key={src} onClick={() => {
                         setEditPSource(src)
@@ -814,11 +820,6 @@ export default function TeamsPage() {
                       </button>
                     ))}
                   </div>
-                  {editPSource === 'app' && !editingPlayer.profile_avatar && (
-                    <div style={{ fontSize: 11, color: '#F5C542', fontFamily: "'DM Mono', monospace", letterSpacing: 0.3, padding: '6px 10px', background: 'rgba(245,197,66,0.06)', border: '1px solid rgba(245,197,66,0.2)', borderRadius: 6 }}>
-                      ⚠ This player hasn&apos;t set a profile photo in the NETR app yet. Their photo will appear automatically once they do.
-                    </div>
-                  )}
                 </div>
               )}
 
