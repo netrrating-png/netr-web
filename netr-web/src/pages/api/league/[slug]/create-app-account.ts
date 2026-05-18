@@ -9,7 +9,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !serviceRoleKey || !anonKey) {
-    return res.status(500).json({ error: 'Server misconfiguration: missing Supabase environment variables' })
+    const missing = [
+      !supabaseUrl && 'NEXT_PUBLIC_SUPABASE_URL',
+      !serviceRoleKey && 'SUPABASE_SERVICE_ROLE_KEY',
+      !anonKey && 'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    ].filter(Boolean).join(', ')
+    return res.status(500).json({ error: `Missing env vars: ${missing}` })
   }
 
   // Lazy-init inside handler so missing env vars return JSON errors, not HTML 500 pages
