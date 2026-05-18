@@ -221,6 +221,8 @@ export default function PublicLeaguePage() {
   const accent=league.accent_color||ACC
   const isDark=league.league_theme!=='light'
   const C=makeC(isDark)
+  const TH:React.CSSProperties={textAlign:'center',fontSize:10,color:C.textSub,textTransform:'uppercase',letterSpacing:2,fontFamily:"'DM Mono',monospace",fontWeight:400,padding:'10px 10px'}
+  const TD:React.CSSProperties={padding:'10px 10px',textAlign:'center',fontSize:14}
   const NetrBadge=({score}:{score:number|null|undefined})=>{
     if(score==null)return null
     const c=netrScoreColor(score)
@@ -1615,5 +1617,3 @@ function computeStats(stats:RawStat[],pMap:Record<string,Player>,tMap:Record<str
 function eplPhoto(p:{photo_url:string|null;photo_source:string|null;profile_avatar:string|null}|null|undefined):string|null{if(!p)return null;return(p.photo_source==='app'&&p.profile_avatar)?p.profile_avatar:p.photo_url??null}
 function fmtDate(iso:string){return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
 function fmtDateTime(iso:string){return new Date(iso).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}
-const TH:React.CSSProperties={textAlign:'center',fontSize:10,color:C.textSub,textTransform:'uppercase',letterSpacing:2,fontFamily:"'DM Mono',monospace",fontWeight:400,padding:'10px 10px'}
-const TD:React.CSSProperties={padding:'10px 10px',textAlign:'center',fontSize:14}
