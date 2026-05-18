@@ -1,19 +1,20 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { createClient } from '@supabase/supabase-js'
 
-// Uses the service-role key so we can call auth.admin.createUser
-// and write back the app_account_id to the leagues row.
-const adminClient = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-const anonClient = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+    return res.status(500).json({ error: 'Server misconfiguration: missing Supabase environment variables' })
+  }
+
+  // Lazy-init inside handler so missing env vars return JSON errors, not HTML 500 pages
+  const adminClient = createClient(supabaseUrl, serviceRoleKey)
+  const anonClient = createClient(supabaseUrl, anonKey)
 
   const { slug } = req.query as { slug: string }
   const { email, password } = req.body as { email?: string; password?: string }
