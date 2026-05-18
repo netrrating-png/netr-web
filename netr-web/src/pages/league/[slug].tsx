@@ -644,6 +644,58 @@ export default function PublicLeaguePage() {
             </section>
           )}
 
+          {/* AI Power Rankings */}
+          {insights&&insights.length>0&&(
+            <section style={{marginBottom:48}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
+                <SectionLabel accent={accent} noMargin>Power Rankings</SectionLabel>
+                {insights[0]?.low_confidence&&(
+                  <span style={{fontSize:10,color:'#6A6A82',fontFamily:"'DM Mono',monospace",background:'#0A0A0E',border:'1px solid #2A2A38',borderRadius:6,padding:'3px 8px',letterSpacing:1,textTransform:'uppercase' as const}}>Early Season</span>
+                )}
+              </div>
+              <div style={{display:'flex',flexDirection:'column' as const,gap:12}}>
+                {[...insights].sort((a,b)=>b.playoff_probability-a.playoff_probability).map((ins,idx)=>{
+                  const isElim=ins.magic_number===null&&ins.games_played>0
+                  const isClinched=ins.magic_number===0
+                  const allPlayoffs=insights.every(i=>i.playoff_probability>0.98)
+                  const pct=allPlayoffs?ins.championship_probability:ins.playoff_probability
+                  const trendIcon=ins.trend==='UP'?'↑':ins.trend==='DOWN'?'↓':'→'
+                  const trendColor=ins.trend==='UP'?accent:ins.trend==='DOWN'?'#FF453A':'#6A6A82'
+                  return(
+                    <div key={ins.team_id} style={{background:'#0A0A0E',border:`1px solid ${isClinched?accent+'44':isElim?'#1A1A28':'#1C1C26'}`,borderRadius:14,padding:'18px 20px'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12,flexWrap:'wrap' as const}}>
+                        {/* Rank */}
+                        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,color:idx===0?accent:'#3A3A4E',minWidth:24,flexShrink:0}}>{isClinched?'✓':isElim?'—':idx+1}</div>
+                        {/* Logo / color dot */}
+                        {ins.logo_url
+                          ?<img src={ins.logo_url} alt={ins.team_name} style={{width:32,height:32,borderRadius:6,objectFit:'cover',flexShrink:0,border:`1px solid ${ins.color}44`}}/>
+                          :<div style={{width:10,height:10,borderRadius:'50%',background:ins.color,flexShrink:0}}/>}
+                        {/* Name + trend */}
+                        <div style={{flex:1,minWidth:120}}>
+                          <div style={{display:'flex',alignItems:'center',gap:8}}>
+                            <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase' as const,color:'#EEEEF5'}}>{ins.team_name}</span>
+                            <span style={{fontSize:14,color:trendColor,fontWeight:700,flexShrink:0}}>{trendIcon}</span>
+                          </div>
+                          <div style={{fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace"}}>{ins.wins}–{ins.losses}{ins.magic_number!=null&&ins.magic_number>0?` · Magic #${ins.magic_number}`:''}{isClinched?' · Clinched':''}{isElim?' · Eliminated':''}</div>
+                        </div>
+                        {/* Probability pill */}
+                        <div style={{textAlign:'center' as const,flexShrink:0}}>
+                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:24,color:isElim?'#3A3A4E':isClinched?accent:ins.color,lineHeight:1}}>{Math.round(pct*100)}%</div>
+                          <div style={{fontSize:9,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:1,textTransform:'uppercase' as const}}>{allPlayoffs?'Champ':'Playoff'}</div>
+                        </div>
+                      </div>
+                      {/* Progress bar */}
+                      <div style={{height:3,background:'#1A1A28',borderRadius:2,marginBottom:12,overflow:'hidden'}}>
+                        <div style={{height:'100%',width:`${Math.round(pct*100)}%`,background:isElim?'#2A2A38':isClinched?accent:ins.color,borderRadius:2,transition:'width 0.6s'}}/>
+                      </div>
+                      {/* Insight text */}
+                      <p style={{margin:0,fontSize:13,lineHeight:1.7,color:isElim?'#4A4A5E':'rgba(238,238,245,0.75)',fontFamily:"'DM Sans',sans-serif"}}>{ins.insight_text}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
 
         </>}
 
