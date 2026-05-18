@@ -29,7 +29,7 @@ type Standing = { team_id:string;team_name:string;color:string;wins:number;losse
 type Game = { id:string;home_team_id:string;away_team_id:string;scheduled_at:string;location:string|null;status:string;home_score:number|null;away_score:number|null;game_type:string|null }
 type RawStat = { game_id:string;player_id:string;team_id:string;points:number;rebounds:number;assists:number;steals:number;blocks:number;turnovers:number;field_goals_made:number;field_goals_attempted:number;three_pointers_made:number;three_pointers_attempted:number;free_throws_made:number;free_throws_attempted:number }
 type PStat = { player_id:string;display_name:string;team_id:string;team_name:string;team_color:string;gp:number;ppg:number;rpg:number;apg:number;spg:number;bpg:number;photo_url:string|null;photo_source:string|null;profile_avatar:string|null }
-type Tab = 'overview'|'schedule'|'stats'|'teams'|'gallery'|'rules'|'history'
+type Tab = 'overview'|'schedule'|'stats'|'teams'|'gallery'|'rules'|'history'|'about'
 type SortKey = 'ppg'|'rpg'|'apg'|'spg'|'bpg'
 const ACC = '#39FF14'
 
@@ -397,6 +397,7 @@ export default function PublicLeaguePage() {
             ...(league.rules_sections&&league.rules_sections.length>0?[['rules','Rules']]:[] as [Tab,string][]),
             ...(seasons.length>0?[['history','History']]:[] as [Tab,string][]),
             ...(galleryPhotos.length>0?[['gallery','Gallery']]:[] as [Tab,string][]),
+            ...((league.description||league.contact_info||(league.social_links&&Object.values(league.social_links).some(Boolean)))?[['about','About']]:[] as [Tab,string][]),
           ] as [Tab,string][]).map(([t,label])=>(
             <button key={t} onClick={()=>setTab(t)} className="tab-btn" style={{background:activeTab===t?`${accent}0D`:'none',border:'none',borderBottom:activeTab===t?`3px solid ${accent}`:'3px solid transparent',color:activeTab===t?accent:'#C8C8D4',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase',letterSpacing:1.5,padding:'16px 18px',cursor:'pointer',whiteSpace:'nowrap',flexShrink:0,transition:'all 0.2s',borderRadius:'8px 8px 0 0'}}>
               {label}
@@ -842,6 +843,87 @@ export default function PublicLeaguePage() {
               ))}
             </div>
           )}
+        </section>}
+
+        {/* ABOUT */}
+        {activeTab==='about'&&<section>
+          <SecTitle accent={accent}>About {league.name}</SecTitle>
+          <div style={{display:'flex',flexDirection:'column',gap:20}}>
+
+            {/* Mission statement */}
+            {league.description&&(
+              <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:14,padding:'28px 28px'}}>
+                <div style={{fontSize:11,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:14}}>Our Mission</div>
+                <p style={{fontSize:17,lineHeight:1.8,color:'rgba(238,238,245,0.9)',fontFamily:"'DM Sans',sans-serif",margin:0,whiteSpace:'pre-wrap' as const}}>
+                  {league.description}
+                </p>
+              </div>
+            )}
+
+            {/* Quick facts */}
+            {(league.location||league.season||league.sport)&&(
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:12}}>
+                {league.sport&&(
+                  <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:12,padding:'16px 18px'}}>
+                    <div style={{fontSize:10,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:6}}>Sport</div>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:20,textTransform:'uppercase' as const}}>{league.sport}</div>
+                  </div>
+                )}
+                {league.season&&(
+                  <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:12,padding:'16px 18px'}}>
+                    <div style={{fontSize:10,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:6}}>Current Season</div>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:20,textTransform:'uppercase' as const}}>{league.season}</div>
+                  </div>
+                )}
+                {league.location&&(
+                  <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:12,padding:'16px 18px'}}>
+                    <div style={{fontSize:10,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:6}}>Location</div>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:20,textTransform:'uppercase' as const}}>📍 {league.location}</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Social links */}
+            {league.social_links&&Object.values(league.social_links).some(Boolean)&&(
+              <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:14,padding:'20px 24px'}}>
+                <div style={{fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:14}}>Follow Us</div>
+                <SocialIcons links={league.social_links} accent={accent}/>
+              </div>
+            )}
+
+            {/* Contact */}
+            {league.contact_info&&(
+              <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:14,padding:'20px 24px',display:'flex',alignItems:'center',gap:16,flexWrap:'wrap' as const}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:6}}>Get In Touch</div>
+                  <div style={{fontSize:15,color:'#EEEEF5'}}>{league.contact_info}</div>
+                </div>
+                <a
+                  href={league.contact_info.includes('@')?`mailto:${league.contact_info}`:league.contact_info.startsWith('http')?league.contact_info:`tel:${league.contact_info}`}
+                  style={{background:`${accent}18`,border:`1px solid ${accent}44`,color:accent,borderRadius:10,padding:'10px 22px',textDecoration:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,textTransform:'uppercase' as const,letterSpacing:0.5,flexShrink:0}}
+                >
+                  Contact Us →
+                </a>
+              </div>
+            )}
+
+            {/* Signup CTA */}
+            {league.signup_url&&(
+              <div style={{background:`${accent}10`,border:`1px solid ${accent}30`,borderRadius:14,padding:'24px 28px',textAlign:'center' as const}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:24,textTransform:'uppercase' as const,letterSpacing:1,marginBottom:8}}>
+                  Ready to Play?
+                </div>
+                <div style={{fontSize:14,color:'rgba(238,238,245,0.7)',marginBottom:16,fontFamily:"'DM Sans',sans-serif"}}>
+                  Join the league and get in the game.
+                </div>
+                <a href={league.signup_url} target="_blank" rel="noreferrer"
+                  style={{display:'inline-block',background:accent,color:'#040406',borderRadius:10,padding:'12px 32px',textDecoration:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase' as const,letterSpacing:1}}>
+                  {league.signup_label||'Sign Up Now'}
+                </a>
+              </div>
+            )}
+          </div>
         </section>}
 
         {/* HISTORY */}

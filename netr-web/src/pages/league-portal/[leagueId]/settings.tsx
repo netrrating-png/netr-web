@@ -94,7 +94,7 @@ export default function SettingsPage() {
   const [defaultCourtId, setDefaultCourtId] = useState<string | null>(null)
 
   // Settings tab
-  const [sTab, setSTab] = useState<'general'|'appearance'|'website'|'schedule'|'danger'>('general')
+  const [sTab, setSTab] = useState<'general'|'about'|'appearance'|'website'|'schedule'|'danger'>('general')
 
   // Divisions
   const [divisions, setDivisions]             = useState<LeagueDivision[]>([])
@@ -147,6 +147,7 @@ export default function SettingsPage() {
   const [contactInfo, setContactInfo]   = useState('')
   const [socialLinks, setSocialLinks]   = useState<Record<string,string>>({})
   const contactSave = useSaveState()
+  const aboutSave = useSaveState()
 
   // Sponsors
   const [sponsors, setSponsors]           = useState<LeagueSponsor[]>([])
@@ -387,6 +388,16 @@ export default function SettingsPage() {
   function saveContact() {
     contactSave.trigger(
       supabase.from('leagues').update({ contact_info: contactInfo.trim() || null, social_links: Object.keys(socialLinks).length ? socialLinks : null }).eq('id', leagueId)
+    )
+  }
+
+  function saveAbout() {
+    aboutSave.trigger(
+      supabase.from('leagues').update({
+        description: description.trim() || null,
+        contact_info: contactInfo.trim() || null,
+        social_links: Object.keys(socialLinks).filter(k => socialLinks[k]).length ? socialLinks : null,
+      }).eq('id', leagueId)
     )
   }
 
@@ -671,6 +682,7 @@ export default function SettingsPage() {
             <div style={{ display: 'flex', gap: 4, background: '#0A0A0E', border: '1px solid #1C1C26', borderRadius: 12, padding: 4, flexWrap: 'wrap' as const }}>
               {([
                 ['general',   '⚙ General'],
+                ['about',     '📝 About Page'],
                 ['appearance','🎨 Look & Feel'],
                 ['website',   '🌐 Website'],
                 ['schedule',  '📅 Stats & Schedule'],
@@ -1098,23 +1110,103 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div style={S.field}>
-              <label style={S.label}>Description</label>
-              <textarea
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                rows={3}
-                style={S.textarea}
-                placeholder="Tell players what this league is about…"
-              />
-            </div>
-
             <div style={S.cardFoot}>
               <button type="submit" style={S.saveBtn} disabled={detailsSave.state === 'saving'}>
                 {detailsSave.state === 'saving' ? 'Saving…' : 'Save Details'}
               </button>
             </div>
           </form>
+          </>}
+
+          {sTab === 'about' && <>
+          {/* ── About page intro ── */}
+          <div style={{ background: 'rgba(57,255,20,0.05)', border: '1px solid rgba(57,255,20,0.15)', borderRadius: 12, padding: '16px 20px', marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+            <span style={{ fontSize: 22, flexShrink: 0 }}>📝</span>
+            <div>
+              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 17, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 4 }}>Your About Page</div>
+              <div style={{ fontSize: 13, color: '#8A9A8A', lineHeight: 1.6 }}>
+                Everything you fill out here shows up on the <strong style={{ color: '#EEEEF5' }}>About</strong> tab of your public league page — it&apos;s the first impression players and parents get. Write it once and you&apos;re done.
+              </div>
+            </div>
+            <a href={`/league/${league?.slug}?tab=about`} target="_blank" rel="noreferrer" style={{ marginLeft: 'auto', flexShrink: 0, background: 'transparent', border: '1px solid #2E2E3A', borderRadius: 8, color: '#6A6A82', fontSize: 12, fontFamily: "'DM Mono', monospace", padding: '7px 14px', textDecoration: 'none', whiteSpace: 'nowrap' as const }}>
+              Preview ↗
+            </a>
+          </div>
+
+          {/* ── Mission Statement ── */}
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>Mission Statement</div>
+                <div style={S.cardSub}>Tell players who you are, what you stand for, and why your league exists. 2–4 sentences is perfect.</div>
+              </div>
+              <SaveIndicator state={aboutSave.state} />
+            </div>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={5}
+              style={S.textarea}
+              placeholder={'e.g. "The Monday Night Hoops League has been bringing competitive basketball to downtown Chicago since 2018. We believe in great competition, fair play, and building a community around the game. All skill levels welcome — from first-timers to ex-college players."'}
+            />
+            <div style={S.hint}>This appears at the top of your About page and is the first thing visitors read.</div>
+          </div>
+
+          {/* ── Contact ── */}
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>Contact Info</div>
+                <div style={S.cardSub}>How players and parents can reach you. Shows as a contact button on your public page.</div>
+              </div>
+            </div>
+            <label style={S.label}>Email, phone, or website</label>
+            <input
+              value={contactInfo}
+              onChange={e => setContactInfo(e.target.value)}
+              style={S.input}
+              placeholder="e.g. mondayhoops@gmail.com or (312) 555-0100"
+            />
+            <div style={S.hint}>Tip: an email address is usually best — we&apos;ll make it a one-tap mailto: link.</div>
+          </div>
+
+          {/* ── Social ── */}
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div>
+                <div style={S.cardTitle}>Social Media</div>
+                <div style={S.cardSub}>Social handles appear as icons in your league header. Only fill in the ones you use.</div>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 10, marginBottom: 20 }}>
+              {[
+                { key: 'instagram', label: '📸 Instagram', prefix: '@', placeholder: 'yourleague' },
+                { key: 'twitter',   label: '🐦 Twitter / X', prefix: '@', placeholder: 'yourleague' },
+                { key: 'facebook',  label: '👥 Facebook', prefix: '', placeholder: 'yourleaguepage' },
+                { key: 'tiktok',    label: '🎵 TikTok', prefix: '@', placeholder: 'yourleague' },
+                { key: 'youtube',   label: '▶ YouTube', prefix: '@', placeholder: 'yourleague' },
+                { key: 'website',   label: '🌐 Website', prefix: '', placeholder: 'https://yourleague.com' },
+              ].map(({ key, label, prefix, placeholder }) => (
+                <div key={key}>
+                  <div style={{ fontSize: 12, color: '#8A8A9A', fontFamily: "'DM Sans', sans-serif", marginBottom: 5, fontWeight: 500 }}>{label}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', background: '#0A0A0E', border: '1px solid #2E2E3A', borderRadius: 8 }}>
+                    {prefix && <span style={{ padding: '0 8px', color: '#4A4A5E', fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{prefix}</span>}
+                    <input
+                      value={socialLinks[key] ?? ''}
+                      onChange={e => setSocial(key, e.target.value)}
+                      placeholder={placeholder}
+                      style={{ ...S.input, border: 'none', background: 'transparent', flex: 1, borderRadius: 0 }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' as const }}>
+              <button type="button" onClick={saveAbout} style={S.saveBtn} disabled={aboutSave.state === 'saving'}>
+                {aboutSave.state === 'saving' ? 'Saving…' : aboutSave.state === 'saved' ? '✓ Saved' : 'Save About Page'}
+              </button>
+            </div>
+          </div>
           </>}
 
           {sTab === 'schedule' && <>
@@ -1508,46 +1600,6 @@ export default function SettingsPage() {
           </>}
 
           {sTab === 'appearance' && <>
-          {/* ── Contact & Social ── */}
-          <div style={S.card}>
-            <div style={S.cardHead}>
-              <div>
-                <div style={S.cardTitle}>Contact & Social</div>
-                <div style={S.cardSub}>Contact info shows as a button on your public page. Social handles appear as icons in the header.</div>
-              </div>
-              <SaveIndicator state={contactSave.state} />
-            </div>
-            <label style={S.label}>Contact Info</label>
-            <input value={contactInfo} onChange={e => setContactInfo(e.target.value)} style={S.input} placeholder="e.g. mondayhoops@gmail.com or (212) 555-0100" />
-            <div style={{ marginTop: 20, marginBottom: 10 }}>
-              <label style={S.label}>Social Handles</label>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 10, marginBottom: 14 }}>
-              {[
-                { key: 'instagram', label: 'Instagram', prefix: '@', placeholder: 'yourleague' },
-                { key: 'twitter',   label: 'Twitter / X', prefix: '@', placeholder: 'yourleague' },
-                { key: 'facebook',  label: 'Facebook', prefix: '', placeholder: 'yourleaguepage' },
-                { key: 'tiktok',    label: 'TikTok', prefix: '@', placeholder: 'yourleague' },
-                { key: 'youtube',   label: 'YouTube', prefix: '@', placeholder: 'yourleague' },
-                { key: 'website',   label: 'Website', prefix: '', placeholder: 'https://yourleague.com' },
-              ].map(({ key, label, prefix, placeholder }) => (
-                <div key={key}>
-                  <div style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono',monospace", marginBottom: 5 }}>{label}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', background: '#0A0A0E', border: '1px solid #2E2E3A', borderRadius: 8 }}>
-                    {prefix && <span style={{ padding: '0 8px', color: '#4A4A5E', fontFamily: "'DM Mono',monospace", fontSize: 13 }}>{prefix}</span>}
-                    <input value={socialLinks[key] ?? ''} onChange={e => setSocial(key, e.target.value)} placeholder={placeholder}
-                      style={{ ...S.input, border: 'none', background: 'transparent', flex: 1, borderRadius: 0 }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end' as const }}>
-              <button type="button" onClick={saveContact} style={S.saveBtn} disabled={contactSave.state === 'saving'}>
-                {contactSave.state === 'saving' ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
-          </>}
 
           {sTab === 'website' && <>
           {/* ── Sponsors ── */}
