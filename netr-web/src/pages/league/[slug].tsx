@@ -12,7 +12,7 @@ type LeagueSeason = { id:string;league_id:string;name:string;start_date:string|n
 type Sponsor = { id:string;name:string;logo_url:string|null;website_url:string|null }
 type GalleryPhoto = { id:string;photo_url:string;caption:string|null }
 type Team = { id:string;name:string;color:string;logo_url:string|null }
-type Player = { id:string;display_name:string;jersey_number:string|null;position:string|null;team_id:string;netr_score:number|null }
+type Player = { id:string;display_name:string;jersey_number:string|null;position:string|null;team_id:string;netr_score:number|null;photo_url:string|null;photo_source:string|null;profile_avatar:string|null }
 
 function netrScoreColor(s:number):string {
   if(s>=9.5)return'#C40010'
@@ -28,7 +28,7 @@ function netrScoreColor(s:number):string {
 type Standing = { team_id:string;team_name:string;color:string;wins:number;losses:number;pts_for:number;pts_against:number }
 type Game = { id:string;home_team_id:string;away_team_id:string;scheduled_at:string;location:string|null;status:string;home_score:number|null;away_score:number|null;game_type:string|null }
 type RawStat = { game_id:string;player_id:string;team_id:string;points:number;rebounds:number;assists:number;steals:number;blocks:number;turnovers:number;field_goals_made:number;field_goals_attempted:number;three_pointers_made:number;three_pointers_attempted:number;free_throws_made:number;free_throws_attempted:number }
-type PStat = { player_id:string;display_name:string;team_id:string;team_name:string;team_color:string;gp:number;ppg:number;rpg:number;apg:number;spg:number;bpg:number }
+type PStat = { player_id:string;display_name:string;team_id:string;team_name:string;team_color:string;gp:number;ppg:number;rpg:number;apg:number;spg:number;bpg:number;photo_url:string|null;photo_source:string|null;profile_avatar:string|null }
 type Tab = 'overview'|'schedule'|'stats'|'teams'|'gallery'|'rules'|'history'
 type SortKey = 'ppg'|'rpg'|'apg'|'spg'|'bpg'
 const ACC = '#39FF14'
@@ -108,11 +108,11 @@ export default function PublicLeaguePage() {
       supabase.from('league_standings').select('*').eq('league_id',lg.id).order('wins',{ascending:false}),
       supabase.from('league_teams').select('id,name,color,logo_url').eq('league_id',lg.id),
       supabase.from('league_games').select('*').eq('league_id',lg.id).order('scheduled_at',{ascending:true}),
-      supabase.from('league_players').select('id,display_name,jersey_number,position,team_id,profiles(netr_score)').eq('league_id',lg.id),
+      supabase.from('league_players').select('id,display_name,jersey_number,position,team_id,photo_url,photo_source,profiles(netr_score,avatar_url)').eq('league_id',lg.id),
     ])
     setStandings(sr.data??[]);setTeams(tr.data??[]);setAllGames(gr.data??[])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setPlayers((pr.data??[]).map((p:any)=>({...p,netr_score:p.profiles?.netr_score??null,profiles:undefined})))
+    setPlayers((pr.data??[]).map((p:any)=>({...p,netr_score:p.profiles?.netr_score??null,profile_avatar:p.profiles?.avatar_url??null,profiles:undefined})))
     const [sponsorsRes,galleryRes,seasonsRes] = await Promise.all([
       supabase.from('league_sponsors').select('id,name,logo_url,website_url').eq('league_id',lg.id).order('display_order'),
       supabase.from('league_gallery_photos').select('id,photo_url,caption').eq('league_id',lg.id).order('created_at',{ascending:false}),
@@ -743,6 +743,7 @@ export default function PublicLeaguePage() {
                       <td style={{...TD,textAlign:'left',paddingLeft:16}}>
                         <div style={{display:'flex',alignItems:'center',gap:8}}>
                           <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:'#2E2E3A',width:18,flexShrink:0}}>{i+1}</span>
+                          {eplPhoto(p)?<img src={eplPhoto(p)!} alt={p.display_name} style={{width:30,height:30,borderRadius:'50%',objectFit:'cover',flexShrink:0,border:`1.5px solid ${p.team_color}55`}}/>:<div style={{width:30,height:30,borderRadius:'50%',background:'#1C1C26',border:'1.5px solid #2E2E3A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><span style={{fontSize:11,color:'#6A6A82',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700}}>{p.display_name.slice(0,1).toUpperCase()}</span></div>}
                           <div>
                             <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' as const}}>
                               <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase' as const}}>{p.display_name}</span>
@@ -1053,7 +1054,7 @@ export default function PublicLeaguePage() {
                 const ps=modalPStats.find(s=>s.player_id===p.id)
                 return(<tr key={p.id} style={{borderBottom:'1px solid #0D0D12'}}>
                   <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:'#C8C8D4'}}>{p.jersey_number??'—'}</td>
-                  <td style={{...TD,textAlign:'left'}}><div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' as const}}><span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase'}}>{p.display_name}</span><NetrBadge score={p.netr_score}/></div>{p.position&&<div style={{fontSize:10,color:'#C8C8D4',fontFamily:"'DM Mono',monospace"}}>{p.position}</div>}</td>
+                  <td style={{...TD,textAlign:'left'}}><div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap' as const}}>{eplPhoto(p)?<img src={eplPhoto(p)!} alt={p.display_name} style={{width:28,height:28,borderRadius:'50%',objectFit:'cover',flexShrink:0,border:'1.5px solid #2E2E3A'}}/>:<div style={{width:28,height:28,borderRadius:'50%',background:'#1C1C26',border:'1.5px solid #2E2E3A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><span style={{fontSize:11,color:'#6A6A82',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700}}>{p.display_name.slice(0,1).toUpperCase()}</span></div>}<span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase'}}>{p.display_name}</span><NetrBadge score={p.netr_score}/></div>{p.position&&<div style={{fontSize:10,color:'#C8C8D4',fontFamily:"'DM Mono',monospace"}}>{p.position}</div>}</td>
                   {modalPStats.length>0&&<>
                     <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:'#C8C8D4'}}>{ps?.gp??0}</td>
                     <td style={{...TD,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:17,color:ps?.ppg?accent:'#3A3A4E'}}>{ps?.ppg??'—'}</td>
@@ -1292,10 +1293,11 @@ function computeStats(stats:RawStat[],pMap:Record<string,Player>,tMap:Record<str
   return Object.entries(agg).map(([pid,a])=>{
     const p=pMap[pid],t=p?tMap[p.team_id]:null
     const r=(n:number)=>Math.round(n*10)/10
-    return{player_id:pid,display_name:p?.display_name??'—',team_id:p?.team_id??'',team_name:t?.name??'—',team_color:t?.color??'#6A6A82',gp:a.gp,ppg:r(a.pts/a.gp),rpg:r(a.reb/a.gp),apg:r(a.ast/a.gp),spg:r(a.stl/a.gp),bpg:r(a.blk/a.gp)}
+    return{player_id:pid,display_name:p?.display_name??'—',team_id:p?.team_id??'',team_name:t?.name??'—',team_color:t?.color??'#6A6A82',gp:a.gp,ppg:r(a.pts/a.gp),rpg:r(a.reb/a.gp),apg:r(a.ast/a.gp),spg:r(a.stl/a.gp),bpg:r(a.blk/a.gp),photo_url:p?.photo_url??null,photo_source:p?.photo_source??null,profile_avatar:p?.profile_avatar??null}
   })
 }
 
+function eplPhoto(p:{photo_url:string|null;photo_source:string|null;profile_avatar:string|null}|null|undefined):string|null{if(!p)return null;return(p.photo_source==='app'&&p.profile_avatar)?p.profile_avatar:p.photo_url??null}
 function fmtDate(iso:string){return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
 function fmtDateTime(iso:string){return new Date(iso).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}
 const TH:React.CSSProperties={textAlign:'center',fontSize:10,color:'#C8C8D4',textTransform:'uppercase',letterSpacing:2,fontFamily:"'DM Mono',monospace",fontWeight:400,padding:'10px 10px'}

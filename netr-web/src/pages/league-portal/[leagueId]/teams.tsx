@@ -4,7 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase, League, LeagueTeam, LeaguePlayer, LeagueDivision } from '../../../lib/supabase'
 import { PortalNav } from './index'
 
-type TeamWithPlayers = LeagueTeam & { players: LeaguePlayer[] }
+type PlayerWithMeta = LeaguePlayer & { netr_score: number | null; profile_avatar: string | null }
+
+type TeamWithPlayers = LeagueTeam & { players: PlayerWithMeta[] }
 
 function netrScoreColor(s:number):string {
   if(s>=9.5)return'#C40010'
@@ -57,6 +59,17 @@ export default function TeamsPage() {
   const [showNetrInfo, setShowNetrInfo] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
 
+  // Edit player modal
+  const [editingPlayer, setEditingPlayer] = useState<PlayerWithMeta | null>(null)
+  const [editPName, setEditPName] = useState('')
+  const [editPJersey, setEditPJersey] = useState('')
+  const [editPPosition, setEditPPosition] = useState('')
+  const [editPPhotoFile, setEditPPhotoFile] = useState<File | null>(null)
+  const [editPPhotoPreview, setEditPPhotoPreview] = useState<string | null>(null)
+  const [editPSource, setEditPSource] = useState<'custom' | 'app'>('custom')
+  const [editPSaving, setEditPSaving] = useState(false)
+  const playerPhotoRef = useRef<HTMLInputElement>(null)
+
   // Player search
   const [playerSearch, setPlayerSearch] = useState('')
 
@@ -80,7 +93,7 @@ export default function TeamsPage() {
       const [leagueRes, teamsRes, playersRes, divisionsRes] = await Promise.all([
         supabase.from('leagues').select('*').eq('id', leagueId).eq('owner_id', user.id).single(),
         supabase.from('league_teams').select('*').eq('league_id', leagueId).order('created_at'),
-        supabase.from('league_players').select('*, profiles(netr_score)').eq('league_id', leagueId),
+        supabase.from('league_players').select('*, profiles(netr_score, avatar_url)').eq('league_id', leagueId),
         supabase.from('league_divisions').select('*').eq('league_id', leagueId).order('display_order'),
       ])
 
@@ -194,6 +207,50 @@ export default function TeamsPage() {
     setTeams(prev => prev.map(t => t.id === teamId ? { ...t, players: t.players.filter(p => p.id !== playerId) } : t))
   }
 
+  function openEditPlayer(p: PlayerWithMeta) {
+    setEditingPlayer(p)
+    setEditPName(p.display_name)
+    setEditPJersey(p.jersey_number ?? '')
+    setEditPPosition(p.position ?? '')
+    setEditPPhotoFile(null)
+    const hasAppPhoto = p.is_claimed && !!p.profile_avatar
+    const src = (p.photo_source === 'app' && hasAppPhoto) ? 'app' : 'custom'
+    setEditPSource(src)
+    setEditPPhotoPreview(src === 'app' ? p.profile_avatar : p.photo_url ?? null)
+  }
+
+  async function uploadPlayerPhoto(file: File, playerId: string): Promise<string | null> {
+    const ext = file.name.split('.').pop()
+    const path = `${leagueId}/${playerId}.${ext}`
+    const { error } = await supabase.storage.from('player-photos').upload(path, file, { upsert: true })
+    if (error) return null
+    const { data: { publicUrl } } = supabase.storage.from('player-photos').getPublicUrl(path)
+    return publicUrl
+  }
+
+  async function savePlayerEdit() {
+    if (!editingPlayer) return
+    setEditPSaving(true)
+    let photoUrl = editingPlayer.photo_url
+    if (editPSource === 'custom' && editPPhotoFile) {
+      photoUrl = await uploadPlayerPhoto(editPPhotoFile, editingPlayer.id)
+    }
+    const updates = {
+      display_name: editPName.trim() || editingPlayer.display_name,
+      jersey_number: editPJersey || null,
+      position: editPPosition || null,
+      photo_url: editPSource === 'custom' ? photoUrl : editingPlayer.photo_url,
+      photo_source: editPSource,
+    }
+    const { data } = await supabase.from('league_players').update(updates).eq('id', editingPlayer.id).select().single()
+    if (data) {
+      const updated: PlayerWithMeta = { ...editingPlayer, ...data, netr_score: editingPlayer.netr_score, profile_avatar: editingPlayer.profile_avatar }
+      setTeams(prev => prev.map(t => t.id === editingPlayer.team_id ? { ...t, players: t.players.map(p => p.id === editingPlayer.id ? updated : p) } : t))
+    }
+    setEditPSaving(false)
+    setEditingPlayer(null)
+  }
+
   async function deleteTeam(teamId: string) {
     await supabase.from('league_teams').delete().eq('id', teamId)
     setTeams(prev => prev.filter(t => t.id !== teamId))
@@ -268,13 +325,13 @@ export default function TeamsPage() {
 
     const [teamsRes, playersRes] = await Promise.all([
       supabase.from('league_teams').select('*').eq('league_id', leagueId).order('created_at'),
-      supabase.from('league_players').select('*, profiles(netr_score)').eq('league_id', leagueId),
+      supabase.from('league_players').select('*, profiles(netr_score, avatar_url)').eq('league_id', leagueId),
     ])
     const playersByTeam: Record<string, LeaguePlayer[]> = {}
     for (const p of (playersRes.data ?? [])) {
       if (!playersByTeam[p.team_id]) playersByTeam[p.team_id] = []
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      playersByTeam[p.team_id].push({ ...p, netr_score: (p as any).profiles?.netr_score ?? null })
+      playersByTeam[p.team_id].push({ ...p, netr_score: (p as any).profiles?.netr_score ?? null, profile_avatar: (p as any).profiles?.avatar_url ?? null })
     }
     setTeams((teamsRes.data ?? []).map(t => ({ ...t, players: playersByTeam[t.id] ?? [] })))
     setImportDone(`Imported ${totalPlayers} players across ${csvPreview.length} teams.`)
@@ -547,27 +604,37 @@ export default function TeamsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {team.players.map(p => (
-                            <tr key={p.id} style={S.tr}>
-                              <td style={S.td}><span style={S.jerseyNum}>{p.jersey_number ?? '—'}</span></td>
-                              <td style={S.td}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
-                                  <span style={S.playerNameStyle}>{p.display_name}</span>
-                                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                  {(p as any).netr_score != null && (()=>{ const c=netrScoreColor((p as any).netr_score); return <span onClick={()=>setShowNetrInfo(true)} style={{ background: `${c}1F`, border: `1px solid ${c}55`, borderRadius: 4, color: c, fontFamily: "'DM Mono',monospace", fontSize: 10, fontWeight: 700, padding: '1px 6px', letterSpacing: 0.3, cursor: 'pointer', userSelect: 'none' as const }}>{((p as any).netr_score as number).toFixed(2)}</span> })()}
-                                  {p.position && <span style={S.pos}>{p.position}</span>}
-                                </div>
-                              </td>
-                              <td style={S.td}>
-                                <span style={{ ...S.claimBadge, background: p.is_claimed ? 'rgba(57,255,20,0.12)' : 'rgba(245,197,66,0.12)', color: p.is_claimed ? '#39FF14' : '#F5C542' }}>
-                                  {p.is_claimed ? 'Claimed' : 'Unclaimed'}
-                                </span>
-                              </td>
-                              <td style={S.td}>
-                                <button onClick={() => removePlayer(p.id, team.id)} style={S.removeBtn} title="Remove">×</button>
-                              </td>
-                            </tr>
-                          ))}
+                          {team.players.map(p => {
+                            const effectivePhoto = (p.photo_source === 'app' && p.profile_avatar) ? p.profile_avatar : p.photo_url
+                            return (
+                              <tr key={p.id} style={S.tr}>
+                                <td style={S.td}><span style={S.jerseyNum}>{p.jersey_number ?? '—'}</span></td>
+                                <td style={S.td}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
+                                    {effectivePhoto
+                                      ? <img src={effectivePhoto} alt={p.display_name} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1.5px solid #2E2E3A' }} />
+                                      : <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#1C1C26', border: '1.5px solid #2E2E3A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                          <span style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>{p.display_name.slice(0,1).toUpperCase()}</span>
+                                        </div>}
+                                    <span style={S.playerNameStyle}>{p.display_name}</span>
+                                    {p.netr_score != null && (()=>{ const c=netrScoreColor(p.netr_score!); return <span onClick={()=>setShowNetrInfo(true)} style={{ background: `${c}1F`, border: `1px solid ${c}55`, borderRadius: 4, color: c, fontFamily: "'DM Mono',monospace", fontSize: 10, fontWeight: 700, padding: '1px 6px', letterSpacing: 0.3, cursor: 'pointer', userSelect: 'none' as const }}>{(p.netr_score as number).toFixed(2)}</span> })()}
+                                    {p.position && <span style={S.pos}>{p.position}</span>}
+                                  </div>
+                                </td>
+                                <td style={S.td}>
+                                  <span style={{ ...S.claimBadge, background: p.is_claimed ? 'rgba(57,255,20,0.12)' : 'rgba(245,197,66,0.12)', color: p.is_claimed ? '#39FF14' : '#F5C542' }}>
+                                    {p.is_claimed ? 'Claimed' : 'Unclaimed'}
+                                  </span>
+                                </td>
+                                <td style={S.td}>
+                                  <div style={{ display: 'flex', gap: 6 }}>
+                                    <button onClick={() => openEditPlayer(p)} style={{ ...S.removeBtn, color: '#6A6A82', fontSize: 13 }} title="Edit">✎</button>
+                                    <button onClick={() => removePlayer(p.id, team.id)} style={S.removeBtn} title="Remove">×</button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })}
                         </tbody>
                       </table>
                     )}
@@ -720,6 +787,84 @@ export default function TeamsPage() {
       )}
 
       {/* NETR Rating info popup */}
+      {/* Edit Player Modal */}
+      {editingPlayer && (
+        <div style={S.overlay} onClick={e => { if (e.target === e.currentTarget) setEditingPlayer(null) }}>
+          <div style={{ background: '#0D0D12', border: '1px solid #1C1C26', borderRadius: 20, padding: '28px 28px 24px', width: '100%', maxWidth: 440, position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 20, textTransform: 'uppercase' as const, letterSpacing: 0.5, color: '#EEEEF5' }}>Edit Player</span>
+              <button onClick={() => setEditingPlayer(null)} style={S.closeBtn}>✕</button>
+            </div>
+
+            {/* Photo section */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace", letterSpacing: 1, textTransform: 'uppercase' as const, marginBottom: 10 }}>Player Photo</div>
+
+              {/* Source toggle — only when player is claimed AND has an app avatar */}
+              {editingPlayer.is_claimed && editingPlayer.profile_avatar && (
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                  {(['app', 'custom'] as const).map(src => (
+                    <button key={src} onClick={() => {
+                      setEditPSource(src)
+                      setEditPPhotoPreview(src === 'app' ? editingPlayer.profile_avatar : (editPPhotoFile ? editPPhotoPreview : editingPlayer.photo_url ?? null))
+                    }} style={{ flex: 1, background: editPSource === src ? 'rgba(57,255,20,0.12)' : '#0A0A0E', border: `1.5px solid ${editPSource === src ? '#39FF14' : '#2E2E3A'}`, borderRadius: 8, padding: '8px 0', color: editPSource === src ? '#39FF14' : '#6A6A82', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: 1, cursor: 'pointer', transition: 'all 0.15s' }}>
+                      {src === 'app' ? '📱 App Photo' : '📷 Custom Photo'}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+                {/* Preview */}
+                <div style={{ width: 72, height: 72, borderRadius: 12, overflow: 'hidden', background: '#1C1C26', border: '1.5px solid #2E2E3A', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {editPPhotoPreview
+                    ? <img src={editPPhotoPreview} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <span style={{ fontSize: 22, color: '#3A3A4E', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900 }}>{editingPlayer.display_name.slice(0,1).toUpperCase()}</span>}
+                </div>
+
+                {/* Upload controls — only shown when custom is selected */}
+                {editPSource === 'custom' && (
+                  <div style={{ flex: 1 }}>
+                    <input ref={playerPhotoRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
+                      const f = e.target.files?.[0]
+                      if (!f) return
+                      setEditPPhotoFile(f)
+                      setEditPPhotoPreview(URL.createObjectURL(f))
+                    }} />
+                    <button onClick={() => playerPhotoRef.current?.click()} style={{ background: 'rgba(57,255,20,0.08)', border: '1px solid rgba(57,255,20,0.25)', borderRadius: 8, color: '#39FF14', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: 0.5, padding: '8px 16px', cursor: 'pointer', display: 'block', width: '100%', marginBottom: 6 }}>
+                      {editPPhotoPreview ? '↺ Change Photo' : '+ Upload Photo'}
+                    </button>
+                    {editPPhotoPreview && (
+                      <button onClick={() => { setEditPPhotoFile(null); setEditPPhotoPreview(null); if (playerPhotoRef.current) playerPhotoRef.current.value = '' }} style={{ background: 'none', border: '1px solid #2E2E3A', borderRadius: 8, color: '#6A6A82', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: 0.5, padding: '6px 16px', cursor: 'pointer', display: 'block', width: '100%' }}>
+                        Remove Photo
+                      </button>
+                    )}
+                  </div>
+                )}
+                {editPSource === 'app' && (
+                  <div style={{ flex: 1, paddingTop: 4 }}>
+                    <div style={{ fontSize: 12, color: '#39FF14', fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5 }}>✓ Using this player&apos;s profile photo from the NETR app</div>
+                    <div style={{ fontSize: 11, color: '#4A4A5E', fontFamily: "'DM Mono', monospace", marginTop: 4 }}>Updates automatically when they change their app photo</div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Name / Jersey / Position */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+              <input value={editPName} onChange={e => setEditPName(e.target.value)} style={{ ...S.input, flex: 2, marginBottom: 0 }} placeholder="Player name" />
+              <input value={editPJersey} onChange={e => setEditPJersey(e.target.value)} style={{ ...S.input, flex: '0 0 60px', marginBottom: 0 }} placeholder="#" maxLength={3} />
+            </div>
+            <input value={editPPosition} onChange={e => setEditPPosition(e.target.value)} style={{ ...S.input, marginBottom: 20 }} placeholder="Position (PG, SG, SF, PF, C…)" />
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setEditingPlayer(null)} style={{ ...S.cancelBtn, flex: 1 }}>Cancel</button>
+              <button onClick={savePlayerEdit} disabled={editPSaving} style={{ ...S.saveBtn, flex: 2 }}>{editPSaving ? 'Saving…' : 'Save'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showNetrInfo && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={() => setShowNetrInfo(false)}>
           <div style={{ background: '#0F0F14', border: '1px solid #2E2E3A', borderRadius: 16, padding: '32px 28px', width: '100%', maxWidth: 480, position: 'relative' }} onClick={e => e.stopPropagation()}>

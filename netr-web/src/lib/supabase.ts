@@ -135,6 +135,8 @@ export type LeaguePlayer = {
   jersey_number: string | null
   position: string | null
   is_claimed: boolean
+  photo_url: string | null
+  photo_source: string | null
   created_at: string
 }
 
