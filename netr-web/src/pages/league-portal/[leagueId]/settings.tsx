@@ -143,6 +143,9 @@ export default function SettingsPage() {
   const [slugError, setSlugError]       = useState('')
   const [slugSaved, setSlugSaved]       = useState(false)
 
+  // About sections
+  const [aboutSections, setAboutSections] = useState<{ title: string; content: string }[]>([])
+
   // Contact & social
   const [contactInfo, setContactInfo]   = useState('')
   const [contactPhone, setContactPhone] = useState('')
@@ -218,6 +221,7 @@ export default function SettingsPage() {
       setLeagueFont(data.league_font ?? 'barlow')
       setSignupUrl(data.signup_url ?? '')
       setSignupLabel(data.signup_label ?? '')
+      setAboutSections(data.about_sections ?? [])
       setContactInfo(data.contact_info ?? '')
       setContactPhone(data.social_links?.phone ?? '')
       setSocialLinks(data.social_links ? Object.fromEntries(Object.entries(data.social_links).filter(([k]) => k !== 'phone')) : {})
@@ -398,11 +402,15 @@ export default function SettingsPage() {
     const links = { ...socialLinks, ...(contactPhone.trim() ? { phone: contactPhone.trim() } : {}) }
     aboutSave.trigger(
       supabase.from('leagues').update({
-        description: description.trim() || null,
         contact_info: contactInfo.trim() || null,
         social_links: Object.keys(links).filter(k => links[k]).length ? links : null,
       }).eq('id', leagueId)
     )
+  }
+
+  function saveAboutSections(sections: { title: string; content: string }[]) {
+    setAboutSections(sections)
+    aboutSave.trigger(supabase.from('leagues').update({ about_sections: sections.length ? sections : null }).eq('id', leagueId))
   }
 
   function setSocial(platform: string, value: string) {
@@ -1137,23 +1145,46 @@ export default function SettingsPage() {
             </a>
           </div>
 
-          {/* ── Mission Statement ── */}
+          {/* ── Custom About Sections ── */}
           <div style={S.card}>
             <div style={S.cardHead}>
               <div>
-                <div style={S.cardTitle}>Mission Statement</div>
-                <div style={S.cardSub}>Tell players who you are, what you stand for, and why your league exists. 2–4 sentences is perfect.</div>
+                <div style={S.cardTitle}>About Sections</div>
+                <div style={S.cardSub}>Add as many sections as you want — name them anything. Mission Statement, Our History, League Rules, Meet the Staff, whatever fits your league.</div>
               </div>
               <SaveIndicator state={aboutSave.state} />
             </div>
-            <textarea
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              rows={5}
-              style={S.textarea}
-              placeholder={'e.g. "The Monday Night Hoops League has been bringing competitive basketball to downtown Chicago since 2018. We believe in great competition, fair play, and building a community around the game. All skill levels welcome — from first-timers to ex-college players."'}
-            />
-            <div style={S.hint}>This appears at the top of your About page and is the first thing visitors read.</div>
+            {aboutSections.map((sec, idx) => (
+              <div key={idx} style={{ marginBottom: 16, padding: 16, background: '#0A0A0E', border: '1px solid #2E2E3A', borderRadius: 10 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+                  <input
+                    value={sec.title}
+                    onChange={e => { const next = aboutSections.map((s, i) => i === idx ? { ...s, title: e.target.value } : s); setAboutSections(next) }}
+                    onBlur={() => saveAboutSections(aboutSections)}
+                    placeholder="Section title (e.g. Our Mission, Meet the Team…)"
+                    style={{ ...S.input, flex: 1, fontWeight: 600 }}
+                  />
+                  <button type="button" disabled={idx === 0} onClick={() => { const next = [...aboutSections]; [next[idx-1], next[idx]] = [next[idx], next[idx-1]]; saveAboutSections(next) }}
+                    style={{ background: 'none', border: 'none', color: '#6A6A82', cursor: idx === 0 ? 'default' : 'pointer', fontSize: 16, padding: '0 4px' }}>↑</button>
+                  <button type="button" disabled={idx === aboutSections.length - 1} onClick={() => { const next = [...aboutSections]; [next[idx], next[idx+1]] = [next[idx+1], next[idx]]; saveAboutSections(next) }}
+                    style={{ background: 'none', border: 'none', color: '#6A6A82', cursor: idx === aboutSections.length - 1 ? 'default' : 'pointer', fontSize: 16, padding: '0 4px' }}>↓</button>
+                  <button type="button" onClick={() => saveAboutSections(aboutSections.filter((_, i) => i !== idx))}
+                    style={{ background: 'none', border: 'none', color: '#6A6A82', cursor: 'pointer', fontSize: 18, padding: '0 4px', lineHeight: 1 }}>×</button>
+                </div>
+                <textarea
+                  value={sec.content}
+                  onChange={e => { const next = aboutSections.map((s, i) => i === idx ? { ...s, content: e.target.value } : s); setAboutSections(next) }}
+                  onBlur={() => saveAboutSections(aboutSections)}
+                  placeholder="Write the content for this section…"
+                  rows={5}
+                  style={{ ...S.input, width: '100%', resize: 'vertical' as const, lineHeight: 1.6 }}
+                />
+              </div>
+            ))}
+            <button type="button" onClick={() => saveAboutSections([...aboutSections, { title: '', content: '' }])}
+              style={{ ...S.cancelBtn, width: '100%', textAlign: 'center' as const, marginTop: 4 }}>
+              + Add Section
+            </button>
           </div>
 
           {/* ── Contact ── */}

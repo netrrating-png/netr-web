@@ -7,7 +7,7 @@ import { getFontFamily, getFontGF } from '../../lib/league-fonts'
 import { Globe, MapPin, Mail, X } from 'lucide-react'
 import type { InsightResult } from '../../lib/league-insights'
 
-type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null;league_font:string|null;signup_url:string|null;signup_label:string|null;rules_sections:{title:string;content:string}[]|null }
+type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null;league_font:string|null;signup_url:string|null;signup_label:string|null;rules_sections:{title:string;content:string}[]|null;about_sections:{title:string;content:string}[]|null }
 type LeagueSeason = { id:string;league_id:string;name:string;start_date:string|null;end_date:string|null;champion_team_id:string|null;notes:string|null;display_order:number;created_at:string }
 type Sponsor = { id:string;name:string;logo_url:string|null;website_url:string|null }
 type GalleryPhoto = { id:string;photo_url:string;caption:string|null }
@@ -397,7 +397,7 @@ export default function PublicLeaguePage() {
             ...(league.rules_sections&&league.rules_sections.length>0?[['rules','Rules']]:[] as [Tab,string][]),
             ...(seasons.length>0?[['history','History']]:[] as [Tab,string][]),
             ...(galleryPhotos.length>0?[['gallery','Gallery']]:[] as [Tab,string][]),
-            ...((league.description||league.contact_info||(league.social_links&&Object.values(league.social_links).some(Boolean)))?[['about','About']]:[] as [Tab,string][]),
+            ...((league.about_sections?.some(s=>s.title||s.content)||league.contact_info||league.social_links?.phone||(league.social_links&&Object.entries(league.social_links).some(([k,v])=>k!=='phone'&&v)))?[['about','About']]:[] as [Tab,string][]),
           ] as [Tab,string][]).map(([t,label])=>(
             <button key={t} onClick={()=>setTab(t)} className="tab-btn" style={{background:activeTab===t?`${accent}0D`:'none',border:'none',borderBottom:activeTab===t?`3px solid ${accent}`:'3px solid transparent',color:activeTab===t?accent:'#C8C8D4',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase',letterSpacing:1.5,padding:'16px 18px',cursor:'pointer',whiteSpace:'nowrap',flexShrink:0,transition:'all 0.2s',borderRadius:'8px 8px 0 0'}}>
               {label}
@@ -850,15 +850,13 @@ export default function PublicLeaguePage() {
           <SecTitle accent={accent}>About {league.name}</SecTitle>
           <div style={{display:'flex',flexDirection:'column',gap:20}}>
 
-            {/* Mission statement */}
-            {league.description&&(
-              <div style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:14,padding:'28px 28px'}}>
-                <div style={{fontSize:11,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:14}}>Our Mission</div>
-                <p style={{fontSize:17,lineHeight:1.8,color:'rgba(238,238,245,0.9)',fontFamily:"'DM Sans',sans-serif",margin:0,whiteSpace:'pre-wrap' as const}}>
-                  {league.description}
-                </p>
+            {/* Custom about sections */}
+            {league.about_sections?.filter(s=>s.title||s.content).map((sec,idx)=>(
+              <div key={idx} style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:14,padding:'24px 28px'}}>
+                {sec.title&&<div style={{fontSize:11,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:14}}>{sec.title}</div>}
+                <p style={{fontSize:16,lineHeight:1.8,color:'rgba(238,238,245,0.9)',fontFamily:"'DM Sans',sans-serif",margin:0,whiteSpace:'pre-wrap' as const}}>{sec.content}</p>
               </div>
-            )}
+            ))}
 
             {/* Quick facts */}
             {(league.location||league.season||league.sport)&&(
