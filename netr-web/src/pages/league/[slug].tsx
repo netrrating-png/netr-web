@@ -401,7 +401,7 @@ export default function PublicLeaguePage() {
         </div>
 
         {/* Stats strip */}
-        <div style={{position:'relative',zIndex:1,borderTop:`1px solid ${accent}20`,background:isDark?'rgba(4,4,6,0.75)':'rgba(242,242,247,0.9)',backdropFilter:'blur(12px)'}}>
+        <div style={{position:'relative',zIndex:1,borderTop:`1px solid ${accent}20`,background:isDark?'rgba(4,4,6,0.75)':C.cardBg2,...(isDark?{backdropFilter:'blur(12px)'}:{})}}>
           <div style={{maxWidth:980,margin:'0 auto',display:'flex',padding:'0 24px',overflowX:'auto',scrollbarWidth:'none' as const}}>
             {[
               {label:'Teams',value:teams.length},
@@ -433,7 +433,7 @@ export default function PublicLeaguePage() {
       )}
 
       {/* Tabs */}
-      <div style={{background:isDark?'rgba(4,4,6,0.92)':'rgba(242,242,247,0.95)',borderBottom:`1px solid ${C.borderSub}`,position:'sticky',top:0,zIndex:50,backdropFilter:'blur(16px)'}}>
+      <div style={{background:isDark?'rgba(4,4,6,0.92)':C.cardBg,borderBottom:`1px solid ${C.borderSub}`,position:'sticky',top:0,zIndex:50,...(isDark?{backdropFilter:'blur(16px)'}:{})}}>
         <div style={{maxWidth:960,margin:'0 auto',display:'flex',overflowX:'auto',padding:'0 8px',scrollbarWidth:'none' as const}}>
           {([
             ['overview','Overview'],['schedule','Schedule'],['stats','Stats'],['teams','Teams'],
