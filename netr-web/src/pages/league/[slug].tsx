@@ -7,11 +7,12 @@ import { getFontFamily, getFontGF } from '../../lib/league-fonts'
 import { Globe, MapPin, Mail, X } from 'lucide-react'
 import type { InsightResult } from '../../lib/league-insights'
 
-type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null;league_font:string|null;signup_url:string|null;signup_label:string|null;rules_sections:{title:string;content:string}[]|null;about_sections:{title:string;content:string}[]|null }
+type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null;league_font:string|null;signup_url:string|null;signup_label:string|null;rules_sections:{title:string;content:string}[]|null;about_sections:{title:string;content:string}[]|null;cross_division_play:boolean }
 type LeagueSeason = { id:string;league_id:string;name:string;start_date:string|null;end_date:string|null;champion_team_id:string|null;notes:string|null;display_order:number;created_at:string }
 type Sponsor = { id:string;name:string;logo_url:string|null;website_url:string|null }
 type GalleryPhoto = { id:string;photo_url:string;caption:string|null;is_featured:boolean }
-type Team = { id:string;name:string;color:string;logo_url:string|null }
+type Division = { id:string;name:string;display_order:number }
+type Team = { id:string;name:string;color:string;logo_url:string|null;division_id:string|null }
 type Player = { id:string;display_name:string;jersey_number:string|null;position:string|null;team_id:string;netr_score:number|null;photo_url:string|null;photo_source:string|null;profile_avatar:string|null }
 
 function netrScoreColor(s:number):string {
@@ -52,6 +53,7 @@ export default function PublicLeaguePage() {
   const [attendanceCounts,setAttendanceCounts] = useState<Record<string,number>>({})
   const [myAttendance,setMyAttendance] = useState<Record<string,'yes'|'no'|'maybe'>>({})
   const [sponsors,setSponsors] = useState<Sponsor[]>([])
+  const [divisions,setDivisions] = useState<Division[]>([])
   const [galleryPhotos,setGalleryPhotos] = useState<GalleryPhoto[]>([])
   const [lightboxIdx,setLightboxIdx] = useState<number|null>(null)
   const [featuredIdx,setFeaturedIdx] = useState(0)
@@ -106,13 +108,14 @@ export default function PublicLeaguePage() {
     const {data:lg} = await supabase.from('leagues').select('*').eq('slug',slug).single()
     if(!lg){setNotFound(true);setLoading(false);return}
     setLeague(lg)
-    const [sr,tr,gr,pr] = await Promise.all([
+    const [sr,tr,gr,pr,divRes] = await Promise.all([
       supabase.from('league_standings').select('*').eq('league_id',lg.id).order('wins',{ascending:false}),
-      supabase.from('league_teams').select('id,name,color,logo_url').eq('league_id',lg.id),
+      supabase.from('league_teams').select('id,name,color,logo_url,division_id').eq('league_id',lg.id),
       supabase.from('league_games').select('*').eq('league_id',lg.id).order('scheduled_at',{ascending:true}),
       supabase.from('league_players').select('id,display_name,jersey_number,position,team_id,photo_url,photo_source,profile_id,profiles(netr_score)').eq('league_id',lg.id),
+      supabase.from('league_divisions').select('id,name,display_order').eq('league_id',lg.id).order('display_order'),
     ])
-    setStandings(sr.data??[]);setTeams(tr.data??[]);setAllGames(gr.data??[])
+    setStandings(sr.data??[]);setTeams(tr.data??[]);setAllGames(gr.data??[]);setDivisions(divRes.data??[])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setPlayers((pr.data??[]).map((p:any)=>({...p,netr_score:p.profiles?.netr_score??null,profile_avatar:p.profile_id?supabase.storage.from('avatars').getPublicUrl(`${p.profile_id}/avatar.jpg`).data.publicUrl:null,profiles:undefined})))
     const [sponsorsRes,galleryRes,seasonsRes] = await Promise.all([
@@ -649,66 +652,6 @@ export default function PublicLeaguePage() {
             </section>
           )}
 
-          {/* AI Power Rankings */}
-          {(insightsLoading||(insights&&insights.length>0))&&(
-            <section style={{marginBottom:48}}>
-              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
-                <SectionLabel accent={accent} noMargin>Power Rankings</SectionLabel>
-                {insights?.[0]?.low_confidence&&(
-                  <span style={{fontSize:10,color:'#6A6A82',fontFamily:"'DM Mono',monospace",background:'#0A0A0E',border:'1px solid #2A2A38',borderRadius:6,padding:'3px 8px',letterSpacing:1,textTransform:'uppercase' as const}}>Early Season</span>
-                )}
-              </div>
-              {insightsLoading&&!insights&&(
-                <div style={{display:'flex',flexDirection:'column' as const,gap:12}}>
-                  {[0,1,2,3].map(i=>(
-                    <div key={i} style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:14,padding:'18px 20px',height:90,opacity:0.5+i*0.1}}/>
-                  ))}
-                </div>
-              )}
-              <div style={{display:'flex',flexDirection:'column' as const,gap:12}}>
-                {[...(insights??[])].sort((a,b)=>b.playoff_probability-a.playoff_probability).map((ins,idx)=>{
-                  const isElim=ins.magic_number===null&&ins.games_played>0
-                  const isClinched=ins.magic_number===0
-                  const allPlayoffs=(insights??[]).every(i=>i.playoff_probability>0.98)
-                  const pct=allPlayoffs?ins.championship_probability:ins.playoff_probability
-                  const trendIcon=ins.trend==='UP'?'↑':ins.trend==='DOWN'?'↓':'→'
-                  const trendColor=ins.trend==='UP'?accent:ins.trend==='DOWN'?'#FF453A':'#6A6A82'
-                  return(
-                    <div key={ins.team_id} style={{background:'#0A0A0E',border:`1px solid ${isClinched?accent+'44':isElim?'#1A1A28':'#1C1C26'}`,borderRadius:14,padding:'18px 20px'}}>
-                      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12,flexWrap:'wrap' as const}}>
-                        {/* Rank */}
-                        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,color:idx===0?accent:'#3A3A4E',minWidth:24,flexShrink:0}}>{isClinched?'✓':isElim?'—':idx+1}</div>
-                        {/* Logo / color dot */}
-                        {ins.logo_url
-                          ?<img src={ins.logo_url} alt={ins.team_name} style={{width:32,height:32,borderRadius:6,objectFit:'cover',flexShrink:0,border:`1px solid ${ins.color}44`}}/>
-                          :<div style={{width:10,height:10,borderRadius:'50%',background:ins.color,flexShrink:0}}/>}
-                        {/* Name + trend */}
-                        <div style={{flex:1,minWidth:120}}>
-                          <div style={{display:'flex',alignItems:'center',gap:8}}>
-                            <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase' as const,color:'#EEEEF5'}}>{ins.team_name}</span>
-                            <span style={{fontSize:14,color:trendColor,fontWeight:700,flexShrink:0}}>{trendIcon}</span>
-                          </div>
-                          <div style={{fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace"}}>{ins.wins}–{ins.losses}{ins.magic_number!=null&&ins.magic_number>0?` · Magic #${ins.magic_number}`:''}{isClinched?' · Clinched':''}{isElim?' · Eliminated':''}</div>
-                        </div>
-                        {/* Probability pill */}
-                        <div style={{textAlign:'center' as const,flexShrink:0}}>
-                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:24,color:isElim?'#3A3A4E':isClinched?accent:ins.color,lineHeight:1}}>{Math.round(pct*100)}%</div>
-                          <div style={{fontSize:9,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:1,textTransform:'uppercase' as const}}>{allPlayoffs?'Champ':'Playoff'}</div>
-                        </div>
-                      </div>
-                      {/* Progress bar */}
-                      <div style={{height:3,background:'#1A1A28',borderRadius:2,marginBottom:12,overflow:'hidden'}}>
-                        <div style={{height:'100%',width:`${Math.round(pct*100)}%`,background:isElim?'#2A2A38':isClinched?accent:ins.color,borderRadius:2,transition:'width 0.6s'}}/>
-                      </div>
-                      {/* Insight text */}
-                      <p style={{margin:0,fontSize:13,lineHeight:1.7,color:isElim?'#4A4A5E':'rgba(238,238,245,0.75)',fontFamily:"'DM Sans',sans-serif"}}>{ins.insight_text}</p>
-                    </div>
-                  )
-                })}
-              </div>
-            </section>
-          )}
-
         </>}
 
         {/* SCHEDULE */}
@@ -867,45 +810,164 @@ export default function PublicLeaguePage() {
         </section>}
 
         {/* TEAMS */}
-        {activeTab==='teams'&&<section>
-          <SecTitle accent={accent}>Teams</SecTitle>
-          <div className="team-cards" style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}}>
-            {teams.map(t=>{
-              const s=sMap[t.id],cnt=players.filter(p=>p.team_id===t.id).length,top=standings[0]?.team_id===t.id&&standings[0]?.wins>0
-              return(
-                <button key={t.id} onClick={()=>setTeamModalId(t.id)} style={{position:'relative',overflow:'hidden',background:'#0D0D12',border:`1px solid ${top?t.color+'55':'#1A1A28'}`,borderRadius:16,padding:'20px',cursor:'pointer',textAlign:'left' as const,width:'100%',transition:'transform 0.15s,box-shadow 0.15s'}}
-                  onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=`0 8px 28px ${t.color}22`}}
-                  onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none'}}>
-                  {/* Color wash */}
-                  <div style={{position:'absolute',inset:0,background:`linear-gradient(135deg,${t.color}12 0%,transparent 60%)`,pointerEvents:'none'}}/>
-                  <div style={{position:'absolute',top:0,right:0,width:80,height:80,borderRadius:'0 16px 0 80px',background:`${t.color}10`}}/>
-                  <div style={{position:'relative',display:'flex',alignItems:'flex-start',gap:14}}>
-                    {t.logo_url
-                      ?<img src={t.logo_url} alt={t.name} style={{width:52,height:52,borderRadius:10,objectFit:'cover',flexShrink:0,border:`2px solid ${t.color}44`}}/>
-                      :<div style={{width:52,height:52,borderRadius:12,background:`linear-gradient(135deg,${t.color},${t.color}88)`,boxShadow:`0 0 20px ${t.color}44`,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                        <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,color:'rgba(255,255,255,0.9)',textTransform:'uppercase' as const}}>{t.name.slice(0,2)}</span>
-                      </div>}
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:20,textTransform:'uppercase' as const,color:'#EEEEF5',letterSpacing:0.5,lineHeight:1.1,marginBottom:6}}>{t.name}</div>
-                      <div style={{display:'flex',gap:12,alignItems:'center'}}>
-                        {s&&s.wins+s.losses>0&&(
-                          <>
-                            <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,color:top?accent:'#EEEEF5'}}>{s.wins}–{s.losses}</span>
-                            <span style={{fontSize:10,color:top?accent+'88':'#3A3A4E',fontFamily:"'DM Mono',monospace"}}>
-                              {s.wins+s.losses>0?((s.wins/(s.wins+s.losses))*100).toFixed(0)+'%WIN':''}
-                            </span>
-                          </>
-                        )}
-                        <span style={{fontSize:10,color:'#3A3A4E',fontFamily:"'DM Mono',monospace"}}>{cnt} players</span>
+        {activeTab==='teams'&&(()=>{
+          // Build a helper to render a grid of team cards for a given team list
+          const divLeader=(teamList:Team[])=>teamList.reduce((best,t)=>{
+            const s=sMap[t.id];if(!s)return best;const bs=sMap[best?.id??''];
+            return(!best||s.wins>(bs?.wins??-1))?t:best
+          },null as Team|null)
+          const TeamCard=({t,isLeader}:{t:Team,isLeader:boolean})=>{
+            const s=sMap[t.id],cnt=players.filter(p=>p.team_id===t.id).length
+            return(
+              <button key={t.id} onClick={()=>setTeamModalId(t.id)} style={{position:'relative',overflow:'hidden',background:'#0D0D12',border:`1px solid ${isLeader?t.color+'55':'#1A1A28'}`,borderRadius:16,padding:'20px',cursor:'pointer',textAlign:'left' as const,width:'100%',transition:'transform 0.15s,box-shadow 0.15s'}}
+                onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=`0 8px 28px ${t.color}22`}}
+                onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none'}}>
+                <div style={{position:'absolute',inset:0,background:`linear-gradient(135deg,${t.color}12 0%,transparent 60%)`,pointerEvents:'none'}}/>
+                <div style={{position:'absolute',top:0,right:0,width:80,height:80,borderRadius:'0 16px 0 80px',background:`${t.color}10`}}/>
+                <div style={{position:'relative',display:'flex',alignItems:'flex-start',gap:14}}>
+                  {t.logo_url
+                    ?<img src={t.logo_url} alt={t.name} style={{width:52,height:52,borderRadius:10,objectFit:'cover' as const,flexShrink:0,border:`2px solid ${t.color}44`}}/>
+                    :<div style={{width:52,height:52,borderRadius:12,background:`linear-gradient(135deg,${t.color},${t.color}88)`,boxShadow:`0 0 20px ${t.color}44`,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,color:'rgba(255,255,255,0.9)',textTransform:'uppercase' as const}}>{t.name.slice(0,2)}</span>
+                    </div>}
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:20,textTransform:'uppercase' as const,color:'#EEEEF5',letterSpacing:0.5,lineHeight:1.1,marginBottom:6}}>{t.name}</div>
+                    <div style={{display:'flex',gap:12,alignItems:'center'}}>
+                      {s&&s.wins+s.losses>0&&(
+                        <>
+                          <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:18,color:isLeader?accent:'#EEEEF5'}}>{s.wins}–{s.losses}</span>
+                          <span style={{fontSize:10,color:isLeader?accent+'88':'#3A3A4E',fontFamily:"'DM Mono',monospace"}}>{((s.wins/(s.wins+s.losses))*100).toFixed(0)}%WIN</span>
+                        </>
+                      )}
+                      <span style={{fontSize:10,color:'#3A3A4E',fontFamily:"'DM Mono',monospace"}}>{cnt} players</span>
+                    </div>
+                    {isLeader&&s&&s.wins>0&&<div style={{marginTop:6,fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2}}>🏆 DIVISION LEADER</div>}
+                  </div>
+                </div>
+              </button>
+            )
+          }
+          // Power rankings block for a given set of team_ids
+          const PowerRankings=({teamIds,label}:{teamIds:string[],label?:string})=>{
+            const divInsights=(insights??[]).filter(i=>teamIds.includes(i.team_id))
+            if(!insightsLoading&&divInsights.length===0) return null
+            const allPlayoffs=divInsights.length>0&&divInsights.every(i=>i.playoff_probability>0.98)
+            return(
+              <section style={{marginTop:40,marginBottom:8}}>
+                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
+                  <SectionLabel accent={accent} noMargin>{label??'Power Rankings'}</SectionLabel>
+                  {divInsights[0]?.low_confidence&&(
+                    <span style={{fontSize:10,color:'#6A6A82',fontFamily:"'DM Mono',monospace",background:'#0A0A0E',border:'1px solid #2A2A38',borderRadius:6,padding:'3px 8px',letterSpacing:1,textTransform:'uppercase' as const}}>Early Season</span>
+                  )}
+                </div>
+                {insightsLoading&&divInsights.length===0&&(
+                  <div style={{display:'flex',flexDirection:'column' as const,gap:12}}>
+                    {[0,1,2,3].map(i=><div key={i} style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:14,padding:'18px 20px',height:90,opacity:0.5+i*0.1}}/>)}
+                  </div>
+                )}
+                <div style={{display:'flex',flexDirection:'column' as const,gap:12}}>
+                  {[...divInsights].sort((a,b)=>b.playoff_probability-a.playoff_probability).map((ins,idx)=>{
+                    const isElim=ins.magic_number===null&&ins.games_played>0
+                    const isClinched=ins.magic_number===0
+                    const pct=allPlayoffs?ins.championship_probability:ins.playoff_probability
+                    const trendIcon=ins.trend==='UP'?'↑':ins.trend==='DOWN'?'↓':'→'
+                    const trendColor=ins.trend==='UP'?accent:ins.trend==='DOWN'?'#FF453A':'#6A6A82'
+                    return(
+                      <div key={ins.team_id} style={{background:'#0A0A0E',border:`1px solid ${isClinched?accent+'44':isElim?'#1A1A28':'#1C1C26'}`,borderRadius:14,padding:'18px 20px'}}>
+                        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12,flexWrap:'wrap' as const}}>
+                          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,color:idx===0?accent:'#3A3A4E',minWidth:24,flexShrink:0}}>{isClinched?'✓':isElim?'—':idx+1}</div>
+                          {ins.logo_url
+                            ?<img src={ins.logo_url} alt={ins.team_name} style={{width:32,height:32,borderRadius:6,objectFit:'cover' as const,flexShrink:0,border:`1px solid ${ins.color}44`}}/>
+                            :<div style={{width:10,height:10,borderRadius:'50%',background:ins.color,flexShrink:0}}/>}
+                          <div style={{flex:1,minWidth:120}}>
+                            <div style={{display:'flex',alignItems:'center',gap:8}}>
+                              <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase' as const,color:'#EEEEF5'}}>{ins.team_name}</span>
+                              <span style={{fontSize:14,color:trendColor,fontWeight:700,flexShrink:0}}>{trendIcon}</span>
+                            </div>
+                            <div style={{fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace"}}>{ins.wins}–{ins.losses}{ins.magic_number!=null&&ins.magic_number>0?` · Magic #${ins.magic_number}`:''}{isClinched?' · Clinched':''}{isElim?' · Eliminated':''}</div>
+                          </div>
+                          <div style={{textAlign:'center' as const,flexShrink:0}}>
+                            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:24,color:isElim?'#3A3A4E':isClinched?accent:ins.color,lineHeight:1}}>{Math.round(pct*100)}%</div>
+                            <div style={{fontSize:9,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:1,textTransform:'uppercase' as const}}>{allPlayoffs?'Champ':'Playoff'}</div>
+                          </div>
+                        </div>
+                        <div style={{height:3,background:'#1A1A28',borderRadius:2,marginBottom:12,overflow:'hidden'}}>
+                          <div style={{height:'100%',width:`${Math.round(pct*100)}%`,background:isElim?'#2A2A38':isClinched?accent:ins.color,borderRadius:2,transition:'width 0.6s'}}/>
+                        </div>
+                        <p style={{margin:0,fontSize:13,lineHeight:1.7,color:isElim?'#4A4A5E':'rgba(238,238,245,0.75)',fontFamily:"'DM Sans',sans-serif"}}>{ins.insight_text}</p>
                       </div>
-                      {top&&<div style={{marginTop:6,fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2}}>🏆 LEAGUE LEADER</div>}
+                    )
+                  })}
+                </div>
+              </section>
+            )
+          }
+
+          const hasDivisions=divisions.length>0
+          const splitByDivision=hasDivisions&&!league.cross_division_play
+
+          if(splitByDivision){
+            // Group teams by division; teams with no division_id go into an "Other" bucket
+            const divGroups=divisions.map(div=>({
+              div,
+              teamList:teams.filter(t=>t.division_id===div.id)
+            })).filter(g=>g.teamList.length>0)
+            const unassigned=teams.filter(t=>!t.division_id)
+            return(
+              <section>
+                <SecTitle accent={accent}>Teams</SecTitle>
+                {divGroups.map(({div,teamList})=>{
+                  const leader=divLeader(teamList)
+                  const divTeamIds=teamList.map(t=>t.id)
+                  return(
+                    <div key={div.id} style={{marginBottom:48}}>
+                      <div style={{fontSize:11,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const,marginBottom:14,paddingBottom:8,borderBottom:`1px solid ${accent}22`}}>{div.name}</div>
+                      <div className="team-cards" style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}}>
+                        {teamList.map(t=><TeamCard key={t.id} t={t} isLeader={leader?.id===t.id&&(sMap[t.id]?.wins??0)>0}/>)}
+                      </div>
+                      <PowerRankings teamIds={divTeamIds} label="Power Rankings"/>
+                    </div>
+                  )
+                })}
+                {unassigned.length>0&&(
+                  <div style={{marginBottom:48}}>
+                    <div style={{fontSize:11,color:'#6A6A82',fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const,marginBottom:14}}>Other</div>
+                    <div className="team-cards" style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}}>
+                      {unassigned.map(t=><TeamCard key={t.id} t={t} isLeader={false}/>)}
                     </div>
                   </div>
-                </button>
-              )
-            })}
-          </div>
-        </section>}
+                )}
+              </section>
+            )
+          }
+
+          // No division split — show all teams + single Power Rankings
+          const overallLeader=divLeader(teams)
+          return(
+            <section>
+              <SecTitle accent={accent}>Teams</SecTitle>
+              {hasDivisions&&divisions.map(div=>{
+                const teamList=teams.filter(t=>t.division_id===div.id)
+                if(teamList.length===0) return null
+                const leader=divLeader(teamList)
+                return(
+                  <div key={div.id} style={{marginBottom:32}}>
+                    <div style={{fontSize:11,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const,marginBottom:14,paddingBottom:8,borderBottom:`1px solid ${accent}22`}}>{div.name}</div>
+                    <div className="team-cards" style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}}>
+                      {teamList.map(t=><TeamCard key={t.id} t={t} isLeader={leader?.id===t.id&&(sMap[t.id]?.wins??0)>0}/>)}
+                    </div>
+                  </div>
+                )
+              })}
+              {!hasDivisions&&(
+                <div className="team-cards" style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}}>
+                  {teams.map(t=><TeamCard key={t.id} t={t} isLeader={overallLeader?.id===t.id&&(sMap[t.id]?.wins??0)>0}/>)}
+                </div>
+              )}
+              <PowerRankings teamIds={teams.map(t=>t.id)} label="Power Rankings"/>
+            </section>
+          )
+        })()}
 
         {/* GALLERY */}
         {activeTab==='gallery'&&<section>
