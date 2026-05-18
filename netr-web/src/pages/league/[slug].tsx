@@ -349,17 +349,18 @@ export default function PublicLeaguePage() {
               textTransform:'uppercase' as const,
               lineHeight:0.92,letterSpacing:'-1.5px',
               margin:0,wordBreak:'break-word' as const,
-              textShadow:`0 2px 40px ${accent}30`,
+              color:C.text,
+              textShadow:isDark?`0 2px 40px ${accent}30`:`0 2px 20px rgba(255,255,255,0.6), 0 2px 40px ${accent}30`,
             }}>{league.name}</h1>
           </div>
 
           {/* Description — center stage */}
           {league.description&&(
-            <div style={{borderLeft:`3px solid ${accent}`,paddingLeft:20,marginBottom:22}}>
+            <div style={{borderLeft:`3px solid ${accent}`,paddingLeft:20,marginBottom:22,...(!isDark?{background:'rgba(255,255,255,0.72)',borderRadius:'0 8px 8px 0',padding:'10px 16px 10px 20px'}:{})}}>
               <p style={{
                 fontFamily:"'DM Sans',sans-serif",
                 fontSize:'clamp(16px,2.2vw,21px)',
-                color:C.t90,
+                color:C.text,
                 lineHeight:1.6,
                 margin:0,
                 fontWeight:400,
