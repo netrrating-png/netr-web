@@ -224,7 +224,7 @@ export default function SettingsPage() {
       setAboutSections(data.about_sections ?? [])
       setContactInfo(data.contact_info ?? '')
       setContactPhone(data.social_links?.phone ?? '')
-      setSocialLinks(data.social_links ? Object.fromEntries(Object.entries(data.social_links).filter(([k]) => k !== 'phone')) : {})
+      setSocialLinks(data.social_links ? Object.fromEntries(Object.entries(data.social_links).filter(([k]) => k !== 'phone')) as Record<string,string> : {})
       setCrossDivisionPlay(data.cross_division_play ?? true)
       setSeasonEndDate(data.season_end_date ?? '')
       setRulesSections(data.rules_sections ?? [])
