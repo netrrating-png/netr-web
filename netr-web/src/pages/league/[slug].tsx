@@ -654,15 +654,22 @@ export default function PublicLeaguePage() {
             <section style={{marginBottom:48}}>
               <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
                 <SectionLabel accent={accent} noMargin>Power Rankings</SectionLabel>
-                {insights[0]?.low_confidence&&(
+                {insights?.[0]?.low_confidence&&(
                   <span style={{fontSize:10,color:'#6A6A82',fontFamily:"'DM Mono',monospace",background:'#0A0A0E',border:'1px solid #2A2A38',borderRadius:6,padding:'3px 8px',letterSpacing:1,textTransform:'uppercase' as const}}>Early Season</span>
                 )}
               </div>
+              {insightsLoading&&!insights&&(
+                <div style={{display:'flex',flexDirection:'column' as const,gap:12}}>
+                  {[0,1,2,3].map(i=>(
+                    <div key={i} style={{background:'#0A0A0E',border:'1px solid #1C1C26',borderRadius:14,padding:'18px 20px',height:90,opacity:0.5+i*0.1}}/>
+                  ))}
+                </div>
+              )}
               <div style={{display:'flex',flexDirection:'column' as const,gap:12}}>
-                {[...insights].sort((a,b)=>b.playoff_probability-a.playoff_probability).map((ins,idx)=>{
+                {[...(insights??[])].sort((a,b)=>b.playoff_probability-a.playoff_probability).map((ins,idx)=>{
                   const isElim=ins.magic_number===null&&ins.games_played>0
                   const isClinched=ins.magic_number===0
-                  const allPlayoffs=insights.every(i=>i.playoff_probability>0.98)
+                  const allPlayoffs=(insights??[]).every(i=>i.playoff_probability>0.98)
                   const pct=allPlayoffs?ins.championship_probability:ins.playoff_probability
                   const trendIcon=ins.trend==='UP'?'↑':ins.trend==='DOWN'?'↓':'→'
                   const trendColor=ins.trend==='UP'?accent:ins.trend==='DOWN'?'#FF453A':'#6A6A82'
