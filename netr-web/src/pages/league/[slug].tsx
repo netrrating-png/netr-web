@@ -465,6 +465,24 @@ export default function PublicLeaguePage() {
         {/* OVERVIEW */}
         {activeTab==='overview'&&<>
 
+          {/* Sponsors */}
+          {sponsors.length>0&&(
+            <section style={{marginBottom:32}}>
+              <SectionLabel accent={accent}>Our Sponsors</SectionLabel>
+              <div style={{display:'flex',flexWrap:'wrap' as const,gap:10,alignItems:'center'}}>
+                {sponsors.map(sp=>(
+                  <a key={sp.id} href={sp.website_url??undefined} target="_blank" rel="noopener noreferrer"
+                    style={{display:'flex',alignItems:'center',gap:10,background:'#0D0D12',border:'1px solid #1A1A28',borderRadius:12,padding:'12px 18px',textDecoration:'none',transition:'border-color 0.15s'}}
+                    onMouseEnter={e=>e.currentTarget.style.borderColor=accent+'55'}
+                    onMouseLeave={e=>e.currentTarget.style.borderColor='#1A1A28'}>
+                    {sp.logo_url&&<img src={sp.logo_url} alt={sp.name} style={{height:28,maxWidth:72,objectFit:'contain',borderRadius:4,background:'#fff',padding:'2px 6px'}}/>}
+                    <span style={{fontFamily:displayFont,fontWeight:700,fontSize:15,textTransform:'uppercase' as const,color:'#EEEEF5'}}>{sp.name}</span>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Player of the Week */}
           {pStats.length>0&&(()=>{
             const potw=[...pStats].sort((a,b)=>b.ppg-a.ppg)[0]
@@ -627,23 +645,6 @@ export default function PublicLeaguePage() {
           )}
 
 
-          {/* Sponsors */}
-          {sponsors.length>0&&(
-            <section style={{marginBottom:48}}>
-              <SectionLabel accent={accent}>Our Sponsors</SectionLabel>
-              <div style={{display:'flex',flexWrap:'wrap' as const,gap:10,alignItems:'center'}}>
-                {sponsors.map(sp=>(
-                  <a key={sp.id} href={sp.website_url??undefined} target="_blank" rel="noopener noreferrer"
-                    style={{display:'flex',alignItems:'center',gap:10,background:'#0D0D12',border:'1px solid #1A1A28',borderRadius:12,padding:'12px 18px',textDecoration:'none',transition:'border-color 0.15s'}}
-                    onMouseEnter={e=>e.currentTarget.style.borderColor=accent+'55'}
-                    onMouseLeave={e=>e.currentTarget.style.borderColor='#1A1A28'}>
-                    {sp.logo_url&&<img src={sp.logo_url} alt={sp.name} style={{height:28,maxWidth:72,objectFit:'contain',borderRadius:4,background:'#fff',padding:'2px 6px'}}/>}
-                    <span style={{fontFamily:displayFont,fontWeight:700,fontSize:15,textTransform:'uppercase' as const,color:'#EEEEF5'}}>{sp.name}</span>
-                  </a>
-                ))}
-              </div>
-            </section>
-          )}
         </>}
 
         {/* SCHEDULE */}
