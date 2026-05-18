@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { getFontFamily, getFontGF } from '../../lib/league-fonts'
 import { Globe, MapPin, Mail, X } from 'lucide-react'
+import { FaInstagram, FaXTwitter, FaFacebook, FaTiktok, FaYoutube } from 'react-icons/fa6'
 import type { InsightResult } from '../../lib/league-insights'
 
 type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null;league_font:string|null;signup_url:string|null;signup_label:string|null;rules_sections:{title:string;content:string}[]|null;about_sections:{title:string;content:string}[]|null;cross_division_play:boolean;league_theme:'dark'|'light'|null }
@@ -1402,55 +1403,39 @@ export default function PublicLeaguePage() {
   </>)
 }
 
-function IgIcon() {
-  return (
-    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-      <circle cx="12" cy="12" r="4"/>
-      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
-    </svg>
-  )
-}
-function XIcon() {
-  return (
-    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 4 L20 20 M20 4 L4 20"/>
-    </svg>
-  )
-}
-function FbIcon() {
-  return (
-    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
-    </svg>
-  )
-}
-function TtIcon() {
-  return (
-    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/>
-    </svg>
-  )
-}
-function YtIcon() {
-  return (
-    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="5" width="20" height="14" rx="4"/>
-      <polygon points="10,9 16,12 10,15" fill="currentColor" stroke="none"/>
-    </svg>
-  )
-}
-
 function SocialIcons({links,accent}:{links:Record<string,string>;accent:string}) {
-  const C=React.useContext(ThemeCtx)
-  const isDark=C.pageBg==='#040406'
-  const defs:{[k:string]:{icon:React.ReactNode;label:string;color:string;url:(h:string)=>string}} = {
-    instagram:{icon:<IgIcon/>,label:'Instagram',color:'#E1306C',url:h=>`https://instagram.com/${h}`},
-    twitter:  {icon:<XIcon/>, label:'X / Twitter',color:'#E7E9EA',url:h=>`https://twitter.com/${h}`},
-    facebook: {icon:<FbIcon/>,label:'Facebook',  color:'#1877F2',url:h=>`https://facebook.com/${h}`},
-    tiktok:   {icon:<TtIcon/>,label:'TikTok',    color:'#69C9D0',url:h=>`https://tiktok.com/@${h}`},
-    youtube:  {icon:<YtIcon/>,label:'YouTube',   color:'#FF0000',url:h=>`https://youtube.com/@${h}`},
-    website:  {icon:<Globe size={18}/>,label:'Website',color:accent,url:h=>h},
+  const defs:{[k:string]:{icon:React.ReactNode;label:string;bg:string;iconColor:string;url:(h:string)=>string}} = {
+    instagram:{
+      icon:<FaInstagram size={17}/>,label:'Instagram',
+      bg:'linear-gradient(45deg,#f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%)',
+      iconColor:'#fff',
+      url:h=>`https://instagram.com/${h}`,
+    },
+    twitter:{
+      icon:<FaXTwitter size={16}/>,label:'X / Twitter',
+      bg:'#000000',iconColor:'#fff',
+      url:h=>`https://twitter.com/${h}`,
+    },
+    facebook:{
+      icon:<FaFacebook size={17}/>,label:'Facebook',
+      bg:'#1877F2',iconColor:'#fff',
+      url:h=>`https://facebook.com/${h}`,
+    },
+    tiktok:{
+      icon:<FaTiktok size={16}/>,label:'TikTok',
+      bg:'#010101',iconColor:'#fff',
+      url:h=>`https://tiktok.com/@${h}`,
+    },
+    youtube:{
+      icon:<FaYoutube size={17}/>,label:'YouTube',
+      bg:'#FF0000',iconColor:'#fff',
+      url:h=>`https://youtube.com/@${h}`,
+    },
+    website:{
+      icon:<Globe size={16}/>,label:'Website',
+      bg:accent,iconColor:'#fff',
+      url:h=>h,
+    },
   }
   return(
     <>
@@ -1458,7 +1443,7 @@ function SocialIcons({links,accent}:{links:Record<string,string>;accent:string})
         const d=defs[k]; if(!d) return null
         return(
           <a key={k} href={d.url(handle)} target="_blank" rel="noopener noreferrer" title={d.label}
-            style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:34,height:34,borderRadius:10,background:isDark?`${d.color}18`:'rgba(255,255,255,0.88)',border:`1px solid ${isDark?d.color+'44':d.color+'66'}`,color:d.color,textDecoration:'none',flexShrink:0,transition:'background 0.2s'}}>
+            style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:36,height:36,borderRadius:10,background:d.bg,color:d.iconColor,textDecoration:'none',flexShrink:0,transition:'opacity 0.2s',boxShadow:'0 2px 8px rgba(0,0,0,0.25)'}}>
             {d.icon}
           </a>
         )
