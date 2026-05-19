@@ -69,6 +69,16 @@ export default function JoinTeamPage() {
       .update({ profile_id: userId, is_claimed: true })
       .eq('id', selectedPlayer.id)
 
+    // Auto-join the team's crew chat so it appears in the player's Messages tab
+    if (team?.crew_id) {
+      await supabase
+        .from('crew_members')
+        .upsert(
+          { crew_id: team.crew_id, user_id: userId, joined_at: new Date().toISOString() },
+          { onConflict: 'crew_id,user_id' }
+        )
+    }
+
     setPlayers(prev => prev.map(p => p.id === selectedPlayer.id ? { ...p, profile_id: userId, is_claimed: true } : p))
     setAuthLoading(false)
     setStep('done')

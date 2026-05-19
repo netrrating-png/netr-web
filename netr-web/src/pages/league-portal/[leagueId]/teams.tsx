@@ -55,7 +55,9 @@ export default function TeamsPage() {
   const [editingFeeNote, setEditingFeeNote] = useState<string | null>(null)
   const [feeNoteValue, setFeeNoteValue] = useState('')
 
+  const [userId, setUserId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [settingUpChats, setSettingUpChats] = useState(false)
   const [showNetrInfo, setShowNetrInfo] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
 
@@ -89,6 +91,7 @@ export default function TeamsPage() {
     if (!leagueId) return
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.replace('/league-portal/login'); return }
+      setUserId(user.id)
 
       const [leagueRes, teamsRes, playersRes, divisionsRes] = await Promise.all([
         supabase.from('leagues').select('*').eq('id', leagueId).eq('owner_id', user.id).single(),
@@ -152,13 +155,52 @@ export default function TeamsPage() {
     setSaving(true)
     let logoUrl: string | null = null
     if (logoFile) logoUrl = await uploadLogo(logoFile)
+
+    // Create a crew for this team so players get a group chat automatically
+    let crewId: string | null = null
+    if (userId) {
+      const { data: crew } = await supabase
+        .from('crews')
+        .insert({ name: teamName, icon: 'shield', creator_id: userId, admin_id: userId, password: Math.random().toString(36).slice(2, 10), is_public: false })
+        .select('id').single()
+      crewId = crew?.id ?? null
+    }
+
     const { data } = await supabase
       .from('league_teams')
-      .insert({ league_id: leagueId, name: teamName, color: teamColor, logo_url: logoUrl })
+      .insert({ league_id: leagueId, name: teamName, color: teamColor, logo_url: logoUrl, crew_id: crewId })
       .select().single()
     if (data) setTeams(prev => [...prev, { ...data, players: [] }])
     setTeamName(''); setTeamColor('#39FF14'); clearAddLogo()
     setShowTeamForm(false); setSaving(false)
+  }
+
+  // ── Backfill crew chats for existing teams ────────────────────
+  async function setupTeamChats() {
+    if (!userId) return
+    setSettingUpChats(true)
+    const teamsWithoutCrew = teams.filter(t => !t.crew_id)
+    for (const team of teamsWithoutCrew) {
+      const { data: crew } = await supabase
+        .from('crews')
+        .insert({ name: team.name, icon: 'shield', creator_id: userId, admin_id: userId, password: Math.random().toString(36).slice(2, 10), is_public: false })
+        .select('id').single()
+      if (!crew) continue
+
+      await supabase.from('league_teams').update({ crew_id: crew.id }).eq('id', team.id)
+
+      // Auto-add all claimed players to the crew
+      const claimed = team.players.filter(p => p.is_claimed && p.profile_id)
+      if (claimed.length > 0) {
+        await supabase.from('crew_members').upsert(
+          claimed.map(p => ({ crew_id: crew.id, user_id: p.profile_id, joined_at: new Date().toISOString() })),
+          { onConflict: 'crew_id,user_id' }
+        )
+      }
+
+      setTeams(prev => prev.map(t => t.id === team.id ? { ...t, crew_id: crew.id } : t))
+    }
+    setSettingUpChats(false)
   }
 
   // ── Edit team ─────────────────────────────────────────────────
@@ -386,7 +428,12 @@ export default function TeamsPage() {
               <h1 style={S.title}>Teams & Rosters</h1>
               <p style={S.sub}>{teams.length} team{teams.length !== 1 ? 's' : ''} · {teams.reduce((n, t) => n + t.players.length, 0)} players total</p>
             </div>
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const }}>
+              {teams.some(t => !t.crew_id) && (
+                <button onClick={setupTeamChats} disabled={settingUpChats} style={{ ...S.importBtn, background: 'rgba(57,255,20,0.08)', border: '1px solid rgba(57,255,20,0.25)', color: '#39FF14' }}>
+                  {settingUpChats ? 'Setting up…' : '💬 Set Up Team Chats'}
+                </button>
+              )}
               <button onClick={() => { setShowCsvModal(true); setImportDone('') }} style={S.importBtn}>⬆ Import CSV</button>
               <button onClick={() => setShowTeamForm(true)} style={S.addBtn}>+ Add Team</button>
             </div>
