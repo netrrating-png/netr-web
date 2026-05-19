@@ -802,10 +802,12 @@ export default function SettingsPage() {
             {/* Logo */}
             <div style={S.brandingSection}>
               <div style={S.brandingLabel}>League Logo</div>
-              <div style={S.hint}>Shown in the header of your league page. Recommended: 512×512px square.</div>
+              <div style={S.hint}>Shown in the header of your league page. Use a square image (1:1 ratio) for best results — recommended size is <strong>512×512px</strong> or larger. PNG with a transparent background works best.</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 12 }}>
                 {logoUrl && (
-                  <img src={logoUrl} alt="League logo" style={{ width: 64, height: 64, borderRadius: 10, objectFit: 'cover', border: '1px solid #2A2A38', flexShrink: 0 }} />
+                  <div style={{ width: 64, height: 64, borderRadius: 10, border: '1px solid #2A2A38', flexShrink: 0, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    <img src={logoUrl} alt="League logo" style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block' }} />
+                  </div>
                 )}
                 <div>
                   <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: 'none' }} onChange={handleLogoUpload} />
