@@ -299,7 +299,7 @@ export default function PublicLeaguePage() {
                   src={league.logo_url}
                   alt={league.name}
                   className="hero-logo"
-                  style={{position:'relative',width:88,height:88,borderRadius:16,objectFit:'contain',background:C.cardBg,display:'block',padding:4}}
+                  style={{position:'relative',width:88,height:88,borderRadius:16,objectFit:'contain',background:'#fff',display:'block',padding:6}}
                 />
               </div>
             )}
