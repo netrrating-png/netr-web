@@ -898,7 +898,7 @@ export default function PublicLeaguePage() {
                               <span style={{fontSize:14,color:trendColor,fontWeight:700,flexShrink:0}}>{trendIcon}</span>
                             </div>
                             <div style={{fontSize:11,color:C.textMuted,fontFamily:"'DM Mono',monospace"}}>
-                              {ins.wins}–{ins.losses}
+                              {sMap[ins.team_id]?.wins??ins.wins}–{sMap[ins.team_id]?.losses??ins.losses}
                               {ins.magic_number!=null&&ins.magic_number>0&&(
                                 <span style={{color:'#F5A623',marginLeft:4}}>· Magic #{ins.magic_number}</span>
                               )}
