@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
-import { supabase, fetchAllCourts, League, LeagueTeam, LeagueGame, LeagueGameAttendance, LeagueDivision } from '../../../lib/supabase'
+import { supabase, fetchAllCourts, League, LeagueTeam, LeagueGame, LeagueDivision } from '../../../lib/supabase'
 import { CourtPicker } from '../../../components/CourtPicker'
 import { PortalNav } from './index'
 import { DISPLAY_DOW, DISPLAY_LABELS, generateMatchups, assignDates, AssignConfig, GameSlot, getPlayoffBracket, fmtPreviewRange } from '../../../lib/schedule-utils'
@@ -45,8 +45,6 @@ export default function SchedulePage() {
   const [availability, setAvailability] = useState<Record<string, number[]>>({})
   const [teamTimeAvail, setTeamTimeAvail] = useState<Record<string, string[]>>({})
 
-  // attendance (RSVP counts per game)
-  const [attendance, setAttendance] = useState<LeagueGameAttendance[]>([])
 
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
   const [deletingAll, setDeletingAll] = useState(false)
@@ -132,14 +130,6 @@ export default function SchedulePage() {
         setDivFilter(divs[0].id)
       }
 
-      const gameIds = (gamesRes.data ?? []).map((g: LeagueGame) => g.id)
-      if (gameIds.length > 0) {
-        const { data: att } = await supabase
-          .from('league_game_attendance')
-          .select('game_id,player_id,status')
-          .in('game_id', gameIds)
-        setAttendance((att ?? []) as LeagueGameAttendance[])
-      }
 
       setLoading(false)
     })
@@ -817,7 +807,7 @@ export default function SchedulePage() {
             <section style={S.section}>
               <div style={S.sectionLabel}>Results ({completed.length})</div>
               <div style={S.gameList}>
-                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} teams={divTeams} onDelete={() => deleteGame(g.id)} onEdit={editGame} onInsightsNeeded={triggerInsights} leagueId={leagueId} rsvpYes={attendance.filter(a => a.game_id === g.id && a.status === 'yes').length} />)}
+                {[...completed].reverse().map(g => <GameRow key={g.id} game={g} teams={divTeams} onDelete={() => deleteGame(g.id)} onEdit={editGame} onInsightsNeeded={triggerInsights} leagueId={leagueId} />)}
               </div>
             </section>
           )}
@@ -827,7 +817,7 @@ export default function SchedulePage() {
             <section style={S.section}>
               <div style={S.sectionLabel}>Upcoming ({upcoming.length})</div>
               <div style={S.gameList}>
-                {upcoming.map(g => <GameRow key={g.id} game={g} teams={divTeams} onCancel={() => cancelGame(g.id)} onDelete={() => deleteGame(g.id)} onEdit={editGame} onInsightsNeeded={triggerInsights} leagueId={leagueId} rsvpYes={attendance.filter(a => a.game_id === g.id && a.status === 'yes').length} />)}
+                {upcoming.map(g => <GameRow key={g.id} game={g} teams={divTeams} onCancel={() => cancelGame(g.id)} onDelete={() => deleteGame(g.id)} onEdit={editGame} onInsightsNeeded={triggerInsights} leagueId={leagueId} />)}
               </div>
             </section>
           )}
@@ -918,7 +908,7 @@ function fmtSlot(t: string): string {
   return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`
 }
 
-function GameRow({ game, teams = [], onCancel, onDelete, onEdit, onInsightsNeeded, leagueId, rsvpYes = 0 }: {
+function GameRow({ game, teams = [], onCancel, onDelete, onEdit, onInsightsNeeded, leagueId }: {
   game: GameWithTeams
   teams?: LeagueTeam[]
   onCancel?: () => void
@@ -926,7 +916,6 @@ function GameRow({ game, teams = [], onCancel, onDelete, onEdit, onInsightsNeede
   onEdit?: (id: string, updates: Partial<LeagueGame>) => void
   onInsightsNeeded?: () => void
   leagueId: string
-  rsvpYes?: number
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -1053,11 +1042,6 @@ function GameRow({ game, teams = [], onCancel, onDelete, onEdit, onInsightsNeede
         </div>
 
         <div style={S.gameActions}>
-          {game.status === 'scheduled' && rsvpYes > 0 && (
-            <span style={{ fontSize: 12, color: '#39FF14', fontFamily: "'DM Mono', monospace", background: 'rgba(57,255,20,0.08)', border: '1px solid rgba(57,255,20,0.2)', borderRadius: 99, padding: '3px 10px' }}>
-              ✓ {rsvpYes} in
-            </span>
-          )}
           {isPastScheduled && <span style={{ fontSize: 11, color: '#FF453A', fontFamily: "'DM Mono', monospace", background: 'rgba(255,69,58,0.1)', border: '1px solid rgba(255,69,58,0.25)', borderRadius: 99, padding: '3px 10px' }}>needs score</span>}
           {game.status === 'final' && <span style={S.finalBadge}>Final</span>}
           {game.status === 'cancelled' && <span style={{ ...S.finalBadge, background: 'rgba(255,69,58,0.1)', color: '#FF453A' }}>Cancelled</span>}

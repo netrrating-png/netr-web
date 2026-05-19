@@ -79,8 +79,6 @@ export default function PublicLeaguePage() {
   const [teamModalId,setTeamModalId] = useState<string|null>(null)
   const [sortBy,setSortBy] = useState<SortKey>('ppg')
   const [myPlayerId,setMyPlayerId] = useState<string|null>(null)
-  const [attendanceCounts,setAttendanceCounts] = useState<Record<string,number>>({})
-  const [myAttendance,setMyAttendance] = useState<Record<string,'yes'|'no'|'maybe'>>({})
   const [sponsors,setSponsors] = useState<Sponsor[]>([])
   const [divisions,setDivisions] = useState<Division[]>([])
   const [galleryPhotos,setGalleryPhotos] = useState<GalleryPhoto[]>([])
@@ -121,18 +119,6 @@ export default function PublicLeaguePage() {
     return()=>clearInterval(t)
   },[allGames])
 
-  async function rsvp(gameId:string, status:'yes'|'no'|'maybe') {
-    if(!myPlayerId) return
-    setMyAttendance(prev=>({...prev,[gameId]:status}))
-    setAttendanceCounts(prev=>{
-      const prev_status=myAttendance[gameId]
-      const next={...prev}
-      if(prev_status==='yes') next[gameId]=(next[gameId]||1)-1
-      if(status==='yes') next[gameId]=(next[gameId]||0)+1
-      return next
-    })
-    await supabase.from('league_game_attendance').upsert({game_id:gameId,player_id:myPlayerId,status},{onConflict:'game_id,player_id'})
-  }
 
   async function load() {
     const {data:lg} = await supabase.from('leagues').select('*').eq('slug',slug).single()
@@ -160,23 +146,11 @@ export default function PublicLeaguePage() {
       const {data:sd}=await supabase.from('league_player_stats').select('game_id,player_id,team_id,points,rebounds,assists,steals,blocks,turnovers,field_goals_made,field_goals_attempted,three_pointers_made,three_pointers_attempted,free_throws_made,free_throws_attempted').in('player_id',pids)
       setAllStats(sd??[])
     }
-    // load attendance counts + check if viewer is a claimed player
-    const upcomingIds=(gr.data??[]).filter((g:Game)=>g.status==='scheduled').map((g:Game)=>g.id)
-    if(upcomingIds.length>0){
-      const {data:att}=await supabase.from('league_game_attendance').select('game_id,player_id,status').in('game_id',upcomingIds)
-      const counts:Record<string,number>={}
-      for(const a of (att??[])) if(a.status==='yes') counts[a.game_id]=(counts[a.game_id]||0)+1
-      setAttendanceCounts(counts)
-      const {data:{user}}=await supabase.auth.getUser()
-      if(user){
-        const {data:myPlayer}=await supabase.from('league_players').select('id').eq('league_id',lg.id).eq('profile_id',user.id).single()
-        if(myPlayer){
-          setMyPlayerId(myPlayer.id)
-          const myAtt:Record<string,'yes'|'no'|'maybe'>={}
-          for(const a of (att??[])) if(a.player_id===myPlayer.id) myAtt[a.game_id]=a.status
-          setMyAttendance(myAtt)
-        }
-      }
+    // check if viewer is a claimed player (for calendar personalization)
+    const {data:{user}}=await supabase.auth.getUser()
+    if(user){
+      const {data:myPlayer}=await supabase.from('league_players').select('id').eq('league_id',lg.id).eq('profile_id',user.id).single()
+      if(myPlayer) setMyPlayerId(myPlayer.id)
     }
     setLoading(false)
     // Load insights (GET auto-generates on first visit)
@@ -631,10 +605,7 @@ export default function PublicLeaguePage() {
               {upcoming.length===0?<Empty>No games scheduled yet.</Empty>:(
                 <div style={{display:'flex',flexDirection:'column',gap:10}}>
                   {upcoming.slice(0,4).map(g=>(
-                    <div key={g.id}>
-                      <GCard g={g} tMap={tMap} accent={accent} rsvpCount={attendanceCounts[g.id]||0}/>
-                      {myPlayerId&&<RsvpRow gameId={g.id} myStatus={myAttendance[g.id]||null} accent={accent} onRsvp={rsvp}/>}
-                    </div>
+                    <GCard key={g.id} g={g} tMap={tMap} accent={accent}/>
                   ))}
                   {upcoming.length>4&&(
                     <button onClick={()=>setTab('schedule')} style={{background:`${accent}10`,border:`1px solid ${accent}30`,borderRadius:12,padding:'13px',color:accent,fontSize:12,fontFamily:"'DM Mono',monospace",cursor:'pointer',textAlign:'center' as const,letterSpacing:1.5,textTransform:'uppercase' as const}}>
@@ -1468,21 +1439,8 @@ function CalendarButtons({slug,teamId,size}:{slug:string;teamId?:string;size:'sm
   )
 }
 
-function RsvpRow({gameId,myStatus,accent,onRsvp}:{gameId:string;myStatus:'yes'|'no'|'maybe'|null;accent:string;onRsvp:(id:string,s:'yes'|'no'|'maybe')=>void}) {
-  const C=React.useContext(ThemeCtx)
-  return(
-    <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 16px 10px',background:C.cardBg,borderRadius:'0 0 10px 10px',borderLeft:`1px solid ${C.border}`,borderRight:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`,marginTop:-2}}>
-      <span style={{fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace",marginRight:4}}>RSVP:</span>
-      {(['yes','no','maybe'] as const).map(s=>(
-        <button key={s} onClick={()=>onRsvp(gameId,s)} style={{background:myStatus===s?(s==='yes'?`${accent}22`:s==='no'?'rgba(255,68,85,0.15)':'rgba(245,197,66,0.15)'):'transparent',border:`1px solid ${myStatus===s?(s==='yes'?accent:s==='no'?'#FF4455':'#F5C542'):C.textFaint}`,borderRadius:99,color:myStatus===s?(s==='yes'?accent:s==='no'?'#FF4455':'#F5C542'):C.textMuted,fontSize:11,fontFamily:"'DM Mono',monospace",padding:'3px 10px',cursor:'pointer'}}>
-          {s==='yes'?'✓ In':s==='no'?'✗ Out':'? Maybe'}
-        </button>
-      ))}
-    </div>
-  )
-}
 
-function GCard({g,tMap,accent,onClick,showLoc,rsvpCount}:{g:Game;tMap:Record<string,Team>;accent:string;onClick?:()=>void;showLoc?:boolean;rsvpCount?:number}) {
+function GCard({g,tMap,accent,onClick,showLoc}:{g:Game;tMap:Record<string,Team>;accent:string;onClick?:()=>void;showLoc?:boolean}) {
   const C=React.useContext(ThemeCtx)
   const home=tMap[g.home_team_id],away=tMap[g.away_team_id],fin=g.status==='final',cancelled=g.status==='cancelled',homeWon=(g.home_score??0)>(g.away_score??0)
   const d=new Date(g.scheduled_at)
@@ -1522,7 +1480,6 @@ function GCard({g,tMap,accent,onClick,showLoc,rsvpCount}:{g:Game;tMap:Record<str
               <div style={{fontSize:9,color:C.text,fontFamily:"'DM Mono',monospace",letterSpacing:1}}>{dayStr}</div>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:28,color:C.pageBg,lineHeight:1,WebkitTextStroke:`1px ${accent}`,textShadow:`0 0 8px ${accent}40`}}>{dateNum}</div>
               <div style={{fontSize:10,color:C.text,fontFamily:"'DM Mono',monospace"}}>{timeStr}</div>
-              {rsvpCount!=null&&rsvpCount>0&&<div style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",marginTop:2}}>✓{rsvpCount}</div>}
             </>
           )}
         </div>
