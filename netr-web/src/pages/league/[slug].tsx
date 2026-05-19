@@ -19,6 +19,7 @@ type Player = { id:string;display_name:string;jersey_number:string|null;position
 
 function makeC(isDark:boolean) {
   return {
+    isDark,
     pageBg:    isDark?'#040406'                  :'#F2F2F7',
     cardBg:    isDark?'#0A0A0E'                  :'#FFFFFF',
     cardBg2:   isDark?'#0D0D12'                  :'#F8F8FC',
@@ -1478,7 +1479,7 @@ function GCard({g,tMap,accent,onClick,showLoc}:{g:Game;tMap:Record<string,Team>;
           ):(
             <>
               <div style={{fontSize:9,color:C.text,fontFamily:"'DM Mono',monospace",letterSpacing:1}}>{dayStr}</div>
-              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:28,color:C.pageBg,lineHeight:1,WebkitTextStroke:`1px ${accent}`,textShadow:`0 0 8px ${accent}40`}}>{dateNum}</div>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:28,color:C.isDark?C.pageBg:'#0A0A14',lineHeight:1,WebkitTextStroke:`1px ${accent}`,textShadow:`0 0 8px ${accent}40`}}>{dateNum}</div>
               <div style={{fontSize:10,color:C.text,fontFamily:"'DM Mono',monospace"}}>{timeStr}</div>
             </>
           )}
