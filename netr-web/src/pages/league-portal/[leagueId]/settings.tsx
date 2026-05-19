@@ -1834,14 +1834,14 @@ export default function SettingsPage() {
                   {process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME && (
                     <>
                       <input ref={photoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoFileChange} />
-                      <button type="button" onClick={() => photoInputRef.current?.click()} style={{ ...S.cancelBtn, whiteSpace: 'nowrap' as const }} disabled={photoUploading}>
+                      <button type="button" onClick={() => photoInputRef.current?.click()} style={{ ...S.saveBtn, whiteSpace: 'nowrap' as const, ...(photoUploading ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }} disabled={photoUploading}>
                         {photoUploading ? 'Uploading…' : '↑ Upload'}
                       </button>
                     </>
                   )}
                 </div>
                 <div style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Sans', sans-serif", marginTop: 6, lineHeight: 1.5 }}>
-                  Tap <strong style={{ color: '#C8C8D4' }}>↑ Upload</strong> to add a photo directly from your device — easiest option. Or paste a direct image URL from any image host.
+                  Use <strong style={{ color: '#C8C8D4' }}>↑ Upload</strong> to pick a photo from your device. The URL field is only needed if your photo is already hosted somewhere online.
                 </div>
               </div>
               <div>
