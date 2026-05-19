@@ -267,6 +267,7 @@ function generateInsightTexts(
   lowConfidence: boolean
 ): Record<string, string> {
   const results: Record<string, string> = {}
+  const allMakePlayoffs = playoffSpots >= teams.length
 
   // Use wins count as a lightweight variation seed so same-tier teams don't sound identical
   const v = (t: TeamData, options: string[]) => options[t.wins % options.length]
@@ -299,10 +300,17 @@ function generateInsightTexts(
 
     // ── Early season ──────────────────────────────────────────────────────────
     if (lowConfidence) {
-      results[name] = v(t, [
-        `Only ${gp} game${gp !== 1 ? 's' : ''} in, so treat these numbers as directional rather than definitive — the playoff picture won't sharpen for a few more weeks. ${name} sits at ${t.wins}-${t.losses}, but with this small a sample, every upcoming game carries outsized weight. Check back once the league hits five or six games played.`,
-        `It's early days for ${name} at ${t.wins}-${t.losses}, and the ${pPct}% playoff odds will swing dramatically with each result. Small sample sizes make any projection low-confidence right now. The real story starts to emerge around game five or six.`,
-      ])
+      if (allMakePlayoffs) {
+        results[name] = v(t, [
+          `Only ${gp} game${gp !== 1 ? 's' : ''} in, so treat these numbers as directional rather than definitive — everyone makes the playoffs, so the real question is who wins the championship. ${name} sits at ${t.wins}-${t.losses} with ${cPct}% championship odds, but small sample sizes mean these projections will shift dramatically. Check back once the league hits five or six games played.`,
+          `It's early days for ${name} at ${t.wins}-${t.losses}. Since every team makes the playoffs, the ${cPct}% championship odds are what to watch — and they'll swing with each result at this stage. The seeding picture will get clearer around game five or six.`,
+        ])
+      } else {
+        results[name] = v(t, [
+          `Only ${gp} game${gp !== 1 ? 's' : ''} in, so treat these numbers as directional rather than definitive — the playoff picture won't sharpen for a few more weeks. ${name} sits at ${t.wins}-${t.losses}, but with this small a sample, every upcoming game carries outsized weight. Check back once the league hits five or six games played.`,
+          `It's early days for ${name} at ${t.wins}-${t.losses}, and the ${pPct}% playoff odds will swing dramatically with each result. Small sample sizes make any projection low-confidence right now. The real story starts to emerge around game five or six.`,
+        ])
+      }
       continue
     }
 
@@ -311,7 +319,9 @@ function generateInsightTexts(
       const champFocus = cPct >= 40 ? `At ${cPct}% championship odds, they're the team to beat in the postseason.`
                        : cPct >= 20 ? `Their ${cPct}% championship odds make them a legitimate title contender.`
                        :              `The ${cPct}% championship probability means the postseason bracket will define their legacy this season.`
-      results[name] = `${name} has clinched their playoff spot at ${t.wins}-${t.losses} — the regular season grind is done. ${champFocus} ${netrLine}`
+      results[name] = allMakePlayoffs
+        ? `${name} is ${t.wins}-${t.losses} and everyone's already in — the only question is who takes home the title. ${champFocus} ${netrLine}`
+        : `${name} has clinched their playoff spot at ${t.wins}-${t.losses} — the regular season grind is done. ${champFocus} ${netrLine}`
       continue
     }
 
@@ -320,6 +330,15 @@ function generateInsightTexts(
       results[name] = v(t, [
         `The playoff door has closed for ${name} this season at ${t.wins}-${t.losses}. ${ptDiff >= 0 ? `The ${ptDiffStr} point differential shows they can compete on any given night` : `Tightening that ${ptDiffStr} point differential needs to be the offseason priority`} — the remaining games are a chance to finish with pride and set the tone for next year.`,
         `${name} is out of the playoff race at ${t.wins}-${t.losses}, but that doesn't make the remaining games meaningless. ${formLine} Playing spoiler and finishing above .500 would be a strong way to close out the season.`,
+      ])
+      continue
+    }
+
+    // ── All make playoffs: focus on seeding and championship ──────────────────
+    if (allMakePlayoffs) {
+      results[name] = v(t, [
+        `Everyone's in the playoffs — for ${name} at ${t.wins}-${t.losses}, it's all about championship odds now sitting at ${cPct}%. ${formLine} Seeding will matter when the bracket is set.`,
+        `With every team making the postseason, ${name}'s ${cPct}% championship probability is the number to watch. At ${t.wins}-${t.losses} ${trendLine}. ${netrLine}`,
       ])
       continue
     }

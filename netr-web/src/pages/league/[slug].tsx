@@ -873,8 +873,13 @@ export default function PublicLeaguePage() {
                     {[0,1,2,3].map(i=><div key={i} style={{background:C.cardBg,border:'1px solid #1C1C26',borderRadius:14,padding:'18px 20px',height:90,opacity:0.5+i*0.1}}/>)}
                   </div>
                 )}
+                {!allPlayoffs&&(insights??[]).some(i=>i.magic_number!=null&&i.magic_number>0)&&(
+                  <div style={{fontSize:10,color:C.textDim,fontFamily:"'DM Mono',monospace",letterSpacing:0.5,marginBottom:4}}>
+                    Magic # = wins needed to clinch a playoff spot
+                  </div>
+                )}
                 <div style={{display:'flex',flexDirection:'column' as const,gap:12}}>
-                  {[...divInsights].sort((a,b)=>b.playoff_probability-a.playoff_probability).map((ins,idx)=>{
+                  {[...divInsights].sort((a,b)=>allPlayoffs?b.championship_probability-a.championship_probability:b.playoff_probability-a.playoff_probability).map((ins,idx)=>{
                     const isElim=ins.magic_number===null&&ins.games_played>0
                     const isClinched=ins.magic_number===0
                     const pct=allPlayoffs?ins.championship_probability:ins.playoff_probability
@@ -892,7 +897,14 @@ export default function PublicLeaguePage() {
                               <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase' as const,color:C.text}}>{ins.team_name}</span>
                               <span style={{fontSize:14,color:trendColor,fontWeight:700,flexShrink:0}}>{trendIcon}</span>
                             </div>
-                            <div style={{fontSize:11,color:C.textMuted,fontFamily:"'DM Mono',monospace"}}>{ins.wins}–{ins.losses}{ins.magic_number!=null&&ins.magic_number>0?` · Magic #${ins.magic_number}`:''}{isClinched?' · Clinched':''}{isElim?' · Eliminated':''}</div>
+                            <div style={{fontSize:11,color:C.textMuted,fontFamily:"'DM Mono',monospace"}}>
+                              {ins.wins}–{ins.losses}
+                              {ins.magic_number!=null&&ins.magic_number>0&&(
+                                <span style={{color:'#F5A623',marginLeft:4}}>· Magic #{ins.magic_number}</span>
+                              )}
+                              {isClinched&&<span> · Clinched</span>}
+                              {isElim&&<span> · Eliminated</span>}
+                            </div>
                           </div>
                           <div style={{textAlign:'center' as const,flexShrink:0}}>
                             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:24,color:isElim?C.textDim:isClinched?accent:ins.color,lineHeight:1}}>{Math.round(pct*100)}%</div>
