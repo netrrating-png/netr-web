@@ -293,9 +293,9 @@ export default function PublicLeaguePage() {
 
           {/* Badge row: active pill + season pill */}
           <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16,flexWrap:'wrap' as const}}>
-            <span style={{display:'inline-flex',alignItems:'center',gap:7,background:`${accent}14`,border:`1px solid ${accent}35`,borderRadius:99,padding:'4px 12px 4px 9px'}}>
+            <span style={{display:'inline-flex',alignItems:'center',gap:7,background:isDark?'rgba(0,0,0,0.60)':'rgba(0,0,0,0.52)',backdropFilter:'blur(8px)',border:`1px solid ${accent}`,borderRadius:99,padding:'4px 12px 4px 9px'}}>
               <span style={{width:6,height:6,borderRadius:'50%',background:accent,display:'inline-block',boxShadow:`0 0 8px ${accent}`,flexShrink:0}}/>
-              <span style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const}}>{league.is_active?'Active Season':league.sport||'League'}</span>
+              <span style={{fontSize:9,color:'#fff',fontFamily:"'DM Mono',monospace",letterSpacing:3,textTransform:'uppercase' as const}}>{league.is_active?'Active Season':league.sport||'League'}</span>
             </span>
             {league.season&&(
               <span style={{display:'inline-flex',alignItems:'center',background:isDark?'rgba(0,0,0,0.55)':'rgba(255,255,255,0.85)',...(isDark?{backdropFilter:'blur(8px)'}:{}),border:isDark?'1px solid rgba(255,255,255,0.18)':`1px solid ${C.border}`,borderRadius:99,padding:'4px 12px',fontSize:10,color:C.t90,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,fontWeight:600}}>
