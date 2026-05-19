@@ -994,7 +994,7 @@ const S: Record<string, React.CSSProperties> = {
   teamCard: { background: '#0F0F14', border: '1px solid #1C1C26', borderRadius: 12, overflow: 'hidden' },
   teamHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px', cursor: 'pointer', userSelect: 'none' as const },
   teamLeft: { display: 'flex', alignItems: 'center', gap: 14 },
-  teamLogo: { width: 40, height: 40, borderRadius: 8, objectFit: 'cover' as const, flexShrink: 0 },
+  teamLogo: { width: 40, height: 40, borderRadius: 8, objectFit: 'contain' as const, flexShrink: 0 },
   teamDot: { width: 14, height: 14, borderRadius: '50%', flexShrink: 0 },
   teamName: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 20, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
   teamCount: { fontSize: 12, color: '#6A6A82' },

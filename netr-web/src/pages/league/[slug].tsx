@@ -513,7 +513,7 @@ export default function PublicLeaguePage() {
                 <div style={{position:'absolute',top:-20,right:12,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:180,color:`${accent}04`,lineHeight:1,userSelect:'none' as const,pointerEvents:'none',letterSpacing:-8}}>1</div>
                 <div style={{position:'relative',width:72,height:72,borderRadius:16,flexShrink:0,overflow:'hidden',boxShadow:`0 0 24px ${team?.color??accent}44`}}>
                   {team?.logo_url
-                    ?<img src={team.logo_url} alt={team.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                    ?<img src={team.logo_url} alt={team.name} style={{width:'100%',height:'100%',objectFit:'contain'}}/>
                     :<div style={{width:'100%',height:'100%',background:team?`linear-gradient(135deg,${team.color},${team.color}88)`:`linear-gradient(135deg,${accent},${accent}88)`,display:'flex',alignItems:'center',justifyContent:'center'}}>
                       <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:26,color:'rgba(255,255,255,0.9)',textTransform:'uppercase' as const}}>{potw.display_name.slice(0,2)}</span>
                     </div>}
@@ -633,7 +633,7 @@ export default function PublicLeaguePage() {
                         onMouseLeave={e=>e.currentTarget.style.background='none'}>
                         <span style={{width:18,fontFamily:"'DM Mono',monospace",fontSize:11,color:top?accent:C.textDim,flexShrink:0}}>{top?'🏆':i+1}</span>
                         {tMap[s.team_id]?.logo_url
-                          ?<img src={tMap[s.team_id]?.logo_url||''} alt={s.team_name} style={{width:24,height:24,borderRadius:4,objectFit:'cover',flexShrink:0,border:`1px solid ${s.color}44`}}/>
+                          ?<img src={tMap[s.team_id]?.logo_url||''} alt={s.team_name} style={{width:24,height:24,borderRadius:4,objectFit:'contain',flexShrink:0,border:`1px solid ${s.color}44`}}/>
                           :<div style={{width:8,height:8,borderRadius:'50%',background:s.color,flexShrink:0}}/>}
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase' as const,color:top?C.text:C.textSub,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{s.team_name}</div>
@@ -678,7 +678,7 @@ export default function PublicLeaguePage() {
                       <div style={{minWidth:0}}>
                         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
                           {tMap[s.team_id]?.logo_url
-                            ?<img src={tMap[s.team_id]?.logo_url||''} alt={s.team_name} style={{width:36,height:36,borderRadius:6,objectFit:'cover',flexShrink:0,border:`1.5px solid ${s.color}55`}}/>
+                            ?<img src={tMap[s.team_id]?.logo_url||''} alt={s.team_name} style={{width:36,height:36,borderRadius:6,objectFit:'contain',flexShrink:0,border:`1.5px solid ${s.color}55`}}/>
                             :s.color&&<div style={{width:10,height:10,borderRadius:'50%',background:s.color,flexShrink:0,boxShadow:`0 0 6px ${s.color}88`}}/>}
                           <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,textTransform:'uppercase' as const,color:top?C.text:C.textSub,letterSpacing:0.5}}>{s.team_name}</span>
                         </div>
@@ -834,7 +834,7 @@ export default function PublicLeaguePage() {
                 <div style={{position:'absolute',top:0,right:0,width:80,height:80,borderRadius:'0 16px 0 80px',background:`${t.color}10`}}/>
                 <div style={{position:'relative',display:'flex',alignItems:'flex-start',gap:14}}>
                   {t.logo_url
-                    ?<img src={t.logo_url} alt={t.name} style={{width:52,height:52,borderRadius:10,objectFit:'cover' as const,flexShrink:0,border:`2px solid ${t.color}44`}}/>
+                    ?<img src={t.logo_url} alt={t.name} style={{width:52,height:52,borderRadius:10,objectFit:'contain' as const,flexShrink:0,border:`2px solid ${t.color}44`}}/>
                     :<div style={{width:52,height:52,borderRadius:12,background:`linear-gradient(135deg,${t.color},${t.color}88)`,boxShadow:`0 0 20px ${t.color}44`,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
                       <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,color:'rgba(255,255,255,0.9)',textTransform:'uppercase' as const}}>{t.name.slice(0,2)}</span>
                     </div>}
@@ -885,7 +885,7 @@ export default function PublicLeaguePage() {
                         <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12,flexWrap:'wrap' as const}}>
                           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:22,color:idx===0?accent:C.textDim,minWidth:24,flexShrink:0}}>{isClinched?'✓':isElim?'—':idx+1}</div>
                           {ins.logo_url
-                            ?<img src={ins.logo_url} alt={ins.team_name} style={{width:32,height:32,borderRadius:6,objectFit:'cover' as const,flexShrink:0,border:`1px solid ${ins.color}44`}}/>
+                            ?<img src={ins.logo_url} alt={ins.team_name} style={{width:32,height:32,borderRadius:6,objectFit:'contain' as const,flexShrink:0,border:`1px solid ${ins.color}44`}}/>
                             :<div style={{width:10,height:10,borderRadius:'50%',background:ins.color,flexShrink:0}}/>}
                           <div style={{flex:1,minWidth:120}}>
                             <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -1309,7 +1309,7 @@ export default function PublicLeaguePage() {
       {modalTeam&&(
         <Modal onClose={()=>setTeamModalId(null)}>
           <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:20,paddingBottom:20,borderBottom:'1px solid #1C1C26'}}>
-            {modalTeam.logo_url?<img src={modalTeam.logo_url} alt={modalTeam.name} style={{width:64,height:64,borderRadius:10,objectFit:'cover',border:`2px solid ${accent}`,flexShrink:0}}/>:<div style={{width:64,height:64,borderRadius:10,background:modalTeam.color,boxShadow:`0 0 20px ${modalTeam.color}44`,flexShrink:0}}/>}
+            {modalTeam.logo_url?<img src={modalTeam.logo_url} alt={modalTeam.name} style={{width:64,height:64,borderRadius:10,objectFit:'contain',border:`2px solid ${accent}`,flexShrink:0}}/>:<div style={{width:64,height:64,borderRadius:10,background:modalTeam.color,boxShadow:`0 0 20px ${modalTeam.color}44`,flexShrink:0}}/>}
             <div>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:26,textTransform:'uppercase',lineHeight:1,marginBottom:8}}>{modalTeam.name}</div>
               {sMap[modalTeam.id]&&<div style={{display:'flex',gap:16}}>
@@ -1458,7 +1458,7 @@ function GCard({g,tMap,accent,onClick,showLoc}:{g:Game;tMap:Record<string,Team>;
         {/* Home */}
         <div style={{padding:'16px 14px 16px 18px',display:'flex',flexDirection:'column',gap:4}}>
           {home?.logo_url
-            ?<img src={home.logo_url} alt={home.name} style={{width:32,height:32,borderRadius:6,objectFit:'cover',marginBottom:4}}/>
+            ?<img src={home.logo_url} alt={home.name} style={{width:32,height:32,borderRadius:6,objectFit:'contain',marginBottom:4}}/>
             :<div style={{width:32,height:32,borderRadius:8,background:home?.color??C.textFaint,boxShadow:`0 0 12px ${home?.color??C.textFaint}55`,marginBottom:4,flexShrink:0}}/>}
           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:17,textTransform:'uppercase',lineHeight:1.1,color:fin?(homeWon?C.text:C.textA0):C.text}}>{home?.name??'TBD'}</div>
           {fin&&homeWon&&<div style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase'}}>WINNER</div>}
@@ -1487,7 +1487,7 @@ function GCard({g,tMap,accent,onClick,showLoc}:{g:Game;tMap:Record<string,Team>;
         {/* Away */}
         <div style={{padding:'16px 18px 16px 14px',display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4}}>
           {away?.logo_url
-            ?<img src={away.logo_url} alt={away.name} style={{width:32,height:32,borderRadius:6,objectFit:'cover',marginBottom:4}}/>
+            ?<img src={away.logo_url} alt={away.name} style={{width:32,height:32,borderRadius:6,objectFit:'contain',marginBottom:4}}/>
             :<div style={{width:32,height:32,borderRadius:8,background:away?.color??C.textFaint,boxShadow:`0 0 12px ${away?.color??C.textFaint}55`,marginBottom:4,flexShrink:0}}/>}
           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:17,textTransform:'uppercase',lineHeight:1.1,textAlign:'right',color:fin?(!homeWon?C.text:C.textA0):C.text}}>{away?.name??'TBD'}</div>
           {fin&&!homeWon&&<div style={{fontSize:9,color:accent,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase'}}>WINNER</div>}
