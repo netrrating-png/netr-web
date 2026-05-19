@@ -141,8 +141,13 @@ function computeStrength(t: TeamData, all: TeamData[]): number {
   // Normalize NETR (range 2.0–9.9 → 0–1)
   const norm_netr = Math.min(1, Math.max(0, (t.avg_netr - 2) / 7.9))
 
-  // Weighted composite: W/L % most important, then pt diff, NETR, recent form
-  return 0.40 * win_pct + 0.30 * norm_diff + 0.20 * norm_netr + 0.10 * t.recent_form
+  // NETR drives projections early before results accumulate, then real data takes over
+  const netrW = gp < 4 ? 0.55 : gp < 8 ? 0.30 : 0.20
+  const winW  = gp < 4 ? 0.15 : gp < 8 ? 0.32 : 0.40
+  const diffW = gp < 4 ? 0.20 : gp < 8 ? 0.28 : 0.30
+  const formW = 0.10
+
+  return winW * win_pct + diffW * norm_diff + netrW * norm_netr + formW * t.recent_form
 }
 
 function runMonteCarlo(
@@ -294,22 +299,27 @@ function generateInsightTexts(
                      : formPct <= 35 ? `Recent form has been a concern — ${formPct}% in their last five games.`
                      :                `Their ${formPct}% recent win rate keeps them in the mix.`
 
-    const netrLine   = parseFloat(netr) >= 6.5 ? `Their roster NETR average of ${netr} is among the highest in the league.`
-                     : parseFloat(netr) >= 5.0 ? `A ${netr} roster NETR average gives them a solid talent base.`
-                     :                           `Developing roster depth will be key — their ${netr} NETR average leaves room to grow.`
+    const netrLine   = parseFloat(netr) >= 7.5 ? `Their ${netr} roster NETR is elite — one of the highest marks in the league and a serious title indicator.`
+                     : parseFloat(netr) >= 6.5 ? `Their ${netr} roster NETR is among the stronger marks in the league, giving them a real talent edge.`
+                     : parseFloat(netr) >= 5.5 ? `A ${netr} roster NETR puts them above the league average on paper.`
+                     : parseFloat(netr) >= 4.5 ? `Their ${netr} roster NETR is developing — this team will need to outperform their ratings to contend.`
+                     :                           `At ${netr} roster NETR, they're in the lower tier of talent coming in — but NETR is a starting point, not a ceiling.`
 
     // ── Early season ──────────────────────────────────────────────────────────
     if (lowConfidence) {
+      // Vary blurb by NETR tier so 0-0 teams each get distinct, meaningful text
+      const netrVal = parseFloat(netr)
+      const netrTierText =
+        netrVal >= 7.5 ? `Their ${netr} roster NETR is elite — the highest tier coming into this season and the main reason they're projected as a championship contender before a single meaningful game has been played. On paper, this is one of the most talented rosters in the league.`
+      : netrVal >= 6.5 ? `Their ${netr} roster NETR is one of the stronger marks in the league. With above-average talent across the board, ${name} enters the season with real built-in advantages that should show up as results accumulate.`
+      : netrVal >= 5.5 ? `Their ${netr} roster NETR is just above the league average — a solid baseline, but the gap between them and the top-tier rosters means execution and chemistry will need to close the difference.`
+      : netrVal >= 4.5 ? `Their ${netr} roster NETR sits below the league average coming in. That gap is absolutely closeable — teams outperform their NETR all the time — but it means ${name} will need to punch above their weight consistently.`
+      :                  `Their ${netr} roster NETR is in the bottom tier of the league on paper. NETR is a starting point, not a final answer — upsets happen — but this team faces the steepest climb of any roster in the league right now.`
+
       if (allMakePlayoffs) {
-        results[name] = v(t, [
-          `Only ${gp} game${gp !== 1 ? 's' : ''} in, so treat these numbers as directional rather than definitive — everyone makes the playoffs, so the real question is who wins the championship. ${name} sits at ${t.wins}-${t.losses} with ${cPct}% championship odds, but small sample sizes mean these projections will shift dramatically. Check back once the league hits five or six games played.`,
-          `It's early days for ${name} at ${t.wins}-${t.losses}. Since every team makes the playoffs, the ${cPct}% championship odds are what to watch — and they'll swing with each result at this stage. The seeding picture will get clearer around game five or six.`,
-        ])
+        results[name] = `It's the early season for ${name} at ${t.wins}-${t.losses}. Everyone makes the playoffs, so the ${cPct}% championship projection is driven almost entirely by roster talent right now — there aren't enough results yet to reshape it. ${netrTierText} These numbers will move as games get played.`
       } else {
-        results[name] = v(t, [
-          `Only ${gp} game${gp !== 1 ? 's' : ''} in, so treat these numbers as directional rather than definitive — the playoff picture won't sharpen for a few more weeks. ${name} sits at ${t.wins}-${t.losses}, but with this small a sample, every upcoming game carries outsized weight. Check back once the league hits five or six games played.`,
-          `It's early days for ${name} at ${t.wins}-${t.losses}, and the ${pPct}% playoff odds will swing dramatically with each result. Small sample sizes make any projection low-confidence right now. The real story starts to emerge around game five or six.`,
-        ])
+        results[name] = `Only ${gp} game${gp !== 1 ? 's' : ''} in for ${name} at ${t.wins}-${t.losses}. With so little data, NETR ratings are doing most of the heavy lifting behind the ${pPct}% playoff projection. ${netrTierText} The real picture sharpens around game five or six.`
       }
       continue
     }
