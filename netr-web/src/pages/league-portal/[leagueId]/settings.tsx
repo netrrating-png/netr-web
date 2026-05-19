@@ -474,13 +474,18 @@ export default function SettingsPage() {
     e.preventDefault()
     if (!newPhotoUrl.trim()) return
     setAddingPhoto(true)
-    const { data } = await supabase.from('league_gallery_photos').insert({
+    const { data, error } = await supabase.from('league_gallery_photos').insert({
       league_id: leagueId,
       photo_url: newPhotoUrl.trim(),
       caption: newPhotoCaption.trim() || null,
     }).select().single()
-    if (data) setGalleryPhotos(prev => [data, ...prev])
-    setNewPhotoUrl(''); setNewPhotoCaption('')
+    if (error) {
+      alert('Failed to add photo. Please check the URL and try again.')
+    } else if (data) {
+      setGalleryPhotos(prev => [data, ...prev])
+      setNewPhotoUrl('')
+      setNewPhotoCaption('')
+    }
     setAddingPhoto(false)
   }
 
@@ -1841,7 +1846,7 @@ export default function SettingsPage() {
                 <input value={newPhotoCaption} onChange={e => setNewPhotoCaption(e.target.value)} style={S.input} placeholder="Finals night — May 2025" />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end' as const }}>
-                <button type="submit" style={S.saveBtn} disabled={addingPhoto || !newPhotoUrl.trim()}>
+                <button type="submit" style={{ ...S.saveBtn, ...((addingPhoto || !newPhotoUrl.trim()) ? { opacity: 0.4, cursor: 'not-allowed' } : {}) }} disabled={addingPhoto || !newPhotoUrl.trim()}>
                   {addingPhoto ? 'Adding…' : '+ Add Photo'}
                 </button>
               </div>
