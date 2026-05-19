@@ -61,6 +61,10 @@ export default function SchedulePage() {
   const [divisions, setDivisions] = useState<LeagueDivision[]>([])
   const [divFilter, setDivFilter] = useState<string>('all')
 
+  // Power Rankings regeneration
+  const [regenerating, setRegenerating] = useState(false)
+  const [regenDone, setRegenDone] = useState(false)
+
   useEffect(() => {
     if (!leagueId) return
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -162,6 +166,22 @@ export default function SchedulePage() {
         headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
       }).catch(() => {})
     })
+  }
+
+  async function regenerateInsights() {
+    if (!league?.slug || regenerating) return
+    setRegenerating(true)
+    setRegenDone(false)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      await fetch(`/api/league/${league.slug}/insights`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
+      })
+      setRegenDone(true)
+      setTimeout(() => setRegenDone(false), 3000)
+    } catch {}
+    setRegenerating(false)
   }
 
   async function handleSaveSchedule() {
@@ -801,6 +821,13 @@ export default function SchedulePage() {
               </div>
             </form>
           )}
+
+          {/* Regenerate Power Rankings */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+            <button onClick={regenerateInsights} disabled={regenerating} style={{ background: 'none', border: '1px solid #2A2A38', borderRadius: 8, color: regenDone ? '#39FF14' : '#6A6A82', fontFamily: "'DM Mono', monospace", fontSize: 11, padding: '6px 14px', cursor: regenerating ? 'not-allowed' : 'pointer', opacity: regenerating ? 0.5 : 1, letterSpacing: 0.5 }}>
+              {regenerating ? 'Regenerating…' : regenDone ? '✓ Power Rankings Updated' : '↻ Regenerate Power Rankings'}
+            </button>
+          </div>
 
           {/* Completed — shown first so recently saved games are immediately visible */}
           {completed.length > 0 && (
