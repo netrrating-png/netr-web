@@ -7,6 +7,7 @@ import {
   STAT_DEFS, DEFAULT_ENABLED_STATS, StatKey,
   AggStat, emptyAgg, getStatValue, fmtStat,
 } from '../../../lib/stat-config'
+import { NetrBadge } from '../../../components/NetrBadge'
 
 type PlayerRow = {
   playerId: string
@@ -16,6 +17,7 @@ type PlayerRow = {
   teamColor: string
   gp: number
   agg: AggStat
+  netrScore: number | null
 }
 
 type RawRow = LeaguePlayerStat & {
@@ -50,14 +52,20 @@ export default function StatsPage() {
 
       const finalGames = finalGamesRes.data ?? []
       const finalGameIds = finalGames.map(g => g.id)
-      const statsRes = await supabase
-        .from('league_player_stats')
-        .select(`
-          *,
-          league_players!player_id ( display_name, jersey_number ),
-          league_teams!team_id ( name, color )
-        `)
-        .in('game_id', finalGameIds.length > 0 ? finalGameIds : ['00000000-0000-0000-0000-000000000000'])
+      const [statsRes, playersRes] = await Promise.all([
+        supabase
+          .from('league_player_stats')
+          .select(`*, league_players!player_id ( display_name, jersey_number ), league_teams!team_id ( name, color )`)
+          .in('game_id', finalGameIds.length > 0 ? finalGameIds : ['00000000-0000-0000-0000-000000000000']),
+        supabase
+          .from('league_players')
+          .select('id, profiles ( netr_score )')
+          .eq('league_id', leagueId),
+      ])
+      const netrMap: Record<string, number | null> = {}
+      for (const p of (playersRes.data ?? []) as { id: string; profiles?: { netr_score: number | null } | null }[]) {
+        netrMap[p.id] = p.profiles?.netr_score ?? null
+      }
 
       const enabled = (leagueRes.data.enabled_stats ?? DEFAULT_ENABLED_STATS) as StatKey[]
       setLeague(leagueRes.data)
@@ -91,6 +99,7 @@ export default function StatsPage() {
             gp: 0,
             agg: emptyAgg(),
             divisionId: divId,
+            netrScore: netrMap[pid] ?? null,
           }
         }
         const r = aggMap[pid]
@@ -240,6 +249,7 @@ export default function StatsPage() {
                                 <div style={S.playerCell}>
                                   {r.jerseyNumber && <span style={S.jersey}>{r.jerseyNumber}</span>}
                                   <span style={S.playerName}>{r.displayName}</span>
+                                  <NetrBadge score={r.netrScore} fontSize={11}/>
                                 </div>
                               </td>
                               <td style={S.td}>

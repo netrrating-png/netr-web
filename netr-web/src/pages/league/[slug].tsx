@@ -7,6 +7,7 @@ import { getFontFamily, getFontGF } from '../../lib/league-fonts'
 import { Globe, MapPin, Mail, X } from 'lucide-react'
 import { FaInstagram, FaXTwitter, FaFacebook, FaTiktok, FaYoutube } from 'react-icons/fa6'
 import type { InsightResult } from '../../lib/league-insights'
+import { NetrBadge, netrScoreColor } from '../../components/NetrBadge'
 
 type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null;league_font:string|null;signup_url:string|null;signup_label:string|null;rules_sections:{title:string;content:string}[]|null;about_sections:{title:string;content:string}[]|null;cross_division_play:boolean;league_theme:'dark'|'light'|null;playoff_teams:number|null }
 type LeagueSeason = { id:string;league_id:string;name:string;start_date:string|null;end_date:string|null;champion_team_id:string|null;notes:string|null;display_order:number;created_at:string }
@@ -45,17 +46,7 @@ function makeC(isDark:boolean) {
   }
 }
 const ThemeCtx = React.createContext(makeC(true))
-function netrScoreColor(s:number):string {
-  if(s>=9.5)return'#C40010'
-  if(s>=9.0)return'#FF3B30'
-  if(s>=8.0)return'#FF7A00'
-  if(s>=7.0)return'#FFC247'
-  if(s>=6.0)return'#39FF14'
-  if(s>=5.0)return'#2ECC71'
-  if(s>=4.0)return'#2DA8FF'
-  if(s>=3.0)return'#7B9FFF'
-  return'#9B8BFF'
-}
+
 type Standing = { team_id:string;team_name:string;color:string;wins:number;losses:number;pts_for:number;pts_against:number }
 type Game = { id:string;home_team_id:string;away_team_id:string;scheduled_at:string;location:string|null;status:string;home_score:number|null;away_score:number|null;game_type:string|null }
 type RawStat = { game_id:string;player_id:string;team_id:string;points:number;rebounds:number;assists:number;steals:number;blocks:number;turnovers:number;field_goals_made:number;field_goals_attempted:number;three_pointers_made:number;three_pointers_attempted:number;free_throws_made:number;free_throws_attempted:number }
@@ -199,15 +190,9 @@ export default function PublicLeaguePage() {
   const C=makeC(isDark)
   const TH:React.CSSProperties={textAlign:'center',fontSize:10,color:C.textSub,textTransform:'uppercase',letterSpacing:2,fontFamily:"'DM Mono',monospace",fontWeight:400,padding:'10px 10px'}
   const TD:React.CSSProperties={padding:'10px 10px',textAlign:'center',fontSize:14}
-  const NetrBadge=({score}:{score:number|null|undefined})=>{
-    if(score==null)return null
-    const c=netrScoreColor(score)
-    return(
-      <span onClick={e=>{e.stopPropagation();setShowNetrInfo(true)}} style={{display:'inline-flex',alignItems:'center',gap:4,background:`${c}1F`,border:`1px solid ${c}66`,borderRadius:5,color:c,fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:700,padding:'3px 8px',letterSpacing:0.4,flexShrink:0,cursor:'pointer',userSelect:'none' as const,lineHeight:'16px',boxShadow:`0 0 8px ${c}22`}}>
-        <span style={{fontSize:9,letterSpacing:1.5,opacity:0.75}}>NETR</span>{score.toFixed(2)}
-      </span>
-    )
-  }
+  const NB=({score,fontSize=12}:{score:number|null|undefined,fontSize?:number})=>(
+    <NetrBadge score={score} fontSize={fontSize} onInfoClick={()=>setShowNetrInfo(true)}/>
+  )
   const displayFont=getFontFamily(league.league_font)
   const fontGF=getFontGF(league.league_font)
   const tMap=Object.fromEntries(teams.map(t=>[t.id,t]))
@@ -523,11 +508,13 @@ export default function PublicLeaguePage() {
                     <span style={{display:'inline-block',width:5,height:5,borderRadius:'50%',background:accent,animation:'countPulse 2s ease-in-out infinite',flexShrink:0}}/>
                     Player of the Week
                   </div>
-                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:'clamp(22px,4vw,32px)',textTransform:'uppercase' as const,color:C.text,letterSpacing:0.5,lineHeight:1,marginBottom:8}}>{potw.display_name}</div>
+                  <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap' as const,marginBottom:8}}>
+                    <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:'clamp(22px,4vw,32px)',textTransform:'uppercase' as const,color:C.text,letterSpacing:0.5,lineHeight:1}}>{potw.display_name}</span>
+                    <NB score={pMap[potw.player_id]?.netr_score} fontSize={16}/>
+                  </div>
                   <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' as const}}>
                     {team&&<span style={{width:6,height:6,borderRadius:'50%',background:team.color,display:'inline-block',flexShrink:0}}/>}
                     <span style={{fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace"}}>{potw.team_name}</span>
-                    <NetrBadge score={pMap[potw.player_id]?.netr_score}/>
                   </div>
                 </div>
                 <div style={{position:'relative',flexShrink:0,textAlign:'center' as const,paddingLeft:20,borderLeft:'1px solid rgba(255,255,255,0.08)'}}>
@@ -558,8 +545,11 @@ export default function PublicLeaguePage() {
                       <div style={{fontSize:10,color:C.textSub,fontFamily:"'DM Mono',monospace",letterSpacing:2,textTransform:'uppercase' as const,marginBottom:10}}>{icon} {label} Leader</div>
                       <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:48,lineHeight:1,color:team?.color??accent,marginBottom:4}}>{leader[key]}</div>
                       <div style={{fontSize:9,color:C.textSub,fontFamily:"'DM Mono',monospace",letterSpacing:2,marginBottom:10}}>{unit}</div>
-                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,textTransform:'uppercase' as const,color:C.text}}>{leader.display_name}</div>
-                      <div style={{fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace",marginTop:2,display:'flex',alignItems:'center',gap:4}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap' as const,marginBottom:2}}>
+                        <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,textTransform:'uppercase' as const,color:C.text}}>{leader.display_name}</span>
+                        <NB score={pMap[leader.player_id]?.netr_score}/>
+                      </div>
+                      <div style={{fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace",display:'flex',alignItems:'center',gap:4}}>
                         {team&&<span style={{width:6,height:6,borderRadius:'50%',background:team.color,display:'inline-block'}}/>}
                         {leader.team_name}
                       </div>
@@ -758,7 +748,7 @@ export default function PublicLeaguePage() {
                           <div style={{fontSize:9,color:C.textSub,fontFamily:"'DM Mono',monospace",letterSpacing:2,marginBottom:10}}>{{ppg:'PTS/G',rpg:'REB/G',apg:'AST/G',spg:'STL/G',bpg:'BLK/G'}[sortBy]}</div>
                           <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' as const}}>
                             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase' as const,color:C.text}}>{p.display_name}</div>
-                            <NetrBadge score={pMap[p.player_id]?.netr_score}/>
+                            <NB score={pMap[p.player_id]?.netr_score}/>
                           </div>
                           <div style={{display:'flex',alignItems:'center',gap:4,marginTop:3}}>
                             {team&&<span style={{width:6,height:6,borderRadius:'50%',background:team.color,display:'inline-block'}}/>}
@@ -799,7 +789,7 @@ export default function PublicLeaguePage() {
                           <div>
                             <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' as const}}>
                               <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase' as const}}>{p.display_name}</span>
-                              <NetrBadge score={pMap[p.player_id]?.netr_score}/>
+                              <NB score={pMap[p.player_id]?.netr_score}/>
                             </div>
                             <div style={{fontSize:10,color:C.textSub,fontFamily:"'DM Mono',monospace",display:'flex',alignItems:'center',gap:4,marginTop:1}}><span style={{display:'inline-block',width:5,height:5,borderRadius:'50%',background:p.team_color}}/>{p.team_name}</div>
                           </div>
@@ -1227,7 +1217,7 @@ export default function PublicLeaguePage() {
                                       <span style={{width:22,textAlign:'center' as const,fontFamily:"'DM Mono',monospace",fontSize:12,color:C.textSub}}>{pi+1}</span>
                                       <span style={{width:8,height:8,borderRadius:'50%',background:p.team_color,display:'inline-block',flexShrink:0}}/>
                                       <span style={{flex:1,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,textTransform:'uppercase',color:C.text}}>{p.display_name}</span>
-                                      <NetrBadge score={pMap[p.player_id]?.netr_score}/>
+                                      <NB score={pMap[p.player_id]?.netr_score}/>
                                       <span style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:accent,fontWeight:600}}>{p.ppg.toFixed(1)}</span>
                                       <span style={{fontSize:11,color:C.textSub,fontFamily:"'DM Mono',monospace"}}>PPG</span>
                                     </div>
@@ -1300,7 +1290,7 @@ export default function PublicLeaguePage() {
                   <tbody>{tStats.map(s=>{
                     const pl=pMap[s.player_id]
                     return(<tr key={s.player_id} style={{borderBottom:'1px solid #0D0D12'}}>
-                      <td style={{...TD,textAlign:'left'}}><div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap' as const}}><span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase'}}>{pl?.display_name??'—'}</span>{pl?.jersey_number&&<span style={{color:C.textSub,fontFamily:"'DM Mono',monospace",fontSize:11}}>#{pl.jersey_number}</span>}<NetrBadge score={pl?.netr_score}/></div></td>
+                      <td style={{...TD,textAlign:'left'}}><div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap' as const}}><span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:'uppercase'}}>{pl?.display_name??'—'}</span>{pl?.jersey_number&&<span style={{color:C.textSub,fontFamily:"'DM Mono',monospace",fontSize:11}}>#{pl.jersey_number}</span>}<NB score={pl?.netr_score}/></div></td>
                       <td style={{...TD,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,color:s.points>0?accent:C.textSub}}>{s.points}</td>
                       <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:13}}>{s.rebounds}</td>
                       <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:13}}>{s.assists}</td>
@@ -1346,7 +1336,7 @@ export default function PublicLeaguePage() {
                 const ps=modalPStats.find(s=>s.player_id===p.id)
                 return(<tr key={p.id} style={{borderBottom:'1px solid #0D0D12'}}>
                   <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:C.textSub}}>{p.jersey_number??'—'}</td>
-                  <td style={{...TD,textAlign:'left'}}><div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap' as const}}>{eplPhoto(p)?<img src={eplPhoto(p)!} alt={p.display_name} style={{width:28,height:28,borderRadius:'50%',objectFit:'cover',flexShrink:0,border:'1.5px solid #2E2E3A'}}/>:<div style={{width:28,height:28,borderRadius:'50%',background:C.border,border:'1.5px solid #2E2E3A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><span style={{fontSize:11,color:C.textMuted,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700}}>{p.display_name.slice(0,1).toUpperCase()}</span></div>}<span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase'}}>{p.display_name}</span><NetrBadge score={p.netr_score}/></div>{p.position&&<div style={{fontSize:10,color:C.textSub,fontFamily:"'DM Mono',monospace"}}>{p.position}</div>}</td>
+                  <td style={{...TD,textAlign:'left'}}><div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap' as const}}>{eplPhoto(p)?<img src={eplPhoto(p)!} alt={p.display_name} style={{width:28,height:28,borderRadius:'50%',objectFit:'cover',flexShrink:0,border:'1.5px solid #2E2E3A'}}/>:<div style={{width:28,height:28,borderRadius:'50%',background:C.border,border:'1.5px solid #2E2E3A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><span style={{fontSize:11,color:C.textMuted,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700}}>{p.display_name.slice(0,1).toUpperCase()}</span></div>}<span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:'uppercase'}}>{p.display_name}</span><NB score={p.netr_score}/></div>{p.position&&<div style={{fontSize:10,color:C.textSub,fontFamily:"'DM Mono',monospace"}}>{p.position}</div>}</td>
                   {modalPStats.length>0&&<>
                     <td style={{...TD,fontFamily:"'DM Mono',monospace",fontSize:12,color:C.textSub}}>{ps?.gp??0}</td>
                     <td style={{...TD,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:17,color:ps?.ppg?accent:C.textDim}}>{ps?.ppg??'—'}</td>
