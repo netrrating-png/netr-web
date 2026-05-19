@@ -58,6 +58,7 @@ export default function TeamsPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [settingUpChats, setSettingUpChats] = useState(false)
+  const [creatingCrewFor, setCreatingCrewFor] = useState<string | null>(null)
   const [showNetrInfo, setShowNetrInfo] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
 
@@ -201,6 +202,27 @@ export default function TeamsPage() {
       setTeams(prev => prev.map(t => t.id === team.id ? { ...t, crew_id: crew.id } : t))
     }
     setSettingUpChats(false)
+  }
+
+  async function createCrewForTeam(team: TeamWithPlayers) {
+    if (!userId) return
+    setCreatingCrewFor(team.id)
+    const { data: crew } = await supabase
+      .from('crews')
+      .insert({ name: team.name, icon: 'basketball', creator_id: userId, admin_id: userId, password: Math.random().toString(36).slice(2, 10), is_public: false })
+      .select('id').single()
+    if (crew) {
+      await supabase.from('league_teams').update({ crew_id: crew.id }).eq('id', team.id)
+      const claimed = team.players.filter(p => p.is_claimed && p.profile_id)
+      if (claimed.length > 0) {
+        await supabase.from('crew_members').upsert(
+          claimed.map(p => ({ crew_id: crew.id, user_id: p.profile_id, joined_at: new Date().toISOString() })),
+          { onConflict: 'crew_id,user_id' }
+        )
+      }
+      setTeams(prev => prev.map(t => t.id === team.id ? { ...t, crew_id: crew.id } : t))
+    }
+    setCreatingCrewFor(null)
   }
 
   // ── Edit team ─────────────────────────────────────────────────
@@ -625,6 +647,16 @@ export default function TeamsPage() {
                           : `Unpaid${league?.fee_amount ? ` $${league.fee_amount.toLocaleString()}` : ''}`
                         }
                       </button>
+                      {team.crew_id
+                        ? <span style={{ fontSize: 11, color: '#39FF14', fontFamily: "'DM Mono', monospace", background: 'rgba(57,255,20,0.1)', border: '1px solid rgba(57,255,20,0.25)', borderRadius: 99, padding: '3px 9px', whiteSpace: 'nowrap' as const }}>💬 Crew Chat</span>
+                        : <button
+                            onClick={e => { e.stopPropagation(); createCrewForTeam(team) }}
+                            disabled={creatingCrewFor === team.id}
+                            style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace", background: 'rgba(106,106,130,0.08)', border: '1px solid rgba(106,106,130,0.25)', borderRadius: 99, padding: '3px 9px', cursor: 'pointer', whiteSpace: 'nowrap' as const }}
+                          >
+                            {creatingCrewFor === team.id ? 'Creating…' : '+ Create Crew Chat'}
+                          </button>
+                      }
                       <button
                         onClick={e => { e.stopPropagation(); startEdit(team) }}
                         style={S.editBtn}
