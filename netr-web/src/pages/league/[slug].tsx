@@ -8,7 +8,7 @@ import { Globe, MapPin, Mail, X } from 'lucide-react'
 import { FaInstagram, FaXTwitter, FaFacebook, FaTiktok, FaYoutube } from 'react-icons/fa6'
 import type { InsightResult } from '../../lib/league-insights'
 
-type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null;league_font:string|null;signup_url:string|null;signup_label:string|null;rules_sections:{title:string;content:string}[]|null;about_sections:{title:string;content:string}[]|null;cross_division_play:boolean;league_theme:'dark'|'light'|null;playoff_spots:number|null }
+type League = { id:string;name:string;slug:string;sport:string;season:string|null;location:string|null;description:string|null;logo_url:string|null;banner_url:string|null;accent_color:string|null;is_active:boolean;announcement:string|null;contact_info:string|null;social_links:Record<string,string>|null;league_font:string|null;signup_url:string|null;signup_label:string|null;rules_sections:{title:string;content:string}[]|null;about_sections:{title:string;content:string}[]|null;cross_division_play:boolean;league_theme:'dark'|'light'|null;playoff_teams:number|null }
 type LeagueSeason = { id:string;league_id:string;name:string;start_date:string|null;end_date:string|null;champion_team_id:string|null;notes:string|null;display_order:number;created_at:string }
 type Sponsor = { id:string;name:string;logo_url:string|null;website_url:string|null }
 type GalleryPhoto = { id:string;photo_url:string;caption:string|null;is_featured:boolean }
@@ -214,7 +214,7 @@ export default function PublicLeaguePage() {
   const pMap=Object.fromEntries(players.map(p=>[p.id,p]))
   const sMap=Object.fromEntries(standings.map(s=>[s.team_id,s]))
   const iMap=Object.fromEntries((insights??[]).map(i=>[i.team_id,i]))
-  const allMakePlayoffs=league!=null&&teams.length>0&&(league.playoff_spots??4)>=teams.length
+  const allMakePlayoffs=league!=null&&teams.length>0&&(league.playoff_teams??4)>=teams.length
   const finals=[...allGames].filter(g=>g.status==='final').sort((a,b)=>b.scheduled_at.localeCompare(a.scheduled_at))
   const upcoming=allGames.filter(g=>g.status==='scheduled')
   const pStats=computeStats(allStats,pMap,tMap)
@@ -859,7 +859,7 @@ export default function PublicLeaguePage() {
           const PowerRankings=({teamIds,label}:{teamIds:string[],label?:string})=>{
             const divInsights=(insights??[]).filter(i=>teamIds.includes(i.team_id))
             if(!insightsLoading&&divInsights.length===0) return null
-            const allPlayoffs=league!=null&&teamIds.length>0&&(league.playoff_spots??4)>=teamIds.length
+            const allPlayoffs=league!=null&&teamIds.length>0&&(league.playoff_teams??4)>=teamIds.length
             return(
               <section style={{marginTop:40,marginBottom:8}}>
                 <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>

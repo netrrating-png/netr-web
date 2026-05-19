@@ -54,7 +54,7 @@ async function fetchLeagueData(supabase: any, leagueId: string) {
     supabase.from('league_players').select('id,team_id,netr_score').eq('league_id', leagueId),
     supabase.from('league_standings').select('team_id,wins,losses,pts_for,pts_against').eq('league_id', leagueId),
     supabase.from('league_ai_insights').select('team_id,playoff_probability').eq('league_id', leagueId),
-    supabase.from('leagues').select('id,playoff_spots').eq('id', leagueId).single(),
+    supabase.from('leagues').select('id,playoff_teams').eq('id', leagueId).single(),
   ])
 
   return {
@@ -64,7 +64,7 @@ async function fetchLeagueData(supabase: any, leagueId: string) {
     standings:   (standingsRes.data ?? []) as RawStanding[],
     oldInsights: (oldInsightsRes.data ?? []) as RawInsight[],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    playoffSpots: (leagueRes.data as any)?.playoff_spots ?? 4,
+    playoffSpots: (leagueRes.data as any)?.playoff_teams ?? 4,
   }
 }
 
