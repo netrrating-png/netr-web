@@ -1830,7 +1830,7 @@ export default function SettingsPage() {
               <div>
                 <label style={S.label}>Photo URL</label>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <input value={newPhotoUrl} onChange={e => setNewPhotoUrl(e.target.value)} style={{ ...S.input, flex: 1 }} placeholder="https://res.cloudinary.com/..." />
+                  <input value={newPhotoUrl} onChange={e => setNewPhotoUrl(e.target.value)} style={{ ...S.input, flex: 1 }} placeholder="https://..." />
                   {process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME && (
                     <>
                       <input ref={photoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoFileChange} />
@@ -1839,6 +1839,12 @@ export default function SettingsPage() {
                       </button>
                     </>
                   )}
+                </div>
+                <div style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Sans', sans-serif", marginTop: 6, lineHeight: 1.5 }}>
+                  {process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+                    ? <>Tap <strong style={{ color: '#C8C8D4' }}>↑ Upload</strong> to add a photo directly from your device — easiest option. Or paste a direct image URL from any image host.</>
+                    : <>Go to <strong style={{ color: '#C8C8D4' }}>imgur.com</strong>, upload your photo, then right-click the image and choose <strong style={{ color: '#C8C8D4' }}>"Copy image address"</strong> — paste that link here. Google Photos and Instagram links won't work.</>
+                  }
                 </div>
               </div>
               <div>
