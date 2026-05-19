@@ -63,7 +63,7 @@ export default function StatsPage() {
           .eq('league_id', leagueId),
       ])
       const netrMap: Record<string, number | null> = {}
-      for (const p of (playersRes.data ?? []) as { id: string; profiles?: { netr_score: number | null } | null }[]) {
+      for (const p of (playersRes.data ?? []) as any[]) {
         netrMap[p.id] = p.profiles?.netr_score ?? null
       }
 
