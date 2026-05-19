@@ -184,7 +184,7 @@ export default function TeamsPage() {
     for (const team of teamsWithoutCrew) {
       const { data: crew } = await supabase
         .from('crews')
-        .insert({ name: team.name, icon: 'shield', creator_id: userId, admin_id: userId, password: Math.random().toString(36).slice(2, 10), is_public: false })
+        .insert({ name: team.name, icon: 'basketball', icon_url: team.logo_url ?? null, creator_id: userId, admin_id: userId, password: Math.random().toString(36).slice(2, 10), is_public: false })
         .select('id').single()
       if (!crew) continue
 
@@ -209,7 +209,7 @@ export default function TeamsPage() {
     setCreatingCrewFor(team.id)
     const { data: crew } = await supabase
       .from('crews')
-      .insert({ name: team.name, icon: 'basketball', creator_id: userId, admin_id: userId, password: Math.random().toString(36).slice(2, 10), is_public: false })
+      .insert({ name: team.name, icon: 'basketball', icon_url: team.logo_url ?? null, creator_id: userId, admin_id: userId, password: Math.random().toString(36).slice(2, 10), is_public: false })
       .select('id').single()
     if (crew) {
       await supabase.from('league_teams').update({ crew_id: crew.id }).eq('id', team.id)
