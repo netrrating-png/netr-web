@@ -124,6 +124,7 @@ export type LeagueTeam = {
   fee_note: string | null
   division_id: string | null
   available_times: string[] | null
+  crew_id: string | null
   created_at: string
 }
 
