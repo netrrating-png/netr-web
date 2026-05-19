@@ -2,6 +2,10 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { createClient } from '@supabase/supabase-js'
 import { generateLeagueInsights, fetchCachedInsights, InsightResult } from '../../../../lib/league-insights'
 
+// Bump this date whenever insight generation logic changes significantly.
+// Any cached insights older than this will be force-regenerated on next page load.
+const LAST_LOGIC_CHANGE = new Date('2026-05-19T00:00:00Z')
+
 // Allow up to 60s on Vercel Pro; hobby tier caps at 10s (insights take ~5-8s typically)
 export const config = { maxDuration: 60 }
 
@@ -31,8 +35,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .limit(1)
       .single()
 
-    const isStale = !latest?.generated_at ||
-      Date.now() - new Date(latest.generated_at).getTime() > STALE_MS
+    const generatedAt = latest?.generated_at ? new Date(latest.generated_at) : null
+    const isStale = !generatedAt ||
+      Date.now() - generatedAt.getTime() > STALE_MS ||
+      generatedAt < LAST_LOGIC_CHANGE
 
     if (!isStale) {
       const cached = await fetchCachedInsights(leagueId)
