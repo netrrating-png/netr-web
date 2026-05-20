@@ -162,16 +162,27 @@ export default function BudgetPage() {
 
   async function connectStripe() {
     setConnectingStripe(true)
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
-    const res = await fetch('/api/stripe/connect/onboard', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ leagueId }),
-    })
-    const d = await res.json()
-    if (d.url) window.location.href = d.url
-    else setConnectingStripe(false)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { setConnectingStripe(false); return }
+      const res = await fetch('/api/stripe/connect/onboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ leagueId }),
+      })
+      const d = await res.json()
+      if (d.url) {
+        window.location.href = d.url
+      } else {
+        console.error('Stripe onboard error:', d)
+        alert(d.error ?? 'Failed to connect Stripe. Check the console for details.')
+        setConnectingStripe(false)
+      }
+    } catch (err) {
+      console.error('Stripe connect failed:', err)
+      alert('Failed to connect Stripe. Please try again.')
+      setConnectingStripe(false)
+    }
   }
 
   async function savePaymentConfig() {
