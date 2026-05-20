@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect, useRef } from 'react'
-import { supabase, League, LeagueTeam } from '../../../lib/supabase'
+import { supabase, League, LeagueTeam, LeaguePlayerPayment } from '../../../lib/supabase'
 import { PortalNav } from './index'
 
 type EntryType = 'income' | 'expense'
@@ -68,6 +68,18 @@ export default function BudgetPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const formRef = useRef<HTMLDivElement>(null)
 
+  // Stripe Connect state
+  const [stripeConnected, setStripeConnected] = useState(false)
+  const [stripeComplete, setStripeComplete] = useState(false)
+  const [connectingStripe, setConnectingStripe] = useState(false)
+  const [payModes, setPayModes] = useState<string[]>([])
+  const [installCount, setInstallCount] = useState(3)
+  const [installInterval, setInstallInterval] = useState('month')
+  const [savingConfig, setSavingConfig] = useState(false)
+  const [configSaved, setConfigSaved] = useState(false)
+  const [copiedTeamId, setCopiedTeamId] = useState<string | null>(null)
+  const [playerPayments, setPlayerPayments] = useState<Record<string, LeaguePlayerPayment[]>>({})
+
   const storageKey = leagueId ? `budget_entries_${leagueId}` : null
 
   useEffect(() => {
@@ -82,6 +94,31 @@ export default function BudgetPage() {
       setLeague(leagueRes.data)
       setTeams(teamsRes.data ?? [])
 
+      // Stripe config
+      const l = leagueRes.data
+      setStripeConnected(!!l.stripe_account_id)
+      setStripeComplete(l.stripe_onboarding_complete ?? false)
+      setPayModes(l.payment_modes_enabled ?? [])
+      setInstallCount(l.installment_count ?? 3)
+      setInstallInterval(l.installment_interval ?? 'month')
+
+      // Load per-player payments for split-mode teams
+      const teamIds = (teamsRes.data ?? []).map((t: LeagueTeam) => t.id)
+      if (teamIds.length > 0) {
+        const { data: pp } = await supabase
+          .from('league_player_payments')
+          .select('*')
+          .in('team_id', teamIds)
+        if (pp) {
+          const grouped: Record<string, LeaguePlayerPayment[]> = {}
+          for (const row of pp as LeaguePlayerPayment[]) {
+            if (!grouped[row.team_id]) grouped[row.team_id] = []
+            grouped[row.team_id].push(row)
+          }
+          setPlayerPayments(grouped)
+        }
+      }
+
       const stored = localStorage.getItem(`budget_entries_${leagueId}`)
       if (stored) {
         try { setEntries(JSON.parse(stored)) } catch {}
@@ -89,6 +126,27 @@ export default function BudgetPage() {
       setLoading(false)
     })
   }, [leagueId])
+
+  // Verify Stripe onboarding when returning from Stripe dashboard
+  useEffect(() => {
+    if (!leagueId || !router.query.stripe_return || loading) return
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) return
+      const res = await fetch(`/api/stripe/connect/status?leagueId=${leagueId}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      if (res.ok) {
+        const d = await res.json()
+        setStripeConnected(d.connected)
+        setStripeComplete(d.complete)
+        if (d.complete) {
+          await supabase.from('leagues').update({ stripe_onboarding_complete: true }).eq('id', leagueId)
+        }
+      }
+      // Clean the query param without full reload
+      router.replace(`/league-portal/${leagueId}/budget`, undefined, { shallow: true })
+    })
+  }, [leagueId, router.query.stripe_return, loading])
 
   function saveEntries(next: BudgetEntry[]) {
     setEntries(next)
@@ -100,6 +158,45 @@ export default function BudgetPage() {
     await supabase.from('league_teams').update({ fee_paid: !team.fee_paid }).eq('id', team.id)
     setTeams(prev => prev.map(t => t.id === team.id ? { ...t, fee_paid: !t.fee_paid } : t))
     setSavingFee(null)
+  }
+
+  async function connectStripe() {
+    setConnectingStripe(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const res = await fetch('/api/stripe/connect/onboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ leagueId }),
+    })
+    const d = await res.json()
+    if (d.url) window.location.href = d.url
+    else setConnectingStripe(false)
+  }
+
+  async function savePaymentConfig() {
+    setSavingConfig(true)
+    await supabase.from('leagues').update({
+      payment_modes_enabled: payModes,
+      installment_count: installCount,
+      installment_interval: installInterval,
+    }).eq('id', leagueId)
+    setSavingConfig(false)
+    setConfigSaved(true)
+    setTimeout(() => setConfigSaved(false), 2500)
+  }
+
+  function togglePayMode(mode: string) {
+    setPayModes(prev => prev.includes(mode) ? prev.filter(m => m !== mode) : [...prev, mode])
+    setConfigSaved(false)
+  }
+
+  function copyPayLink(teamId: string) {
+    const url = `${window.location.origin}/pay/${leagueId}/${teamId}`
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedTeamId(teamId)
+      setTimeout(() => setCopiedTeamId(null), 2000)
+    })
   }
 
   function openAdd() {
@@ -210,6 +307,96 @@ export default function BudgetPage() {
             </div>
           </div>
 
+          {/* ── Stripe Connect banner ── */}
+          {!stripeComplete ? (
+            <div style={{ ...S.stripeCard, borderColor: stripeConnected ? 'rgba(245,197,66,0.35)' : 'rgba(57,255,20,0.2)' }}>
+              <div style={S.stripeCardLeft}>
+                <div style={S.stripeIcon}>{stripeConnected ? '⏳' : '💳'}</div>
+                <div>
+                  <div style={S.stripeTitle}>
+                    {stripeConnected ? 'Finish connecting Stripe' : 'Accept online payments'}
+                  </div>
+                  <div style={S.stripeSub}>
+                    {stripeConnected
+                      ? 'Your Stripe account was created but onboarding is not complete yet. Click to finish.'
+                      : 'Connect your Stripe account so captains and players can pay you directly. NETR takes 0%.'}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={connectStripe}
+                disabled={connectingStripe}
+                style={{ ...S.stripeBtn, opacity: connectingStripe ? 0.6 : 1, background: accentColor, color: '#040406' }}
+              >
+                {connectingStripe ? 'Redirecting…' : stripeConnected ? 'Finish Setup →' : 'Connect Stripe →'}
+              </button>
+            </div>
+          ) : (
+            <div style={{ ...S.stripeCard, borderColor: 'rgba(57,255,20,0.3)', background: 'rgba(57,255,20,0.04)' }}>
+              <div style={S.stripeCardLeft}>
+                <div style={S.stripeIcon}>✅</div>
+                <div>
+                  <div style={S.stripeTitle}>Stripe connected</div>
+                  <div style={S.stripeSub}>Payments go directly to your Stripe account. NETR takes nothing.</div>
+                </div>
+              </div>
+              <button onClick={connectStripe} disabled={connectingStripe} style={S.stripeLinkBtn}>
+                {connectingStripe ? '…' : 'Manage account ↗'}
+              </button>
+            </div>
+          )}
+
+          {/* ── Payment mode config (only when Stripe connected) ── */}
+          {stripeComplete && league.fee_amount && (
+            <div style={S.section}>
+              <div style={S.sectionHeader}>
+                <div style={S.sectionTitle}>⚙️ Payment Options</div>
+                <div style={S.sectionMeta}>Configure how teams can pay</div>
+              </div>
+              <div style={{ padding: '16px 18px' }}>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, marginBottom: 20 }}>
+                  {[
+                    { key: 'full', label: '💳 Pay in Full', desc: `One payment of $${league.fee_amount.toLocaleString()}` },
+                    { key: 'split', label: '👥 Player Split', desc: 'Each player pays their share' },
+                    { key: 'plan', label: '📅 Payment Plan', desc: 'Monthly installments' },
+                  ].map(m => (
+                    <label key={m.key} style={{ ...S.modeToggle, borderColor: payModes.includes(m.key) ? accentColor : '#2E2E3A', background: payModes.includes(m.key) ? `${accentColor}12` : '#14141C', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={payModes.includes(m.key)} onChange={() => togglePayMode(m.key)} style={{ display: 'none' }} />
+                      <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, textTransform: 'uppercase' as const, letterSpacing: 0.5, color: payModes.includes(m.key) ? accentColor : '#EEEEF5' }}>{m.label}</div>
+                      <div style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace", marginTop: 2 }}>{m.desc}</div>
+                    </label>
+                  ))}
+                </div>
+
+                {payModes.includes('plan') && (
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' as const }}>
+                    <div style={{ fontSize: 13, color: '#6A6A82' }}>Plan: </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="number" min={2} max={24} value={installCount}
+                        onChange={e => { setInstallCount(Number(e.target.value)); setConfigSaved(false) }}
+                        style={{ ...S.smallInput, width: 64 }}
+                      />
+                      <span style={{ fontSize: 13, color: '#6A6A82' }}>payments of</span>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: accentColor }}>
+                        ${(Math.round((league.fee_amount * 100) / installCount) / 100).toFixed(2)}
+                      </span>
+                      <span style={{ fontSize: 13, color: '#6A6A82' }}>per</span>
+                      <select value={installInterval} onChange={e => { setInstallInterval(e.target.value); setConfigSaved(false) }} style={S.smallSelect}>
+                        <option value="month">month</option>
+                        <option value="week">week</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                <button onClick={savePaymentConfig} disabled={savingConfig} style={{ ...S.saveConfigBtn, background: configSaved ? 'rgba(57,255,20,0.15)' : accentColor, color: configSaved ? '#39FF14' : '#040406', border: configSaved ? '1px solid rgba(57,255,20,0.4)' : 'none' }}>
+                  {savingConfig ? 'Saving…' : configSaved ? '✓ Saved' : 'Save Payment Settings'}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Summary cards */}
           <div style={S.summaryRow}>
             <div style={{ ...S.summaryCard, borderColor: 'rgba(57,255,20,0.3)' }}>
@@ -257,27 +444,59 @@ export default function BudgetPage() {
                 <div style={S.sectionMeta}>${league.fee_amount.toLocaleString()} per team · {unpaidTeams.length > 0 ? `${unpaidTeams.length} unpaid` : 'All paid ✓'}</div>
               </div>
               <div style={S.teamGrid}>
-                {teams.map(team => (
-                  <div key={team.id} style={{ ...S.teamCard, borderColor: team.fee_paid ? 'rgba(57,255,20,0.3)' : '#1C1C26' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
-                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: team.color, flexShrink: 0 }} />
-                      <span style={S.teamName}>{team.name}</span>
+                {teams.map(team => {
+                  const pp = playerPayments[team.id] ?? []
+                  const paidPlayers = pp.filter(p => p.paid_at).length
+                  const isPlan = team.payment_mode === 'plan'
+                  const isSplit = team.payment_mode === 'split'
+                  return (
+                    <div key={team.id} style={{ ...S.teamCard, borderColor: team.fee_paid ? 'rgba(57,255,20,0.3)' : '#1C1C26' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: team.color, flexShrink: 0 }} />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={S.teamName}>{team.name}</div>
+                          {isPlan && !team.fee_paid && (
+                            <div style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace" }}>
+                              Plan: {team.installments_paid ?? 0}/{team.installments_total ?? installCount} payments
+                            </div>
+                          )}
+                          {isSplit && !team.fee_paid && pp.length > 0 && (
+                            <div style={{ fontSize: 11, color: '#6A6A82', fontFamily: "'DM Mono', monospace" }}>
+                              {paidPlayers}/{pp.length} players paid
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                        <span style={{ ...S.paidBadge, background: team.fee_paid ? 'rgba(57,255,20,0.12)' : 'rgba(255,69,58,0.1)', color: team.fee_paid ? '#39FF14' : '#FF453A', borderColor: team.fee_paid ? 'rgba(57,255,20,0.3)' : 'rgba(255,69,58,0.3)' }}>
+                          {team.fee_paid ? '✓ Paid' : '✗ Unpaid'}
+                        </span>
+                        {/* Pay link (only if Stripe connected and modes configured) */}
+                        {stripeComplete && payModes.length > 0 && !team.fee_paid && (
+                          <button
+                            onClick={() => copyPayLink(team.id)}
+                            style={{ ...S.toggleBtn, color: copiedTeamId === team.id ? '#39FF14' : '#EEEEF5', borderColor: copiedTeamId === team.id ? 'rgba(57,255,20,0.4)' : '#2E2E3A' }}
+                          >
+                            {copiedTeamId === team.id ? '✓ Copied!' : '🔗 Copy link'}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => toggleFeePaid(team)}
+                          disabled={savingFee === team.id}
+                          style={{ ...S.toggleBtn, opacity: savingFee === team.id ? 0.5 : 1 }}
+                        >
+                          {savingFee === team.id ? '…' : team.fee_paid ? 'Mark Unpaid' : 'Mark Paid'}
+                        </button>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ ...S.paidBadge, background: team.fee_paid ? 'rgba(57,255,20,0.12)' : 'rgba(255,69,58,0.1)', color: team.fee_paid ? '#39FF14' : '#FF453A', borderColor: team.fee_paid ? 'rgba(57,255,20,0.3)' : 'rgba(255,69,58,0.3)' }}>
-                        {team.fee_paid ? '✓ Paid' : '✗ Unpaid'}
-                      </span>
-                      <button
-                        onClick={() => toggleFeePaid(team)}
-                        disabled={savingFee === team.id}
-                        style={{ ...S.toggleBtn, opacity: savingFee === team.id ? 0.5 : 1 }}
-                      >
-                        {savingFee === team.id ? '…' : team.fee_paid ? 'Mark Unpaid' : 'Mark Paid'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
+              {stripeComplete && payModes.length > 0 && (
+                <div style={{ padding: '12px 18px', borderTop: '1px solid #14141C', fontSize: 12, color: '#6A6A82', fontFamily: "'DM Mono', monospace" }}>
+                  💡 "Copy link" sends teams to their Stripe payment page · payments mark automatically
+                </div>
+              )}
             </div>
           ) : null}
 
@@ -542,6 +761,45 @@ const S: Record<string, React.CSSProperties> = {
     background: 'transparent', border: '1px solid #2E2E3A', borderRadius: 6,
     color: '#EEEEF5', fontSize: 12, fontFamily: "'DM Mono', monospace",
     padding: '4px 10px', cursor: 'pointer',
+  },
+
+  // Stripe Connect styles
+  stripeCard: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+    background: '#0A0A0E', border: '1px solid', borderRadius: 14, padding: '18px 22px',
+    marginBottom: 20, flexWrap: 'wrap' as const,
+  },
+  stripeCardLeft: { display: 'flex', alignItems: 'center', gap: 14, flex: 1 },
+  stripeIcon: { fontSize: 28, flexShrink: 0 },
+  stripeTitle: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 18, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 2 },
+  stripeSub: { fontSize: 13, color: '#6A6A82', maxWidth: 480 },
+  stripeBtn: {
+    border: 'none', borderRadius: 8, padding: '10px 20px',
+    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 16,
+    textTransform: 'uppercase' as const, letterSpacing: 0.5, cursor: 'pointer', flexShrink: 0,
+  },
+  stripeLinkBtn: {
+    background: 'transparent', border: '1px solid #2E2E3A', borderRadius: 8, padding: '8px 16px',
+    color: '#6A6A82', fontSize: 13, fontFamily: "'DM Mono', monospace", cursor: 'pointer', flexShrink: 0,
+  },
+  modeToggle: {
+    border: '1px solid', borderRadius: 10, padding: '12px 16px', minWidth: 160,
+    display: 'flex', flexDirection: 'column' as const,
+  },
+  saveConfigBtn: {
+    border: 'none', borderRadius: 8, padding: '10px 20px',
+    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15,
+    textTransform: 'uppercase' as const, letterSpacing: 0.5, cursor: 'pointer',
+  },
+  smallInput: {
+    background: '#0A0A0D', border: '1px solid #2E2E3A', borderRadius: 6,
+    color: '#EEEEF5', fontFamily: "'DM Mono', monospace", fontSize: 13, padding: '6px 10px',
+    outline: 'none', textAlign: 'center' as const,
+  },
+  smallSelect: {
+    background: '#0A0A0D', border: '1px solid #2E2E3A', borderRadius: 6,
+    color: '#EEEEF5', fontFamily: "'DM Mono', monospace", fontSize: 13, padding: '6px 10px',
+    outline: 'none',
   },
 
   formCard: { background: '#0F0F14', border: '1px solid #2E2E3A', borderRadius: 14, padding: '24px', marginBottom: 24 },

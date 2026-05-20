@@ -70,6 +70,11 @@ export type League = {
   game_slot_court_ids: Record<string, string> | null
   rules_sections: { title: string; content: string }[] | null
   season_end_date: string | null
+  stripe_account_id: string | null
+  stripe_onboarding_complete: boolean
+  payment_modes_enabled: string[]
+  installment_count: number
+  installment_interval: string
   created_at: string
 }
 
@@ -125,6 +130,23 @@ export type LeagueTeam = {
   division_id: string | null
   available_times: string[] | null
   crew_id: string | null
+  payment_mode: 'full' | 'split' | 'plan' | null
+  stripe_customer_id: string | null
+  stripe_subscription_id: string | null
+  installments_paid: number
+  installments_total: number | null
+  created_at: string
+}
+
+export type LeaguePlayerPayment = {
+  id: string
+  team_id: string
+  league_id: string
+  player_name: string
+  player_email: string | null
+  stripe_session_id: string | null
+  amount_cents: number
+  paid_at: string | null
   created_at: string
 }
 
