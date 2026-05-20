@@ -180,7 +180,7 @@ export default function BudgetPage() {
       if (d.url) {
         window.location.href = d.url
       } else {
-        alert(d.error ?? 'No URL returned')
+        alert(JSON.stringify(d, null, 2))
         setConnectingStripe(false)
       }
     } catch (err) {
