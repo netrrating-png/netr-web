@@ -9,8 +9,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-    if (!supabaseUrl || !serviceRoleKey) {
-      return res.status(500).json({ error: `Missing env vars: ${!supabaseUrl ? 'NEXT_PUBLIC_SUPABASE_URL ' : ''}${!serviceRoleKey ? 'SUPABASE_SERVICE_ROLE_KEY' : ''}` })
+    const stripeKey = process.env.STRIPE_SECRET_KEY
+    if (!supabaseUrl || !serviceRoleKey || !stripeKey) {
+      return res.status(500).json({
+        error: 'Missing env vars',
+        missing: {
+          NEXT_PUBLIC_SUPABASE_URL: !supabaseUrl,
+          SUPABASE_SERVICE_ROLE_KEY: !serviceRoleKey,
+          STRIPE_SECRET_KEY: !stripeKey,
+          STRIPE_KEY_LENGTH: stripeKey?.length ?? 0,
+          STRIPE_KEY_PREFIX: stripeKey?.slice(0, 7) ?? 'none',
+        }
+      })
     }
 
     const admin = createClient(supabaseUrl, serviceRoleKey)
