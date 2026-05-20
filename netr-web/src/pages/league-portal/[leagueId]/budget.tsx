@@ -170,17 +170,21 @@ export default function BudgetPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ leagueId }),
       })
-      const d = await res.json()
+      const text = await res.text()
+      let d: { url?: string; error?: string } = {}
+      try { d = JSON.parse(text) } catch {
+        alert('Server error (status ' + res.status + '): ' + text.slice(0, 300))
+        setConnectingStripe(false)
+        return
+      }
       if (d.url) {
         window.location.href = d.url
       } else {
-        console.error('Stripe onboard error:', d)
-        alert(d.error ?? 'Failed to connect Stripe. Check the console for details.')
+        alert(d.error ?? 'No URL returned')
         setConnectingStripe(false)
       }
     } catch (err) {
-      console.error('Stripe connect failed:', err)
-      alert('Failed to connect Stripe. Please try again.')
+      alert('Network error: ' + String(err))
       setConnectingStripe(false)
     }
   }
