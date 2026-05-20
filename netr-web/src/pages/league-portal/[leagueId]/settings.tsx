@@ -847,17 +847,23 @@ export default function SettingsPage() {
                   ))}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: accentColor, border: '1px solid #2A2A38', flexShrink: 0 }} />
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: /^#[0-9A-Fa-f]{6}$/.test(accentInput) ? accentInput : accentColor, border: '1px solid #2A2A38', flexShrink: 0 }} />
                   <input
                     value={accentInput}
                     onChange={e => setAccentInput(e.target.value)}
-                    onBlur={() => { if (/^#[0-9A-Fa-f]{6}$/.test(accentInput)) saveAccentColor(accentInput) }}
                     onKeyDown={e => { if (e.key === 'Enter' && /^#[0-9A-Fa-f]{6}$/.test(accentInput)) saveAccentColor(accentInput) }}
                     style={{ ...S.input, width: 120, fontFamily: "'DM Mono', monospace", fontSize: 13 }}
                     placeholder="#39FF14"
                     maxLength={7}
                   />
-                  <span style={S.hint}>Custom hex</span>
+                  <button
+                    type="button"
+                    onClick={() => { if (/^#[0-9A-Fa-f]{6}$/.test(accentInput)) saveAccentColor(accentInput) }}
+                    disabled={!/^#[0-9A-Fa-f]{6}$/.test(accentInput) || accentInput === accentColor}
+                    style={{ ...S.saveBtn, fontSize: 13, padding: '7px 16px', opacity: (!/^#[0-9A-Fa-f]{6}$/.test(accentInput) || accentInput === accentColor) ? 0.4 : 1 }}
+                  >
+                    Save
+                  </button>
                 </div>
               </div>
             </div>
