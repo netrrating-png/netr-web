@@ -30,37 +30,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   let accountId = league.stripe_account_id as string | null
 
-  // Create a new Express account if none exists
-  if (!accountId) {
-    const account = await stripe.accounts.create({
-      type: 'express',
-      capabilities: {
-        card_payments: { requested: true },
-        transfers: { requested: true },
-      },
-      business_profile: {
-        name: league.name as string,
-        product_description: 'Sports league fee collection',
-        mcc: '7941', // Professional sports clubs and promoters
-      },
+  try {
+    // Create a new Express account if none exists
+    if (!accountId) {
+      const account = await stripe.accounts.create({
+        type: 'express',
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+        business_profile: {
+          name: league.name as string,
+          product_description: 'Sports league fee collection',
+          mcc: '7941',
+        },
+      })
+      accountId = account.id
+      await admin
+        .from('leagues')
+        .update({ stripe_account_id: accountId, stripe_onboarding_complete: false })
+        .eq('id', leagueId)
+    }
+
+    const proto = req.headers['x-forwarded-proto'] ?? 'https'
+    const host = req.headers['x-forwarded-host'] ?? req.headers.host
+    const base = `${proto}://${host}`
+
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${base}/league-portal/${leagueId}/budget`,
+      return_url: `${base}/league-portal/${leagueId}/budget?stripe_return=1`,
+      type: 'account_onboarding',
     })
-    accountId = account.id
-    await admin
-      .from('leagues')
-      .update({ stripe_account_id: accountId, stripe_onboarding_complete: false })
-      .eq('id', leagueId)
+
+    return res.status(200).json({ url: accountLink.url })
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[stripe/connect/onboard]', msg)
+    return res.status(500).json({ error: msg })
   }
-
-  const proto = req.headers['x-forwarded-proto'] ?? 'https'
-  const host = req.headers['x-forwarded-host'] ?? req.headers.host
-  const base = `${proto}://${host}`
-
-  const accountLink = await stripe.accountLinks.create({
-    account: accountId,
-    refresh_url: `${base}/api/stripe/connect/onboard`,
-    return_url: `${base}/league-portal/${leagueId}/budget?stripe_return=1`,
-    type: 'account_onboarding',
-  })
-
-  return res.status(200).json({ url: accountLink.url })
 }
