@@ -3,35 +3,40 @@ import { createClient } from '@supabase/supabase-js'
 import { stripe } from '../../../../lib/stripe'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-  const admin = createClient(supabaseUrl, serviceRoleKey)
-
-  // Verify the authenticated user owns this league
-  const token = req.headers.authorization?.replace('Bearer ', '')
-  if (!token) return res.status(401).json({ error: 'Unauthorized' })
-
-  const { data: { user } } = await admin.auth.getUser(token)
-  if (!user) return res.status(401).json({ error: 'Unauthorized' })
-
-  const { leagueId } = req.body as { leagueId?: string }
-  if (!leagueId) return res.status(400).json({ error: 'leagueId required' })
-
-  const { data: league, error } = await admin
-    .from('leagues')
-    .select('id, name, stripe_account_id, stripe_onboarding_complete')
-    .eq('id', leagueId)
-    .eq('owner_id', user.id)
-    .single()
-
-  if (error || !league) return res.status(404).json({ error: 'League not found' })
-
-  let accountId = league.stripe_account_id as string | null
-
   try {
-    // Create a new Express account if none exists
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      return res.status(500).json({ error: `Missing env vars: ${!supabaseUrl ? 'NEXT_PUBLIC_SUPABASE_URL ' : ''}${!serviceRoleKey ? 'SUPABASE_SERVICE_ROLE_KEY' : ''}` })
+    }
+
+    const admin = createClient(supabaseUrl, serviceRoleKey)
+
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    if (!token) return res.status(401).json({ error: 'Unauthorized' })
+
+    const { data: { user }, error: authError } = await admin.auth.getUser(token)
+    if (authError) return res.status(401).json({ error: 'Auth error: ' + authError.message })
+    if (!user) return res.status(401).json({ error: 'Unauthorized' })
+
+    const { leagueId } = req.body as { leagueId?: string }
+    if (!leagueId) return res.status(400).json({ error: 'leagueId required' })
+
+    const { data: league, error: leagueError } = await admin
+      .from('leagues')
+      .select('id, name, stripe_account_id, stripe_onboarding_complete')
+      .eq('id', leagueId)
+      .eq('owner_id', user.id)
+      .single()
+
+    if (leagueError) return res.status(500).json({ error: 'DB error: ' + leagueError.message })
+    if (!league) return res.status(404).json({ error: 'League not found' })
+
+    let accountId = league.stripe_account_id as string | null
+
     if (!accountId) {
       const account = await stripe.accounts.create({
         type: 'express',
@@ -66,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ url: accountLink.url })
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.error('[stripe/connect/onboard]', msg)
+    console.error('[stripe/connect/onboard] unhandled:', msg)
     return res.status(500).json({ error: msg })
   }
 }
