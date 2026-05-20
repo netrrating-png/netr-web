@@ -23,12 +23,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const rawBody = await readRawBody(req)
 
-  let event: Stripe.Event
+  let thinEvent: Stripe.Event
   try {
-    event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET!)
+    thinEvent = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET!)
   } catch {
     return res.status(400).json({ error: 'Invalid webhook signature' })
   }
+
+  // Fetch full event data (thin payload mode sends only the event ID + type)
+  const event = await stripe.events.retrieve(thinEvent.id)
 
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
